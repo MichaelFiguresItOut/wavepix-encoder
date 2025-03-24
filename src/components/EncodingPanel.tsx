@@ -36,6 +36,10 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  // Add a new ref to store the file name for download
+  const downloadFileNameRef = useRef<string>("waveform-visualization.mp4");
+  // Add a new ref to store the download URL
+  const downloadUrlRef = useRef<string>("");
 
   // Set up canvas and context for encoding
   useEffect(() => {
@@ -285,10 +289,11 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     // Get file name with proper extension
     const fileName = `waveform-visualization.${fileExtension}`;
     
-    // Store the URL for later download
+    // Store the URL and filename for later download
     videoRef.current = document.createElement('video');
     videoRef.current.src = url;
-    videoRef.current.download = fileName;
+    downloadUrlRef.current = url;
+    downloadFileNameRef.current = fileName;
     
     // Show download toast
     toast({
@@ -309,8 +314,8 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     
     // Create temporary link and trigger download
     const a = document.createElement('a');
-    a.href = videoRef.current.src;
-    a.download = videoRef.current.download || "waveform-visualization.mp4";
+    a.href = downloadUrlRef.current || videoRef.current.src;
+    a.download = downloadFileNameRef.current;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
