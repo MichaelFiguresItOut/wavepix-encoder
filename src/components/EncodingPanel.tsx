@@ -36,10 +36,9 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  // Add a new ref to store the file name for download
   const downloadFileNameRef = useRef<string>("waveform-visualization.mp4");
-  // Add a new ref to store the download URL
   const downloadUrlRef = useRef<string>("");
+  const selectedMimeTypeRef = useRef<string>("");
 
   // Set up canvas and context for encoding
   useEffect(() => {
@@ -145,6 +144,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       
       // Set up audio context for visualization (but not playback)
       if (audioContextRef.current && analyserRef.current) {
+        // Create a silent offline context for visualization
         const offlineContext = new OfflineAudioContext({
           numberOfChannels: audioBuffer.numberOfChannels,
           length: audioBuffer.length,
@@ -167,10 +167,6 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
         audioStreamDestination.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
         
-        // Try multiple MIME types for better browser compatibility
-        let options = {};
-        let mimeType = '';
-        
         // Test different MIME types for compatibility, prioritize MP4
         const mimeTypes = [
           'video/mp4',
@@ -180,10 +176,13 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
           'video/webm;codecs=vp8',
         ];
         
+        // Find the first supported MIME type
+        let mimeType = '';
         for (const type of mimeTypes) {
           if (MediaRecorder.isTypeSupported(type)) {
             mimeType = type;
-            console.log(`Supported MIME type found: ${type}`);
+            console.log(`Using MIME type: ${type}`);
+            selectedMimeTypeRef.current = type;
             break;
           }
         }
@@ -192,12 +191,11 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
           throw new Error("No supported MIME type found for video encoding");
         }
         
-        options = {
+        // Options for the MediaRecorder
+        const options = {
           mimeType: mimeType,
           videoBitsPerSecond: quality * 100000 // Higher bitrate for better quality
         };
-        
-        console.log("Using MIME type:", mimeType);
         
         // Create media recorder with combined streams
         mediaRecorderRef.current = new MediaRecorder(combinedStream, options);
@@ -210,9 +208,10 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         };
         
         mediaRecorderRef.current.onstop = () => {
-          // Use MP4 extension for files if MP4 mime type was used, otherwise fallback to webm
-          const fileExtension = mimeType.includes('mp4') ? 'mp4' : 'webm';
-          const blob = new Blob(chunksRef.current, { type: mimeType });
+          // Determine the correct file extension based on the MIME type used
+          const fileExtension = selectedMimeTypeRef.current.includes('mp4') ? 'mp4' : 'webm';
+          const blob = new Blob(chunksRef.current, { type: selectedMimeTypeRef.current });
+          
           finishEncoding(blob, fileExtension);
           
           // Stop the audio source used for visualization
@@ -258,7 +257,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         // Start recording and animation
         mediaRecorderRef.current.start(100); // Collect data every 100ms
         audioSourceRef.current.start(0); // Start source for visualization
-        audioSource.start(0); // Start source for recording
+        audioSource.start(0); // Start source for recording (with audio)
         animationFrameRef.current = requestAnimationFrame(animate);
       } else {
         throw new Error("Audio context not initialized");
