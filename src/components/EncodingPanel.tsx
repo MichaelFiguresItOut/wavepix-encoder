@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -28,9 +28,100 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
   const [isEncoding, setIsEncoding] = useState(false);
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const animationFrameRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
 
-  const handleEncode = () => {
-    if (!audioBuffer) {
+  // Set up canvas and context for encoding
+  useEffect(() => {
+    if (!canvasRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = getResolutionWidth(resolution);
+      canvas.height = getResolutionHeight(resolution);
+      canvasRef.current = canvas;
+    }
+
+    if (!audioContextRef.current && audioBuffer) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 256;
+      analyserRef.current.connect(audioContextRef.current.destination);
+    }
+
+    return () => {
+      if (audioSourceRef.current) {
+        audioSourceRef.current.stop();
+        audioSourceRef.current.disconnect();
+      }
+      cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [audioBuffer, resolution]);
+
+  const getResolutionWidth = (res: string): number => {
+    switch (res) {
+      case "720p": return 1280;
+      case "1080p": return 1920;
+      case "1440p": return 2560;
+      case "4K": return 3840;
+      default: return 1920;
+    }
+  };
+
+  const getResolutionHeight = (res: string): number => {
+    switch (res) {
+      case "720p": return 720;
+      case "1080p": return 1080;
+      case "1440p": return 1440;
+      case "4K": return 2160;
+      default: return 1080;
+    }
+  };
+
+  const drawWaveform = (dataArray: Uint8Array, bufferLength: number) => {
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Background color
+    if (showBackground) {
+      ctx.fillStyle = '#0f0f0f';
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    }
+    ctx.fillRect(0, 0, width, height);
+    
+    // Calculate quality-based settings
+    const barOpacity = quality / 100;
+    const barWidth = Math.max(2, Math.floor(width / bufferLength) - 1);
+    const barColor = `rgba(59, 130, 246, ${barOpacity})`; // primary color with dynamic opacity
+    
+    // Draw the bars
+    const barHeightMultiplier = height * 0.5 * (quality / 100);
+    
+    ctx.fillStyle = barColor;
+    
+    for (let i = 0; i < bufferLength; i++) {
+      const barHeight = (dataArray[i] / 255) * barHeightMultiplier;
+      const x = i * (barWidth + 1);
+      const y = (height / 2) - (barHeight / 2);
+      
+      ctx.fillRect(x, y, barWidth, barHeight);
+    }
+  };
+
+  const handleEncode = async () => {
+    if (!audioBuffer || !canvasRef.current) {
       toast({
         variant: "destructive",
         title: "No audio loaded",
@@ -42,52 +133,146 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     setIsEncoding(true);
     setProgress(0);
     
-    // Simulate encoding progress
-    const duration = 5000; // 5 seconds for demo
-    const interval = 100;
-    const steps = duration / interval;
-    let currentStep = 0;
-    
-    const progressTimer = setInterval(() => {
-      currentStep++;
-      const newProgress = Math.min(100, Math.round((currentStep / steps) * 100));
-      setProgress(newProgress);
+    try {
+      // Set up canvas stream for recording
+      const canvas = canvasRef.current;
+      const fps = parseInt(frameRate, 10);
       
-      if (newProgress >= 100) {
-        clearInterval(progressTimer);
-        setIsEncoding(false);
-        
-        toast({
-          title: "Encoding complete",
-          description: "Your video has been successfully encoded!"
-        });
-        
-        // In a real application, we would trigger the download here
-        // For this demo, we'll show a message about the mock functionality
-        setTimeout(() => {
-          toast({
-            title: "Download available",
-            description: "Click the Download button to save your video."
-          });
-        }, 1000);
+      // Set up media recorder
+      const stream = canvas.captureStream(fps);
+      
+      // Set up audio for encoding
+      if (audioContextRef.current && analyserRef.current) {
+        audioSourceRef.current = audioContextRef.current.createBufferSource();
+        audioSourceRef.current.buffer = audioBuffer;
+        audioSourceRef.current.connect(analyserRef.current);
+      } else {
+        throw new Error("Audio context not initialized");
       }
-    }, interval);
+      
+      // Configure media recorder with good quality
+      const options = {
+        mimeType: 'video/webm;codecs=vp9',
+        videoBitsPerSecond: quality * 100000 // Higher bitrate for better quality
+      };
+      
+      mediaRecorderRef.current = new MediaRecorder(stream, options);
+      chunksRef.current = [];
+      
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+      
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        finishEncoding(blob);
+      };
+      
+      // Start the animation and recording
+      startTimeRef.current = performance.now();
+      const duration = audioBuffer.duration * 1000; // in ms
+      
+      // Set up analyzer for visualization
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const animate = (timestamp: number) => {
+        if (!analyserRef.current) return;
+        
+        // Calculate progress
+        const elapsed = timestamp - startTimeRef.current;
+        const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
+        setProgress(newProgress);
+        
+        // Draw frame
+        analyserRef.current.getByteFrequencyData(dataArray);
+        drawWaveform(dataArray, bufferLength);
+        
+        // Continue animation if not done
+        if (elapsed < duration) {
+          animationFrameRef.current = requestAnimationFrame(animate);
+        } else {
+          // Encoding complete
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+          }
+          if (audioSourceRef.current) {
+            audioSourceRef.current.stop();
+          }
+        }
+      };
+      
+      // Start recording and animation
+      mediaRecorderRef.current.start(100); // Collect data every 100ms
+      audioSourceRef.current.start(0);
+      animationFrameRef.current = requestAnimationFrame(animate);
+      
+    } catch (error) {
+      console.error("Encoding error:", error);
+      setIsEncoding(false);
+      toast({
+        variant: "destructive",
+        title: "Encoding failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred"
+      });
+    }
+  };
+
+  const finishEncoding = (blob: Blob) => {
+    setIsEncoding(false);
+    setProgress(100);
+    
+    toast({
+      title: "Encoding complete",
+      description: "Your video has been successfully encoded!"
+    });
+    
+    // Create download URL
+    const url = URL.createObjectURL(blob);
+    
+    // Get file name from the original audio or use default
+    const fileName = "waveform-visualization.webm";
+    
+    // Create temporary link and trigger download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    
+    // Show download toast
+    toast({
+      title: "Download ready",
+      description: "Click the Download button to save your video."
+    });
+    
+    // Store the URL for later download
+    videoRef.current = document.createElement('video');
+    videoRef.current.src = url;
   };
 
   const handleDownload = () => {
+    if (!videoRef.current || !videoRef.current.src) {
+      toast({
+        variant: "destructive",
+        title: "No video available",
+        description: "Please encode a video first."
+      });
+      return;
+    }
+    
+    // Create temporary link and trigger download
+    const a = document.createElement('a');
+    a.href = videoRef.current.src;
+    a.download = "waveform-visualization.webm";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
     toast({
       title: "Download started",
       description: "Your encoded video will download shortly."
     });
-    
-    // In a real application, we would provide the actual download link
-    // This is just for demonstration purposes
-    setTimeout(() => {
-      toast({
-        title: "Note",
-        description: "This is a demo. In a complete implementation, this would download the actual encoded video file."
-      });
-    }, 1500);
   };
 
   return (
