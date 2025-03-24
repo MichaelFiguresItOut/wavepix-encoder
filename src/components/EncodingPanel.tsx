@@ -150,11 +150,35 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         throw new Error("Audio context not initialized");
       }
       
-      // Configure media recorder with good quality
-      const options = {
-        mimeType: 'video/webm;codecs=vp9',
+      // Try multiple MIME types for better browser compatibility
+      let options = {};
+      let mimeType = '';
+      
+      // Test different MIME types for compatibility
+      const mimeTypes = [
+        'video/webm',
+        'video/webm;codecs=vp8',
+        'video/webm;codecs=h264',
+        'video/mp4'
+      ];
+      
+      for (const type of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
+        }
+      }
+      
+      if (!mimeType) {
+        throw new Error("No supported MIME type found for video encoding");
+      }
+      
+      options = {
+        mimeType: mimeType,
         videoBitsPerSecond: quality * 100000 // Higher bitrate for better quality
       };
+      
+      console.log("Using MIME type:", mimeType);
       
       mediaRecorderRef.current = new MediaRecorder(stream, options);
       chunksRef.current = [];
@@ -166,7 +190,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       };
       
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         finishEncoding(blob);
       };
       
