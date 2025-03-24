@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,7 +50,6 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;
-      analyserRef.current.connect(audioContextRef.current.destination);
     }
 
     return () => {
@@ -138,101 +136,129 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       const canvas = canvasRef.current;
       const fps = parseInt(frameRate, 10);
       
-      // Set up media recorder
-      const stream = canvas.captureStream(fps);
+      // Set up canvas stream
+      const canvasStream = canvas.captureStream(fps);
       
-      // Set up audio for encoding
+      // Set up audio context for visualization (but not playback)
       if (audioContextRef.current && analyserRef.current) {
+        const offlineContext = new OfflineAudioContext({
+          numberOfChannels: audioBuffer.numberOfChannels,
+          length: audioBuffer.length,
+          sampleRate: audioBuffer.sampleRate
+        });
+        
+        // Create a source for visualization only
         audioSourceRef.current = audioContextRef.current.createBufferSource();
         audioSourceRef.current.buffer = audioBuffer;
         audioSourceRef.current.connect(analyserRef.current);
-      } else {
-        throw new Error("Audio context not initialized");
-      }
-      
-      // Try multiple MIME types for better browser compatibility
-      let options = {};
-      let mimeType = '';
-      
-      // Test different MIME types for compatibility
-      const mimeTypes = [
-        'video/webm',
-        'video/webm;codecs=vp8',
-        'video/webm;codecs=h264',
-        'video/mp4'
-      ];
-      
-      for (const type of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          mimeType = type;
-          break;
-        }
-      }
-      
-      if (!mimeType) {
-        throw new Error("No supported MIME type found for video encoding");
-      }
-      
-      options = {
-        mimeType: mimeType,
-        videoBitsPerSecond: quality * 100000 // Higher bitrate for better quality
-      };
-      
-      console.log("Using MIME type:", mimeType);
-      
-      mediaRecorderRef.current = new MediaRecorder(stream, options);
-      chunksRef.current = [];
-      
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-      
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        finishEncoding(blob);
-      };
-      
-      // Start the animation and recording
-      startTimeRef.current = performance.now();
-      const duration = audioBuffer.duration * 1000; // in ms
-      
-      // Set up analyzer for visualization
-      const bufferLength = analyserRef.current.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      
-      const animate = (timestamp: number) => {
-        if (!analyserRef.current) return;
         
-        // Calculate progress
-        const elapsed = timestamp - startTimeRef.current;
-        const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
-        setProgress(newProgress);
+        // Create audio stream for recording
+        const audioStreamDestination = audioContextRef.current.createMediaStreamDestination();
+        const audioSource = audioContextRef.current.createBufferSource();
+        audioSource.buffer = audioBuffer;
+        audioSource.connect(audioStreamDestination);
         
-        // Draw frame
-        analyserRef.current.getByteFrequencyData(dataArray);
-        drawWaveform(dataArray, bufferLength);
+        // Combine canvas and audio streams
+        const combinedStream = new MediaStream();
+        canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
+        audioStreamDestination.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
         
-        // Continue animation if not done
-        if (elapsed < duration) {
-          animationFrameRef.current = requestAnimationFrame(animate);
-        } else {
-          // Encoding complete
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop();
+        // Try multiple MIME types for better browser compatibility
+        let options = {};
+        let mimeType = '';
+        
+        // Test different MIME types for compatibility, prioritize MP4
+        const mimeTypes = [
+          'video/mp4',
+          'video/mp4;codecs=h264',
+          'video/webm;codecs=h264',
+          'video/webm',
+          'video/webm;codecs=vp8',
+        ];
+        
+        for (const type of mimeTypes) {
+          if (MediaRecorder.isTypeSupported(type)) {
+            mimeType = type;
+            console.log(`Supported MIME type found: ${type}`);
+            break;
           }
+        }
+        
+        if (!mimeType) {
+          throw new Error("No supported MIME type found for video encoding");
+        }
+        
+        options = {
+          mimeType: mimeType,
+          videoBitsPerSecond: quality * 100000 // Higher bitrate for better quality
+        };
+        
+        console.log("Using MIME type:", mimeType);
+        
+        // Create media recorder with combined streams
+        mediaRecorderRef.current = new MediaRecorder(combinedStream, options);
+        chunksRef.current = [];
+        
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunksRef.current.push(e.data);
+          }
+        };
+        
+        mediaRecorderRef.current.onstop = () => {
+          // Use MP4 extension for files if MP4 mime type was used, otherwise fallback to webm
+          const fileExtension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+          const blob = new Blob(chunksRef.current, { type: mimeType });
+          finishEncoding(blob, fileExtension);
+          
+          // Stop the audio source used for visualization
           if (audioSourceRef.current) {
             audioSourceRef.current.stop();
           }
-        }
-      };
-      
-      // Start recording and animation
-      mediaRecorderRef.current.start(100); // Collect data every 100ms
-      audioSourceRef.current.start(0);
-      animationFrameRef.current = requestAnimationFrame(animate);
-      
+          
+          // Stop the audio source used for recording
+          audioSource.stop();
+        };
+        
+        // Start the animation and recording
+        startTimeRef.current = performance.now();
+        const duration = audioBuffer.duration * 1000; // in ms
+        
+        // Set up analyzer for visualization
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        const animate = (timestamp: number) => {
+          if (!analyserRef.current) return;
+          
+          // Calculate progress
+          const elapsed = timestamp - startTimeRef.current;
+          const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
+          setProgress(newProgress);
+          
+          // Draw frame
+          analyserRef.current.getByteFrequencyData(dataArray);
+          drawWaveform(dataArray, bufferLength);
+          
+          // Continue animation if not done
+          if (elapsed < duration) {
+            animationFrameRef.current = requestAnimationFrame(animate);
+          } else {
+            // Encoding complete
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+              mediaRecorderRef.current.stop();
+            }
+          }
+        };
+        
+        // Start recording and animation
+        mediaRecorderRef.current.start(100); // Collect data every 100ms
+        audioSourceRef.current.start(0); // Start source for visualization
+        audioSource.start(0); // Start source for recording
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        throw new Error("Audio context not initialized");
+      }
     } catch (error) {
       console.error("Encoding error:", error);
       setIsEncoding(false);
@@ -244,7 +270,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     }
   };
 
-  const finishEncoding = (blob: Blob) => {
+  const finishEncoding = (blob: Blob, fileExtension: string = 'mp4') => {
     setIsEncoding(false);
     setProgress(100);
     
@@ -256,23 +282,19 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     // Create download URL
     const url = URL.createObjectURL(blob);
     
-    // Get file name from the original audio or use default
-    const fileName = "waveform-visualization.webm";
+    // Get file name with proper extension
+    const fileName = `waveform-visualization.${fileExtension}`;
     
-    // Create temporary link and trigger download
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
+    // Store the URL for later download
+    videoRef.current = document.createElement('video');
+    videoRef.current.src = url;
+    videoRef.current.download = fileName;
     
     // Show download toast
     toast({
       title: "Download ready",
       description: "Click the Download button to save your video."
     });
-    
-    // Store the URL for later download
-    videoRef.current = document.createElement('video');
-    videoRef.current.src = url;
   };
 
   const handleDownload = () => {
@@ -288,7 +310,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     // Create temporary link and trigger download
     const a = document.createElement('a');
     a.href = videoRef.current.src;
-    a.download = "waveform-visualization.webm";
+    a.download = videoRef.current.download || "waveform-visualization.mp4";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
