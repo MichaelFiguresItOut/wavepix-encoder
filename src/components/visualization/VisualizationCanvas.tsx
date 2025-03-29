@@ -46,12 +46,12 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
   }, [canvasRef, onCanvasRef]);
 
   return (
-    <div className="rounded-lg border overflow-hidden h-[300px] relative bg-black/30">
+    <div className="rounded-lg border overflow-hidden h-full relative bg-black/30">
       <canvas
         ref={canvasRef}
         className="w-full h-full"
-        width={800}
-        height={300}
+        width={1200}
+        height={600}
       />
       {!audioBuffer && (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">

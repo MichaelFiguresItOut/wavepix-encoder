@@ -5,7 +5,6 @@ import Footer from "@/components/Footer";
 import AudioUploader from "@/components/AudioUploader";
 import WaveformVisualizer from "@/components/WaveformVisualizer";
 import EncodingPanel from "@/components/EncodingPanel";
-import PreviewPanel from "@/components/PreviewPanel";
 import { VisualizerSettings } from "@/hooks/useAudioVisualization";
 
 const Index = () => {
@@ -43,31 +42,25 @@ const Index = () => {
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6 animate-fade-in">
-            <div className="aspect-video w-full overflow-hidden rounded-lg glass-panel p-2">
-              <PreviewPanel 
-                audioBuffer={audioBuffer} 
-                isPlaying={isPlaying} 
-                settings={visualizerSettings} 
-              />
-            </div>
-            
-            <EncodingPanel 
-              audioBuffer={audioBuffer} 
-              isPlaying={isPlaying} 
-              onPlayPauseToggle={handlePlayPauseToggle} 
-              visualizerSettings={visualizerSettings}
-            />
-          </div>
-          
-          <div className="space-y-6 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column */}
+          <div className="space-y-6 animate-fade-in">
             <AudioUploader onAudioLoaded={handleAudioLoaded} />
             <WaveformVisualizer 
               audioBuffer={audioBuffer} 
               isPlaying={isPlaying} 
               settings={visualizerSettings}
               onSettingsChange={handleVisualizerSettingsChange}
+            />
+          </div>
+          
+          {/* Right Column */}
+          <div className="space-y-6 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+            <EncodingPanel 
+              audioBuffer={audioBuffer} 
+              isPlaying={isPlaying} 
+              onPlayPauseToggle={handlePlayPauseToggle} 
+              visualizerSettings={visualizerSettings}
             />
           </div>
         </div>

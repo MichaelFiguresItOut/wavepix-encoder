@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AudioWaveform } from "lucide-react";
 import { VisualizerSettings } from "@/hooks/useAudioVisualization";
@@ -9,17 +9,16 @@ import VisualizationSettings from "./visualization/VisualizationSettings";
 interface WaveformVisualizerProps {
   audioBuffer: AudioBuffer | null;
   isPlaying: boolean;
-  onSettingsChange: (settings: VisualizerSettings) => void; // Add this new prop
-  settings: VisualizerSettings; // Add this new prop
+  onSettingsChange: (settings: VisualizerSettings) => void;
+  settings: VisualizerSettings;
 }
 
 const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ 
   audioBuffer, 
   isPlaying,
-  onSettingsChange, // Receive callback to update settings in parent
-  settings // Receive settings from parent
+  onSettingsChange,
+  settings
 }) => {
-  // Remove local state since we're using props
   const handleSettingsChange = (newSettings: VisualizerSettings) => {
     onSettingsChange(newSettings);
   };
@@ -29,17 +28,20 @@ const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <AudioWaveform className="h-5 w-5 text-primary" />
-          Waveform Visualizer
+          Audio Visualization
         </CardTitle>
-        <CardDescription>Customize your audio visualization</CardDescription>
+        <CardDescription>Visualize and customize your audio</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <VisualizationCanvas 
-            audioBuffer={audioBuffer}
-            isPlaying={isPlaying}
-            settings={settings}
-          />
+        <div className="space-y-6">
+          {/* Make the visualization canvas taller */}
+          <div className="h-[400px]">
+            <VisualizationCanvas 
+              audioBuffer={audioBuffer}
+              isPlaying={isPlaying}
+              settings={settings}
+            />
+          </div>
           
           <VisualizationSettings 
             settings={settings}
