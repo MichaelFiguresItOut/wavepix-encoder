@@ -1,15 +1,27 @@
 
-import React, { useRef, useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { renderVisualization } from "@/utils/visualizationRenderer";
-import { VisualizerSettings } from "@/hooks/useAudioVisualization";
+import { useEffect, useRef, useState } from "react";
 
-interface PreviewPanelProps {
-  audioBuffer: AudioBuffer | null;
-  isPlaying: boolean;
+export interface VisualizerSettings {
+  type: "bars" | "wave" | "circle" | "line" | "siri" | "dots" | "formation" | "multiline" | "stack";
+  barWidth: number;
+  color: string;
+  sensitivity: number;
+  smoothing: number;
+  showMirror: boolean;
+  rotationSpeed: number;
 }
 
-const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) => {
+interface UseAudioVisualizationProps {
+  audioBuffer: AudioBuffer | null;
+  isPlaying: boolean;
+  initialSettings?: Partial<VisualizerSettings>;
+}
+
+export const useAudioVisualization = ({
+  audioBuffer,
+  isPlaying,
+  initialSettings = {}
+}: UseAudioVisualizationProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -18,16 +30,17 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) =
   const rotationAngleRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
   
-  const [settings] = useState<VisualizerSettings>({
-    type: "siri", // Default to Siri visualization for preview
+  const [settings, setSettings] = useState<VisualizerSettings>({
+    type: "bars",
     barWidth: 5,
     color: "#3B82F6",
     sensitivity: 1.5,
-    smoothing: 0.8,
+    smoothing: 0.5,
     showMirror: false,
-    rotationSpeed: 0.2
+    rotationSpeed: 0.2,
+    ...initialSettings
   });
-  
+
   // Initialize audio context and analyzer
   useEffect(() => {
     if (!audioBuffer) return;
@@ -36,7 +49,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) =
     audioContextRef.current = audioContext;
     
     const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 512; // Higher resolution
+    analyser.fftSize = 512; // Increased for better resolution
     analyser.smoothingTimeConstant = settings.smoothing;
     analyserRef.current = analyser;
     
@@ -45,7 +58,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) =
         audioContextRef.current?.close();
       }
     };
-  }, [audioBuffer, settings.smoothing]);
+  }, [audioBuffer]);
   
   // Handle play/pause
   useEffect(() => {
@@ -67,9 +80,6 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) =
       
       // Reset time reference for animations
       timeRef.current = 0;
-      
-      // Start visualization
-      startVisualization();
     } else {
       // Stop playback
       if (audioSourceRef.current) {
@@ -89,8 +99,22 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) =
       }
     };
   }, [isPlaying, audioBuffer]);
+  
+  // Effect for updating analyzer settings
+  useEffect(() => {
+    if (analyserRef.current) {
+      analyserRef.current.smoothingTimeConstant = settings.smoothing;
+    }
+  }, [settings.smoothing]);
 
-  const startVisualization = () => {
+  // This function will be used to start the visualization process
+  const startVisualization = (renderFunction: (
+    timestamp: number,
+    analyser: AnalyserNode,
+    canvas: HTMLCanvasElement,
+    settings: VisualizerSettings,
+    rotationAngle: number
+  ) => void) => {
     if (!canvasRef.current || !analyserRef.current) return;
     
     const canvas = canvasRef.current;
@@ -109,40 +133,17 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) =
       // Update rotation angle for circle visualization
       rotationAngleRef.current += settings.rotationSpeed * (deltaTime / 1000);
       
-      // Clear canvas and draw dark background
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Use our shared rendering function
-      renderVisualization(timestamp, analyser, canvas, settings, rotationAngleRef.current);
+      renderFunction(timestamp, analyser, canvas, settings, rotationAngleRef.current);
     };
     
     renderFrame(0);
   };
 
-  return (
-    <Card className="w-full h-full glass-panel overflow-hidden">
-      <CardContent className="p-0 h-full">
-        <div className="relative w-full h-full bg-gradient-to-b from-black/80 to-black">
-          <canvas
-            ref={canvasRef}
-            className="w-full h-full"
-            width={800}
-            height={300}
-          />
-          {!audioBuffer && (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-center p-4">
-              Upload an audio file and press play to preview the visualization
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return {
+    canvasRef,
+    settings,
+    setSettings,
+    startVisualization,
+    animationRef
+  };
 };
-
-export default PreviewPanel;
