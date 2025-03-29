@@ -39,6 +39,9 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
   const downloadFileNameRef = useRef<string>("waveform-visualization.mp4");
   const downloadUrlRef = useRef<string>("");
   const selectedMimeTypeRef = useRef<string>("");
+  
+  // Explicitly force MP4 encoding if possible
+  const preferredMimeType = "video/mp4";
 
   // Set up canvas and context for encoding
   useEffect(() => {
@@ -167,28 +170,52 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
         audioStreamDestination.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
         
-        // Test different MIME types for compatibility, prioritize MP4
+        // Test different MIME types for compatibility, prioritize MP4 more aggressively
         const mimeTypes = [
           'video/mp4',
+          'video/mp4;codecs=h264,aac',
           'video/mp4;codecs=h264',
+          'video/mp4;codecs=avc1',
           'video/webm;codecs=h264',
           'video/webm',
+          'video/webm;codecs=vp8,opus',
           'video/webm;codecs=vp8',
         ];
         
-        // Find the first supported MIME type
+        // Find the first supported MIME type, prioritizing MP4
         let mimeType = '';
         for (const type of mimeTypes) {
           if (MediaRecorder.isTypeSupported(type)) {
             mimeType = type;
             console.log(`Using MIME type: ${type}`);
             selectedMimeTypeRef.current = type;
+            
+            // If we found an MP4 type, break immediately
+            if (type.includes('mp4')) {
+              console.log("Found MP4 support!");
+              break;
+            }
+            
+            // If this is the first compatible type but not MP4, keep searching
+            if (!mimeType.includes('mp4')) {
+              continue;
+            }
+            
             break;
           }
         }
         
         if (!mimeType) {
           throw new Error("No supported MIME type found for video encoding");
+        }
+        
+        // Log if we couldn't use MP4
+        if (!mimeType.includes('mp4')) {
+          console.warn("MP4 not supported by this browser, using fallback format:", mimeType);
+          toast({
+            title: "MP4 Not Supported",
+            description: "Your browser doesn't support MP4 encoding. Using WebM instead.",
+          });
         }
         
         // Options for the MediaRecorder
