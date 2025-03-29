@@ -19,6 +19,35 @@ export const getAverageFrequency = (dataArray: Uint8Array, start: number, end: n
   return sum / (endIndex - startIndex) / 255;
 };
 
+// Helper function to properly format colors with opacity
+export const formatColorWithOpacity = (color: string, opacity: number): string => {
+  // If the color is already a hex value with #
+  if (color.startsWith('#')) {
+    // Convert hex to rgb
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  
+  // If the color is already in rgb format
+  if (color.startsWith('rgb(')) {
+    // Extract rgb values
+    const rgbValues = color.match(/\d+/g);
+    if (rgbValues && rgbValues.length >= 3) {
+      return `rgba(${rgbValues[0]}, ${rgbValues[1]}, ${rgbValues[2]}, ${opacity})`;
+    }
+  }
+  
+  // If the color is already in rgba format, just return it
+  if (color.startsWith('rgba(')) {
+    return color;
+  }
+  
+  // Default fallback
+  return `rgba(0, 0, 0, ${opacity})`;
+};
+
 export const drawBars = (
   ctx: CanvasRenderingContext2D,
   dataArray: Uint8Array,
@@ -628,10 +657,10 @@ export const drawMultilineAnimation = (
   ];
   
   // Line colors (base color and variations)
-  const baseColor = settings.color.slice(1); // Remove # from hex
-  const r = parseInt(baseColor.slice(0, 2), 16);
-  const g = parseInt(baseColor.slice(2, 4), 16);
-  const b = parseInt(baseColor.slice(4, 6), 16);
+  const baseColor = settings.color.startsWith('#') ? settings.color.slice(1) : settings.color; // Remove # from hex if present
+  const r = settings.color.startsWith('#') ? parseInt(baseColor.slice(0, 2), 16) : 59; // Default to blue if not hex
+  const g = settings.color.startsWith('#') ? parseInt(baseColor.slice(2, 4), 16) : 130;
+  const b = settings.color.startsWith('#') ? parseInt(baseColor.slice(4, 6), 16) : 246;
   
   const lineColors = [
     `rgb(${r}, ${g}, ${b})`,
@@ -698,10 +727,11 @@ export const drawMultilineAnimation = (
     ctx.moveTo(x, lineHeight);
     ctx.lineTo(x, lineHeight * lineCount);
     
-    // Gradient for vertical lines
+    // Gradient for vertical lines - FIX HERE: Proper color formatting
     const gradient = ctx.createLinearGradient(0, lineHeight, 0, lineHeight * lineCount);
     for (let j = 0; j < lineCount; j++) {
-      gradient.addColorStop(j / (lineCount - 1), `${lineColors[j]}44`);
+      // Using our helper function to properly format colors with opacity
+      gradient.addColorStop(j / (lineCount - 1), formatColorWithOpacity(lineColors[j], 0.27)); // Using 0.27 instead of "44"
     }
     
     ctx.strokeStyle = gradient;
@@ -728,10 +758,10 @@ export const drawStackAnimation = (
   const layerHeight = canvasHeight / layerCount;
   
   // Create color gradient across layers
-  const baseColor = settings.color.slice(1); // Remove # from hex
-  const r = parseInt(baseColor.slice(0, 2), 16);
-  const g = parseInt(baseColor.slice(2, 4), 16);
-  const b = parseInt(baseColor.slice(4, 6), 16);
+  const baseColor = settings.color.startsWith('#') ? settings.color.slice(1) : settings.color; // Remove # from hex if present
+  const r = settings.color.startsWith('#') ? parseInt(baseColor.slice(0, 2), 16) : 59; // Default to blue if not hex
+  const g = settings.color.startsWith('#') ? parseInt(baseColor.slice(2, 4), 16) : 130;
+  const b = settings.color.startsWith('#') ? parseInt(baseColor.slice(4, 6), 16) : 246;
   
   // Draw from bottom to top
   for (let layer = 0; layer < layerCount; layer++) {
@@ -805,10 +835,11 @@ export const drawStackAnimation = (
     
     ctx.lineTo(points[points.length-1].x, points[points.length-1].y);
     
-    // Fill with gradient
+    // Fill with gradient - FIX HERE: Proper color formatting
     const gradient = ctx.createLinearGradient(0, y, 0, canvasHeight);
-    gradient.addColorStop(0, `${layerColor}99`);
-    gradient.addColorStop(1, `${layerColor}33`);
+    // Using our helper function to properly format colors with opacity
+    gradient.addColorStop(0, formatColorWithOpacity(layerColor, 0.6)); // Using 0.6 instead of "99"
+    gradient.addColorStop(1, formatColorWithOpacity(layerColor, 0.2)); // Using 0.2 instead of "33"
     
     ctx.fillStyle = gradient;
     ctx.fill();
@@ -830,7 +861,8 @@ export const drawStackAnimation = (
       ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, points[i+1].x, points[i+1].y);
     }
     
-    ctx.strokeStyle = `${layerColor}CC`;
+    // FIX HERE: Proper color formatting for stroke
+    ctx.strokeStyle = formatColorWithOpacity(layerColor, 0.8); // Using 0.8 instead of "CC"
     ctx.lineWidth = 2;
     ctx.stroke();
   }
