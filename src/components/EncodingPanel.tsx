@@ -40,9 +40,6 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
   const downloadUrlRef = useRef<string>("");
   const selectedMimeTypeRef = useRef<string>("");
   
-  // Explicitly force MP4 encoding if possible
-  const preferredMimeType = "video/mp4";
-
   // Set up canvas and context for encoding
   useEffect(() => {
     if (!canvasRef.current) {
@@ -170,62 +167,44 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
         audioStreamDestination.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
         
-        // Test different MIME types for compatibility, prioritize MP4 more aggressively
-        const mimeTypes = [
+        // Only MP4 MIME types to try
+        const mp4MimeTypes = [
           'video/mp4',
+          'video/mp4;codecs=h264,mp4a.40.2',
+          'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
           'video/mp4;codecs=h264,aac',
-          'video/mp4;codecs=h264',
-          'video/mp4;codecs=avc1',
-          'video/webm;codecs=h264',
-          'video/webm',
-          'video/webm;codecs=vp8,opus',
-          'video/webm;codecs=vp8',
+          'video/quicktime',  // Sometimes used for MP4 on Safari
+          'video/x-mp4'       // Alternative MP4 MIME type
         ];
         
-        // Find the first supported MIME type, prioritizing MP4
-        let mimeType = '';
-        for (const type of mimeTypes) {
+        // Check if any MP4 format is supported
+        let mp4Supported = false;
+        let selectedMimeType = '';
+        
+        for (const type of mp4MimeTypes) {
           if (MediaRecorder.isTypeSupported(type)) {
-            mimeType = type;
-            console.log(`Using MIME type: ${type}`);
+            mp4Supported = true;
+            selectedMimeType = type;
             selectedMimeTypeRef.current = type;
-            
-            // If we found an MP4 type, break immediately
-            if (type.includes('mp4')) {
-              console.log("Found MP4 support!");
-              break;
-            }
-            
-            // If this is the first compatible type but not MP4, keep searching
-            if (!mimeType.includes('mp4')) {
-              continue;
-            }
-            
+            console.log(`Found supported MP4 format: ${type}`);
             break;
           }
         }
         
-        if (!mimeType) {
-          throw new Error("No supported MIME type found for video encoding");
+        if (!mp4Supported) {
+          throw new Error("MP4 encoding is not supported in this browser");
         }
         
-        // Log if we couldn't use MP4
-        if (!mimeType.includes('mp4')) {
-          console.warn("MP4 not supported by this browser, using fallback format:", mimeType);
-          toast({
-            title: "MP4 Not Supported",
-            description: "Your browser doesn't support MP4 encoding. Using WebM instead.",
-          });
-        }
+        console.log(`Using MP4 format with MIME type: ${selectedMimeType}`);
         
-        // Options for the MediaRecorder
-        const options = {
-          mimeType: mimeType,
-          videoBitsPerSecond: quality * 100000 // Higher bitrate for better quality
+        // Set up MediaRecorder with MP4 options
+        const recorderOptions = {
+          mimeType: selectedMimeType,
+          videoBitsPerSecond: quality * 100000  // Adjust bitrate based on quality setting
         };
         
-        // Create media recorder with combined streams
-        mediaRecorderRef.current = new MediaRecorder(combinedStream, options);
+        // Create and configure the MediaRecorder
+        mediaRecorderRef.current = new MediaRecorder(combinedStream, recorderOptions);
         chunksRef.current = [];
         
         mediaRecorderRef.current.ondataavailable = (e) => {
@@ -235,11 +214,10 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         };
         
         mediaRecorderRef.current.onstop = () => {
-          // Determine the correct file extension based on the MIME type used
-          const fileExtension = selectedMimeTypeRef.current.includes('mp4') ? 'mp4' : 'webm';
-          const blob = new Blob(chunksRef.current, { type: selectedMimeTypeRef.current });
+          // Always use MP4 extension
+          const blob = new Blob(chunksRef.current, { type: selectedMimeType });
           
-          finishEncoding(blob, fileExtension);
+          finishEncoding(blob, 'mp4');
           
           // Stop the audio source used for visualization
           if (audioSourceRef.current) {
@@ -294,7 +272,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       setIsEncoding(false);
       toast({
         variant: "destructive",
-        title: "Encoding failed",
+        title: "MP4 Encoding Failed",
         description: error instanceof Error ? error.message : "An unknown error occurred"
       });
     }
@@ -306,7 +284,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     
     toast({
       title: "Encoding complete",
-      description: "Your video has been successfully encoded!"
+      description: "Your MP4 video has been successfully encoded!"
     });
     
     // Create download URL
@@ -323,7 +301,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     
     // Show download toast
     toast({
-      title: "Download ready",
+      title: "MP4 Download ready",
       description: "Click the Download button to save your video."
     });
   };
