@@ -8,17 +8,21 @@ import { Slider } from "@/components/ui/slider";
 import { Video, Play, Pause, Download } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
+import { VisualizerSettings } from "@/hooks/useAudioVisualization";
+import { renderVisualization } from "@/utils/visualizationRenderer";
 
 interface EncodingPanelProps {
   audioBuffer: AudioBuffer | null;
   isPlaying: boolean;
   onPlayPauseToggle: () => void;
+  visualizerSettings: VisualizerSettings; // Add this new prop
 }
 
 const EncodingPanel: React.FC<EncodingPanelProps> = ({ 
   audioBuffer, 
   isPlaying,
-  onPlayPauseToggle 
+  onPlayPauseToggle,
+  visualizerSettings // Use the visualizer settings from props
 }) => {
   const [resolution, setResolution] = useState("1080p");
   const [frameRate, setFrameRate] = useState("30");
@@ -84,7 +88,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     }
   };
 
-  const drawWaveform = (dataArray: Uint8Array, bufferLength: number) => {
+  const drawWaveform = (dataArray: Uint8Array, bufferLength: number, timestamp: number) => {
     if (!canvasRef.current) return;
     
     const canvas = canvasRef.current;
@@ -102,23 +106,14 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     }
     ctx.fillRect(0, 0, width, height);
     
-    // Calculate quality-based settings
-    const barOpacity = quality / 100;
-    const barWidth = Math.max(2, Math.floor(width / bufferLength) - 1);
-    const barColor = `rgba(59, 130, 246, ${barOpacity})`; // primary color with dynamic opacity
-    
-    // Draw the bars
-    const barHeightMultiplier = height * 0.5 * (quality / 100);
-    
-    ctx.fillStyle = barColor;
-    
-    for (let i = 0; i < bufferLength; i++) {
-      const barHeight = (dataArray[i] / 255) * barHeightMultiplier;
-      const x = i * (barWidth + 1);
-      const y = (height / 2) - (barHeight / 2);
-      
-      ctx.fillRect(x, y, barWidth, barHeight);
-    }
+    // Use the shared renderVisualization function with the visualizer settings
+    renderVisualization(
+      timestamp,
+      analyserRef.current!,
+      canvas,
+      visualizerSettings,
+      (timestamp / 1000) * visualizerSettings.rotationSpeed
+    );
   };
 
   const handleEncode = async () => {
@@ -244,9 +239,9 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
           const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
           setProgress(newProgress);
           
-          // Draw frame
+          // Draw frame using the provided visualizerSettings
           analyserRef.current.getByteFrequencyData(dataArray);
-          drawWaveform(dataArray, bufferLength);
+          drawWaveform(dataArray, bufferLength, timestamp);
           
           // Continue animation if not done
           if (elapsed < duration) {

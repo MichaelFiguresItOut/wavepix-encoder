@@ -9,21 +9,20 @@ import VisualizationSettings from "./visualization/VisualizationSettings";
 interface WaveformVisualizerProps {
   audioBuffer: AudioBuffer | null;
   isPlaying: boolean;
+  onSettingsChange: (settings: VisualizerSettings) => void; // Add this new prop
+  settings: VisualizerSettings; // Add this new prop
 }
 
 const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ 
   audioBuffer, 
-  isPlaying 
+  isPlaying,
+  onSettingsChange, // Receive callback to update settings in parent
+  settings // Receive settings from parent
 }) => {
-  const [settings, setSettings] = useState<VisualizerSettings>({
-    type: "bars",
-    barWidth: 5,
-    color: "#3B82F6",
-    sensitivity: 1.5,
-    smoothing: 0.5,
-    showMirror: false,
-    rotationSpeed: 0.2
-  });
+  // Remove local state since we're using props
+  const handleSettingsChange = (newSettings: VisualizerSettings) => {
+    onSettingsChange(newSettings);
+  };
 
   return (
     <Card className="w-full encoder-section">
@@ -44,7 +43,7 @@ const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
           
           <VisualizationSettings 
             settings={settings}
-            onSettingsChange={setSettings}
+            onSettingsChange={handleSettingsChange}
           />
         </div>
       </CardContent>

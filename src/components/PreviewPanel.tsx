@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { renderVisualization } from "@/utils/visualizationRenderer";
@@ -7,9 +6,14 @@ import { VisualizerSettings } from "@/hooks/useAudioVisualization";
 interface PreviewPanelProps {
   audioBuffer: AudioBuffer | null;
   isPlaying: boolean;
+  settings: VisualizerSettings; // Add this new prop
 }
 
-const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) => {
+const PreviewPanel: React.FC<PreviewPanelProps> = ({ 
+  audioBuffer, 
+  isPlaying,
+  settings // Use the visualizer settings from props
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -18,15 +22,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) =
   const rotationAngleRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
   
-  const [settings] = useState<VisualizerSettings>({
-    type: "siri", // Default to Siri visualization for preview
-    barWidth: 5,
-    color: "#3B82F6",
-    sensitivity: 1.5,
-    smoothing: 0.8,
-    showMirror: false,
-    rotationSpeed: 0.2
-  });
+  // Remove local settings state since we're using props now
   
   // Initialize audio context and analyzer
   useEffect(() => {
@@ -117,7 +113,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ audioBuffer, isPlaying }) =
       ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Use our shared rendering function
+      // Use our shared rendering function with the settings from props
       renderVisualization(timestamp, analyser, canvas, settings, rotationAngleRef.current);
     };
     
