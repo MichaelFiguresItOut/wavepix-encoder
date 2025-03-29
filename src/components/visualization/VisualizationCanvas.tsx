@@ -16,11 +16,16 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
   settings,
   onCanvasRef
 }) => {
-  const { canvasRef, startVisualization, animationRef } = useAudioVisualization({
+  const { canvasRef, startVisualization, animationRef, settings: hookSettings, setSettings } = useAudioVisualization({
     audioBuffer,
     isPlaying,
     initialSettings: settings
   });
+  
+  // Update hook settings when component settings change
+  useEffect(() => {
+    setSettings(settings);
+  }, [settings, setSettings]);
   
   // Start visualization when playing
   useEffect(() => {
@@ -31,7 +36,7 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
         cancelAnimationFrame(animationRef.current);
       }
     }
-  }, [isPlaying, settings]);
+  }, [isPlaying, settings, startVisualization, animationRef]);
   
   // Pass the canvas ref to parent if needed
   useEffect(() => {
