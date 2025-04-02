@@ -38,63 +38,72 @@ export const renderVisualization = (
         barWidth: settings.barWidth,
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     case "wave":
       drawWave(ctx, dataArray, canvas, bufferLength, {
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     case "circle":
       drawCircle(ctx, dataArray, canvas, bufferLength, rotationAngle, {
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     case "line":
       drawLineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     case "siri":
       drawSiriAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     case "dots":
       drawDotsAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     case "formation":
       drawFormationAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     case "multiline":
       drawMultilineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     case "stack":
       drawStackAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
       break;
     default:
@@ -102,7 +111,8 @@ export const renderVisualization = (
         barWidth: settings.barWidth,
         color: settings.color,
         sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror
+        showMirror: settings.showMirror,
+        orientation: settings.orientation
       });
   }
 };

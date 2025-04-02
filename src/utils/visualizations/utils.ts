@@ -53,6 +53,7 @@ export interface VisualizationSettings {
   color: string;
   sensitivity: number;
   showMirror: boolean;
+  orientation: "horizontal" | "vertical" | "both";
 }
 
 // Bar-specific settings

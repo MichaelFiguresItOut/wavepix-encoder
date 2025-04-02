@@ -20,7 +20,8 @@ const Index = () => {
     sensitivity: 1.5,
     smoothing: 0.5,
     showMirror: false,
-    rotationSpeed: 0.2
+    rotationSpeed: 0.2,
+    orientation: "horizontal"
   });
 
   const handleAudioLoaded = (file: File, buffer: AudioBuffer) => {

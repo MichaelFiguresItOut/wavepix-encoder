@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { VisualizerSettings } from "@/hooks/useAudioVisualization";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { VisualizationOrientation, VisualizerSettings } from "@/hooks/useAudioVisualization";
 
 interface VisualizationSettingsProps {
   settings: VisualizerSettings;
@@ -82,6 +83,31 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               value={[settings.rotationSpeed]} 
               onValueChange={([value]) => handleSettingChange("rotationSpeed", value)}
             />
+          </div>
+        )}
+
+        {/* New orientation control */}
+        {settings.type !== "circle" && (
+          <div className="space-y-2">
+            <Label>Orientation</Label>
+            <RadioGroup 
+              value={settings.orientation} 
+              onValueChange={(value) => handleSettingChange("orientation", value as VisualizationOrientation)}
+              className="flex space-x-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="horizontal" id="horizontal" />
+                <Label htmlFor="horizontal">Horizontal</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="vertical" id="vertical" />
+                <Label htmlFor="vertical">Vertical</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="both" id="both" />
+                <Label htmlFor="both">Both</Label>
+              </div>
+            </RadioGroup>
           </div>
         )}
       </div>

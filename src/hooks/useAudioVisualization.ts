@@ -1,6 +1,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+export type VisualizationOrientation = "horizontal" | "vertical" | "both";
+
 export interface VisualizerSettings {
   type: "bars" | "wave" | "circle" | "line" | "siri" | "dots" | "formation" | "multiline" | "stack";
   barWidth: number;
@@ -9,6 +11,7 @@ export interface VisualizerSettings {
   smoothing: number;
   showMirror: boolean;
   rotationSpeed: number;
+  orientation: VisualizationOrientation;
 }
 
 interface UseAudioVisualizationProps {
@@ -38,6 +41,7 @@ export const useAudioVisualization = ({
     smoothing: 0.5,
     showMirror: false,
     rotationSpeed: 0.2,
+    orientation: "horizontal",
     ...initialSettings
   });
 
