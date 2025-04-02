@@ -1,15 +1,13 @@
 
-import {
-  drawBars,
-  drawWave,
-  drawCircle,
-  drawLineAnimation,
-  drawSiriAnimation,
-  drawDotsAnimation,
-  drawFormationAnimation,
-  drawMultilineAnimation,
-  drawStackAnimation
-} from './visualizations';
+import { drawBars } from './visualizations/bars';
+import { drawWave } from './visualizations/wave';
+import { drawCircle } from './visualizations/circle';
+import { drawLineAnimation } from './visualizations/line';
+import { drawSiriAnimation } from './visualizations/siri';
+import { drawDotsAnimation } from './visualizations/dots';
+import { drawFormationAnimation } from './visualizations/formation';
+import { drawMultilineAnimation } from './visualizations/multiline';
+import { drawStackAnimation } from './visualizations/stack';
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 
 export const renderVisualization = (
