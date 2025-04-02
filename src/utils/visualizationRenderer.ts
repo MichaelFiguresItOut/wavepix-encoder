@@ -53,43 +53,50 @@ export const renderVisualization = (
     case "circle":
       drawCircle(ctx, dataArray, canvas, bufferLength, rotationAngle, {
         color: settings.color,
-        sensitivity: settings.sensitivity
+        sensitivity: settings.sensitivity,
+        showMirror: settings.showMirror
       });
       break;
     case "line":
       drawLineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
-        sensitivity: settings.sensitivity
+        sensitivity: settings.sensitivity,
+        showMirror: settings.showMirror
       });
       break;
     case "siri":
       drawSiriAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
-        sensitivity: settings.sensitivity
+        sensitivity: settings.sensitivity,
+        showMirror: settings.showMirror
       });
       break;
     case "dots":
       drawDotsAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
-        sensitivity: settings.sensitivity
+        sensitivity: settings.sensitivity,
+        showMirror: settings.showMirror
       });
       break;
     case "formation":
       drawFormationAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
-        sensitivity: settings.sensitivity
+        sensitivity: settings.sensitivity,
+        showMirror: settings.showMirror
       });
       break;
     case "multiline":
       drawMultilineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
-        sensitivity: settings.sensitivity
+        sensitivity: settings.sensitivity,
+        showMirror: settings.showMirror
       });
       break;
     case "stack":
       drawStackAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
         color: settings.color,
-        sensitivity: settings.sensitivity
+        sensitivity: settings.sensitivity,
+        showMirror: settings.showMirror
       });
       break;
     default:
