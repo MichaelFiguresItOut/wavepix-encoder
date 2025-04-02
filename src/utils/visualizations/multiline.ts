@@ -18,99 +18,7 @@ export const drawMultilineAnimation = (
   const g = settings.color.startsWith('#') ? parseInt(baseColor.slice(2, 4), 16) : 130;
   const b = settings.color.startsWith('#') ? parseInt(baseColor.slice(4, 6), 16) : 246;
   
-  if (!settings.showMirror) {
-    // Original horizontal lines
-    const lineCount = 5;
-    const lineHeight = canvasHeight / (lineCount + 1);
-    
-    // Animation phase
-    const phase = (timestamp % 6000) / 6000 * Math.PI * 2;
-    
-    // Frequency ranges for each line
-    const ranges = [
-      [0, 0.2],          // Bass
-      [0.2, 0.4],        // Low-mid
-      [0.4, 0.6],        // Mid
-      [0.6, 0.8],        // High-mid
-      [0.8, 1.0]         // Treble
-    ];
-    
-    // Line colors (base color and variations)
-    const lineColors = [
-      `rgb(${r}, ${g}, ${b})`,
-      `rgb(${Math.min(r + 40, 255)}, ${g}, ${b})`,
-      `rgb(${r}, ${Math.min(g + 40, 255)}, ${b})`,
-      `rgb(${r}, ${g}, ${Math.min(b + 40, 255)})`,
-      `rgb(${Math.min(r + 20, 255)}, ${Math.min(g + 20, 255)}, ${b})`
-    ];
-    
-    // Draw each line
-    for (let lineIndex = 0; lineIndex < lineCount; lineIndex++) {
-      const y = (lineIndex + 1) * lineHeight;
-      const [rangeStart, rangeEnd] = ranges[lineIndex];
-      
-      const startFreq = Math.floor(bufferLength * rangeStart);
-      const endFreq = Math.floor(bufferLength * rangeEnd);
-      
-      const pointCount = 100; // Number of points per line
-      const pointSpacing = canvasWidth / (pointCount - 1);
-      
-      // Line style
-      ctx.strokeStyle = lineColors[lineIndex];
-      ctx.lineWidth = 3;
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = lineColors[lineIndex];
-      
-      ctx.beginPath();
-      
-      for (let i = 0; i < pointCount; i++) {
-        const x = i * pointSpacing;
-        
-        // Map data point to frequency range for this line
-        const dataIndex = startFreq + Math.floor((i / pointCount) * (endFreq - startFreq));
-        const value = dataArray[dataIndex] * settings.sensitivity;
-        const normalizedValue = value / 255;
-        
-        // Add wave effect with phase offset for each line
-        const linePhase = phase + (lineIndex * Math.PI / 5);
-        const amplitude = lineHeight * 0.8 * normalizedValue;
-        const waveY = Math.sin(i * 0.12 + linePhase) * amplitude;
-        
-        const pointY = y + waveY;
-        
-        if (i === 0) {
-          ctx.moveTo(x, pointY);
-        } else {
-          // Use curves for smoother lines
-          const prevX = (i - 1) * pointSpacing;
-          const cpX = (prevX + x) / 2;
-          ctx.quadraticCurveTo(cpX, pointY, x, pointY);
-        }
-      }
-      
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-    
-    // Add subtle vertical connecting lines
-    ctx.lineWidth = 1;
-    
-    for (let i = 0; i < 20; i++) {
-      const x = (canvasWidth / 20) * i;
-      ctx.beginPath();
-      ctx.moveTo(x, lineHeight);
-      ctx.lineTo(x, lineHeight * lineCount);
-      
-      // Gradient for vertical lines
-      const gradient = ctx.createLinearGradient(0, lineHeight, 0, lineHeight * lineCount);
-      for (let j = 0; j < lineCount; j++) {
-        gradient.addColorStop(j / (lineCount - 1), formatColorWithOpacity(lineColors[j], 0.27));
-      }
-      
-      ctx.strokeStyle = gradient;
-      ctx.stroke();
-    }
-  } else {
+  if (settings.showMirror) {
     // Center-origin multiline animation
     const centerX = canvasWidth / 2;
     const centerY = canvasHeight / 2;
@@ -262,6 +170,195 @@ export const drawMultilineAnimation = (
         // Draw with gradient
         const arcColor = formatColorWithOpacity(lineColors[i % lineColors.length], 0.3 - (arcIndex * 0.05));
         ctx.strokeStyle = arcColor;
+        ctx.stroke();
+      }
+    }
+  } else {
+    // Apply orientation settings for non-mirrored mode
+    if (settings.orientation === "horizontal" || settings.orientation === "both") {
+      // Horizontal lines
+      const lineCount = 5;
+      const lineHeight = canvasHeight / (lineCount + 1);
+      
+      // Animation phase
+      const phase = (timestamp % 6000) / 6000 * Math.PI * 2;
+      
+      // Frequency ranges for each line
+      const ranges = [
+        [0, 0.2],          // Bass
+        [0.2, 0.4],        // Low-mid
+        [0.4, 0.6],        // Mid
+        [0.6, 0.8],        // High-mid
+        [0.8, 1.0]         // Treble
+      ];
+      
+      // Line colors (base color and variations)
+      const lineColors = [
+        `rgb(${r}, ${g}, ${b})`,
+        `rgb(${Math.min(r + 40, 255)}, ${g}, ${b})`,
+        `rgb(${r}, ${Math.min(g + 40, 255)}, ${b})`,
+        `rgb(${r}, ${g}, ${Math.min(b + 40, 255)})`,
+        `rgb(${Math.min(r + 20, 255)}, ${Math.min(g + 20, 255)}, ${b})`
+      ];
+      
+      // Draw each line
+      for (let lineIndex = 0; lineIndex < lineCount; lineIndex++) {
+        const y = (lineIndex + 1) * lineHeight;
+        const [rangeStart, rangeEnd] = ranges[lineIndex];
+        
+        const startFreq = Math.floor(bufferLength * rangeStart);
+        const endFreq = Math.floor(bufferLength * rangeEnd);
+        
+        const pointCount = 100; // Number of points per line
+        const pointSpacing = canvasWidth / (pointCount - 1);
+        
+        // Line style
+        ctx.strokeStyle = lineColors[lineIndex];
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = lineColors[lineIndex];
+        
+        ctx.beginPath();
+        
+        for (let i = 0; i < pointCount; i++) {
+          const x = i * pointSpacing;
+          
+          // Map data point to frequency range for this line
+          const dataIndex = startFreq + Math.floor((i / pointCount) * (endFreq - startFreq));
+          const value = dataArray[dataIndex] * settings.sensitivity;
+          const normalizedValue = value / 255;
+          
+          // Add wave effect with phase offset for each line
+          const linePhase = phase + (lineIndex * Math.PI / 5);
+          const amplitude = lineHeight * 0.8 * normalizedValue;
+          const waveY = Math.sin(i * 0.12 + linePhase) * amplitude;
+          
+          const pointY = y + waveY;
+          
+          if (i === 0) {
+            ctx.moveTo(x, pointY);
+          } else {
+            // Use curves for smoother lines
+            const prevX = (i - 1) * pointSpacing;
+            const cpX = (prevX + x) / 2;
+            ctx.quadraticCurveTo(cpX, pointY, x, pointY);
+          }
+        }
+        
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      
+      // Add subtle vertical connecting lines
+      ctx.lineWidth = 1;
+      
+      for (let i = 0; i < 20; i++) {
+        const x = (canvasWidth / 20) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, lineHeight);
+        ctx.lineTo(x, lineHeight * lineCount);
+        
+        // Gradient for vertical lines
+        const gradient = ctx.createLinearGradient(0, lineHeight, 0, lineHeight * lineCount);
+        for (let j = 0; j < lineCount; j++) {
+          gradient.addColorStop(j / (lineCount - 1), formatColorWithOpacity(lineColors[j], 0.27));
+        }
+        
+        ctx.strokeStyle = gradient;
+        ctx.stroke();
+      }
+    }
+    
+    if (settings.orientation === "vertical" || settings.orientation === "both") {
+      // Vertical lines
+      const lineCount = 5;
+      const lineWidth = canvasWidth / (lineCount + 1);
+      
+      // Animation phase
+      const phase = (timestamp % 6000) / 6000 * Math.PI * 2;
+      
+      // Frequency ranges for each line
+      const ranges = [
+        [0, 0.2],          // Bass
+        [0.2, 0.4],        // Low-mid
+        [0.4, 0.6],        // Mid
+        [0.6, 0.8],        // High-mid
+        [0.8, 1.0]         // Treble
+      ];
+      
+      // Line colors (base color and variations)
+      const lineColors = [
+        `rgb(${r}, ${g}, ${b})`,
+        `rgb(${Math.min(r + 40, 255)}, ${g}, ${b})`,
+        `rgb(${r}, ${Math.min(g + 40, 255)}, ${b})`,
+        `rgb(${r}, ${g}, ${Math.min(b + 40, 255)})`,
+        `rgb(${Math.min(r + 20, 255)}, ${Math.min(g + 20, 255)}, ${b})`
+      ];
+      
+      // Draw each line
+      for (let lineIndex = 0; lineIndex < lineCount; lineIndex++) {
+        const x = (lineIndex + 1) * lineWidth;
+        const [rangeStart, rangeEnd] = ranges[lineIndex];
+        
+        const startFreq = Math.floor(bufferLength * rangeStart);
+        const endFreq = Math.floor(bufferLength * rangeEnd);
+        
+        const pointCount = 100; // Number of points per line
+        const pointSpacing = canvasHeight / (pointCount - 1);
+        
+        // Line style
+        ctx.strokeStyle = lineColors[lineIndex];
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = lineColors[lineIndex];
+        
+        ctx.beginPath();
+        
+        for (let i = 0; i < pointCount; i++) {
+          const y = i * pointSpacing;
+          
+          // Map data point to frequency range for this line
+          const dataIndex = startFreq + Math.floor((i / pointCount) * (endFreq - startFreq));
+          const value = dataArray[dataIndex] * settings.sensitivity;
+          const normalizedValue = value / 255;
+          
+          // Add wave effect with phase offset for each line
+          const linePhase = phase + (lineIndex * Math.PI / 5);
+          const amplitude = lineWidth * 0.8 * normalizedValue;
+          const waveX = Math.sin(i * 0.12 + linePhase) * amplitude;
+          
+          const pointX = x + waveX;
+          
+          if (i === 0) {
+            ctx.moveTo(pointX, y);
+          } else {
+            // Use curves for smoother lines
+            const prevY = (i - 1) * pointSpacing;
+            const cpY = (prevY + y) / 2;
+            ctx.quadraticCurveTo(pointX, cpY, pointX, y);
+          }
+        }
+        
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      
+      // Add subtle horizontal connecting lines
+      ctx.lineWidth = 1;
+      
+      for (let i = 0; i < 20; i++) {
+        const y = (canvasHeight / 20) * i;
+        ctx.beginPath();
+        ctx.moveTo(lineWidth, y);
+        ctx.lineTo(lineWidth * lineCount, y);
+        
+        // Gradient for horizontal lines
+        const gradient = ctx.createLinearGradient(lineWidth, 0, lineWidth * lineCount, 0);
+        for (let j = 0; j < lineCount; j++) {
+          gradient.addColorStop(j / (lineCount - 1), formatColorWithOpacity(lineColors[j], 0.27));
+        }
+        
+        ctx.strokeStyle = gradient;
         ctx.stroke();
       }
     }

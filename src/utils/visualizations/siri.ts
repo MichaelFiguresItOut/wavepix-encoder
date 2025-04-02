@@ -12,8 +12,8 @@ export const drawSiriAnimation = (
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
   
-  // Regular waves from left to right (non-mirrored)
-  if (!settings.showMirror) {
+  if (settings.orientation === "horizontal" || settings.orientation === "both") {
+    // Horizontal orientation (left to right)
     const centerY = canvasHeight / 2;
     
     // Apple Siri-inspired animation (colorful waveform that moves)
@@ -67,7 +67,67 @@ export const drawSiriAnimation = (
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
-  } else {
+  }
+  
+  if (settings.orientation === "vertical" || settings.orientation === "both") {
+    // Vertical orientation (top to bottom)
+    const centerX = canvasWidth / 2;
+    
+    // Vertical Siri-inspired waves
+    const waveCount = 3;
+    const waveColors = [
+      `${settings.color}`, 
+      settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
+      settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
+    ];
+    
+    // Time-based phase shift
+    const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
+    
+    // Take a subset of the data for a cleaner look
+    const usableLength = Math.min(bufferLength, 64);
+    const sliceHeight = canvasHeight / usableLength;
+    
+    // Draw multiple waves with phase offset
+    for (let wave = 0; wave < waveCount; wave++) {
+      const wavePhase = basePhase + (wave * Math.PI * 0.5);
+      const waveAmplitude = canvasWidth * 0.15 * (1 - wave * 0.2);
+      
+      ctx.strokeStyle = waveColors[wave];
+      ctx.lineWidth = 5 - wave;
+      ctx.beginPath();
+      
+      for (let i = 0; i < usableLength; i++) {
+        const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
+        const normalizedValue = value / 255;
+        
+        // Y position down the screen
+        const y = i * sliceHeight;
+        
+        // X position based on sine wave + audio data
+        const x = centerX + 
+                Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+        
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          // Use quadratic curves for smoother wave
+          const prevY = (i - 1) * sliceHeight;
+          const cpY = (prevY + y) / 2;
+          ctx.quadraticCurveTo(x, cpY, x, y);
+        }
+      }
+      
+      // Add glow effect
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = waveColors[wave];
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  }
+  
+  // Mirror mode for both orientations is handled through the circular animation
+  if (settings.showMirror) {
     // Mirror mode: concentric circles that emanate from center
     const centerX = canvasWidth / 2;
     const centerY = canvasHeight / 2;

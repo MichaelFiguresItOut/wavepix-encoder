@@ -17,63 +17,7 @@ export const drawDotsAnimation = (
   // Animation phase
   const phase = (timestamp % 8000) / 8000 * Math.PI * 2;
   
-  if (!settings.showMirror) {
-    // Original animation - dots in a wave pattern
-    const dotCount = Math.min(bufferLength, 100);
-    const dotSpacing = canvasWidth / (dotCount - 1);
-    
-    // Draw connecting line first (behind dots)
-    ctx.beginPath();
-    for (let i = 0; i < dotCount; i++) {
-      const x = i * dotSpacing;
-      const dataIndex = Math.floor(i * (bufferLength / dotCount));
-      const value = dataArray[dataIndex] * settings.sensitivity;
-      const normalizedValue = value / 255;
-      
-      // Calculate dot position with subtle wave motion
-      const waveY = Math.sin(i * 0.15 + phase) * 20;
-      const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
-      
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    }
-    
-    // Style the connecting line
-    ctx.strokeStyle = `${settings.color}44`;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    // Draw dots with shadow/glow
-    for (let i = 0; i < dotCount; i++) {
-      const x = i * dotSpacing;
-      const dataIndex = Math.floor(i * (bufferLength / dotCount));
-      const value = dataArray[dataIndex] * settings.sensitivity;
-      const normalizedValue = value / 255;
-      
-      // Calculate dot position with subtle wave motion
-      const waveY = Math.sin(i * 0.15 + phase) * 20;
-      const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
-      
-      // Dot size based on frequency data
-      const dotSize = 2 + normalizedValue * 8;
-      
-      // Draw glow/shadow
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = settings.color;
-      
-      // Draw dot
-      ctx.beginPath();
-      ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-      ctx.fillStyle = settings.color;
-      ctx.fill();
-      
-      // Reset shadow
-      ctx.shadowBlur = 0;
-    }
-  } else {
+  if (settings.showMirror) {
     // Mirrored mode - dots emanating from center in circular pattern
     const maxRings = 5;
     const dotsPerRing = 24;
@@ -131,6 +75,123 @@ export const drawDotsAnimation = (
         
         // Draw glow/shadow
         ctx.shadowBlur = 10;
+        ctx.shadowColor = settings.color;
+        
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+        ctx.fillStyle = settings.color;
+        ctx.fill();
+        
+        // Reset shadow
+        ctx.shadowBlur = 0;
+      }
+    }
+  } else {
+    // Non-mirrored mode - we'll use orientation settings here
+    if (settings.orientation === "horizontal" || settings.orientation === "both") {
+      // Horizontal dots in a wave pattern
+      const dotCount = Math.min(bufferLength, 100);
+      const dotSpacing = canvasWidth / (dotCount - 1);
+      
+      // Draw connecting line first (behind dots)
+      ctx.beginPath();
+      for (let i = 0; i < dotCount; i++) {
+        const x = i * dotSpacing;
+        const dataIndex = Math.floor(i * (bufferLength / dotCount));
+        const value = dataArray[dataIndex] * settings.sensitivity;
+        const normalizedValue = value / 255;
+        
+        // Calculate dot position with subtle wave motion
+        const waveY = Math.sin(i * 0.15 + phase) * 20;
+        const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+        
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      
+      // Style the connecting line
+      ctx.strokeStyle = `${settings.color}44`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Draw dots with shadow/glow
+      for (let i = 0; i < dotCount; i++) {
+        const x = i * dotSpacing;
+        const dataIndex = Math.floor(i * (bufferLength / dotCount));
+        const value = dataArray[dataIndex] * settings.sensitivity;
+        const normalizedValue = value / 255;
+        
+        // Calculate dot position with subtle wave motion
+        const waveY = Math.sin(i * 0.15 + phase) * 20;
+        const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+        
+        // Dot size based on frequency data
+        const dotSize = 2 + normalizedValue * 8;
+        
+        // Draw glow/shadow
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = settings.color;
+        
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+        ctx.fillStyle = settings.color;
+        ctx.fill();
+        
+        // Reset shadow
+        ctx.shadowBlur = 0;
+      }
+    }
+    
+    if (settings.orientation === "vertical" || settings.orientation === "both") {
+      // Vertical dots in a wave pattern
+      const dotCount = Math.min(bufferLength, 100);
+      const dotSpacing = canvasHeight / (dotCount - 1);
+      
+      // Draw connecting line first (behind dots)
+      ctx.beginPath();
+      for (let i = 0; i < dotCount; i++) {
+        const y = i * dotSpacing;
+        const dataIndex = Math.floor(i * (bufferLength / dotCount));
+        const value = dataArray[dataIndex] * settings.sensitivity;
+        const normalizedValue = value / 255;
+        
+        // Calculate dot position with subtle wave motion
+        const waveX = Math.sin(i * 0.15 + phase) * 20;
+        const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+        
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      
+      // Style the connecting line
+      ctx.strokeStyle = `${settings.color}44`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Draw dots with shadow/glow
+      for (let i = 0; i < dotCount; i++) {
+        const y = i * dotSpacing;
+        const dataIndex = Math.floor(i * (bufferLength / dotCount));
+        const value = dataArray[dataIndex] * settings.sensitivity;
+        const normalizedValue = value / 255;
+        
+        // Calculate dot position with subtle wave motion
+        const waveX = Math.sin(i * 0.15 + phase) * 20;
+        const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+        
+        // Dot size based on frequency data
+        const dotSize = 2 + normalizedValue * 8;
+        
+        // Draw glow/shadow
+        ctx.shadowBlur = 15;
         ctx.shadowColor = settings.color;
         
         // Draw dot
