@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { VisualizationOrientation, VisualizerSettings } from "@/hooks/useAudioVisualization";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface VisualizationSettingsProps {
   settings: VisualizerSettings;
@@ -17,6 +18,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
   settings,
   onSettingsChange
 }) => {
+  const isMobile = useIsMobile();
+  
   const handleSettingChange = <K extends keyof VisualizerSettings>(
     key: K,
     value: VisualizerSettings[K]
@@ -28,8 +31,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-4">
+    <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4 md:gap-6`}>
+      <div className="space-y-3 md:space-y-4">
         <div className="space-y-2">
           <Label>Visualization Type</Label>
           <Select 
@@ -86,33 +89,33 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
 
-        {/* New orientation control */}
+        {/* Orientation control - more touch-friendly on mobile */}
         {settings.type !== "circle" && (
           <div className="space-y-2">
             <Label>Orientation</Label>
             <RadioGroup 
               value={settings.orientation} 
               onValueChange={(value) => handleSettingChange("orientation", value as VisualizationOrientation)}
-              className="flex space-x-4"
+              className={`flex ${isMobile ? "flex-col space-y-2" : "space-x-4"}`}
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="horizontal" id="horizontal" />
-                <Label htmlFor="horizontal">Horizontal</Label>
+                <Label htmlFor="horizontal" className="cursor-pointer">Horizontal</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="vertical" id="vertical" />
-                <Label htmlFor="vertical">Vertical</Label>
+                <Label htmlFor="vertical" className="cursor-pointer">Vertical</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="both" id="both" />
-                <Label htmlFor="both">Both</Label>
+                <Label htmlFor="both" className="cursor-pointer">Both</Label>
               </div>
             </RadioGroup>
           </div>
         )}
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Sensitivity: {settings.sensitivity.toFixed(1)}</Label>
@@ -160,7 +163,7 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
             checked={settings.showMirror} 
             onCheckedChange={(checked) => handleSettingChange("showMirror", checked)}
           />
-          <Label htmlFor="mirror">Mirrored Effect</Label>
+          <Label htmlFor="mirror" className="cursor-pointer">Mirrored Effect</Label>
         </div>
       </div>
     </div>

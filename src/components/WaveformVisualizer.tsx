@@ -5,6 +5,7 @@ import { AudioWaveform } from "lucide-react";
 import { VisualizerSettings } from "@/hooks/useAudioVisualization";
 import VisualizationCanvas from "./visualization/VisualizationCanvas";
 import VisualizationSettings from "./visualization/VisualizationSettings";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface WaveformVisualizerProps {
   audioBuffer: AudioBuffer | null;
@@ -19,6 +20,7 @@ const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
   onSettingsChange,
   settings
 }) => {
+  const isMobile = useIsMobile();
   const handleSettingsChange = (newSettings: VisualizerSettings) => {
     onSettingsChange(newSettings);
   };
@@ -34,8 +36,8 @@ const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* Make the visualization canvas taller */}
-          <div className="h-[400px]">
+          {/* Adjust visualization canvas height based on device */}
+          <div className={isMobile ? "h-[250px]" : "h-[400px]"}>
             <VisualizationCanvas 
               audioBuffer={audioBuffer}
               isPlaying={isPlaying}
