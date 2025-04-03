@@ -1,5 +1,5 @@
 
-import { BarVisualizationSettings } from './utils';
+import { BarVisualizationSettings, getYPositionForPlacement } from './utils';
 
 export const drawBars = (
   ctx: CanvasRenderingContext2D,
@@ -12,8 +12,8 @@ export const drawBars = (
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
   
-  if (settings.orientation === "horizontal" || settings.orientation === "both") {
-    // Horizontal bars visualization (original)
+  if (settings.horizontalOrientation) {
+    // Horizontal bars visualization
     const totalBars = Math.min(Math.floor(canvasWidth / (barWidth + 1)), bufferLength);
     const barSpacing = 1;
     
@@ -26,42 +26,63 @@ export const drawBars = (
       const barHeight = (value / 255) * maxBarHeight;
       
       const x = i * (barWidth + barSpacing);
-      const y = canvasHeight - barHeight;
       
-      // Create gradient for each bar
-      const gradient = ctx.createLinearGradient(x, canvasHeight, x, y);
-      gradient.addColorStop(0, `${settings.color}FF`);
-      gradient.addColorStop(1, `${settings.color}22`);
-      
-      ctx.fillStyle = gradient;
-      
-      // Rounded top for bars
-      const radius = barWidth / 2;
-      ctx.beginPath();
-      ctx.moveTo(x, canvasHeight);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.lineTo(x + barWidth - radius, y);
-      ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
-      ctx.lineTo(x + barWidth, canvasHeight);
-      ctx.fill();
-      
-      // Draw mirrored bars if enabled
-      if (settings.showMirror) {
-        ctx.fillStyle = `${settings.color}66`;
+      // Draw bars for each selected placement
+      settings.barPlacement.forEach(placement => {
+        const y = getYPositionForPlacement(canvasHeight, placement, barHeight);
+        
+        // Create gradient for each bar
+        const gradient = ctx.createLinearGradient(x, canvasHeight, x, y);
+        gradient.addColorStop(0, `${settings.color}FF`);
+        gradient.addColorStop(1, `${settings.color}22`);
+        
+        ctx.fillStyle = gradient;
+        
+        // Rounded top for bars
+        const radius = barWidth / 2;
         ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, barHeight - radius);
-        ctx.quadraticCurveTo(x, barHeight, x + radius, barHeight);
-        ctx.lineTo(x + barWidth - radius, barHeight);
-        ctx.quadraticCurveTo(x + barWidth, barHeight, x + barWidth, barHeight - radius);
-        ctx.lineTo(x + barWidth, 0);
+        
+        if (placement === 'bottom') {
+          ctx.moveTo(x, canvasHeight);
+          ctx.lineTo(x, y + radius);
+          ctx.quadraticCurveTo(x, y, x + radius, y);
+          ctx.lineTo(x + barWidth - radius, y);
+          ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
+          ctx.lineTo(x + barWidth, canvasHeight);
+        } else if (placement === 'top') {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, y + barHeight - radius);
+          ctx.quadraticCurveTo(x, y + barHeight, x + radius, y + barHeight);
+          ctx.lineTo(x + barWidth - radius, y + barHeight);
+          ctx.quadraticCurveTo(x + barWidth, y + barHeight, x + barWidth, y + barHeight - radius);
+          ctx.lineTo(x + barWidth, 0);
+        } else { // middle
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + barWidth, y);
+          ctx.lineTo(x + barWidth, y + barHeight);
+          ctx.lineTo(x, y + barHeight);
+          ctx.closePath();
+        }
+        
         ctx.fill();
-      }
+        
+        // Draw mirrored bars if enabled
+        if (settings.showMirror && placement === 'bottom') {
+          ctx.fillStyle = `${settings.color}66`;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, barHeight - radius);
+          ctx.quadraticCurveTo(x, barHeight, x + radius, barHeight);
+          ctx.lineTo(x + barWidth - radius, barHeight);
+          ctx.quadraticCurveTo(x + barWidth, barHeight, x + barWidth, barHeight - radius);
+          ctx.lineTo(x + barWidth, 0);
+          ctx.fill();
+        }
+      });
     }
   }
   
-  if (settings.orientation === "vertical" || settings.orientation === "both") {
+  if (settings.verticalOrientation) {
     // Vertical bars visualization
     const totalBars = Math.min(Math.floor(canvasHeight / (barWidth + 1)), bufferLength);
     const barSpacing = 1;

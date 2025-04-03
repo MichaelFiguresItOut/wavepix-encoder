@@ -5,8 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { VisualizationOrientation, VisualizerSettings } from "@/hooks/useAudioVisualization";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BarPlacement, AnimationStart, VisualizerSettings } from "@/hooks/useAudioVisualization";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface VisualizationSettingsProps {
@@ -27,6 +27,49 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
     onSettingsChange({
       ...settings,
       [key]: value
+    });
+  };
+
+  const handleOrientationChange = (orientation: "horizontalOrientation" | "verticalOrientation", checked: boolean) => {
+    // Ensure at least one orientation is enabled
+    if (!checked && !settings.horizontalOrientation && orientation === "verticalOrientation") {
+      onSettingsChange({
+        ...settings,
+        horizontalOrientation: true,
+        verticalOrientation: false
+      });
+    } else if (!checked && !settings.verticalOrientation && orientation === "horizontalOrientation") {
+      onSettingsChange({
+        ...settings,
+        horizontalOrientation: false,
+        verticalOrientation: true
+      });
+    } else {
+      onSettingsChange({
+        ...settings,
+        [orientation]: checked
+      });
+    }
+  };
+
+  const handleMultiSelectChange = <K extends "barPlacement" | "animationStart">(
+    key: K, 
+    value: K extends "barPlacement" ? BarPlacement : AnimationStart, 
+    checked: boolean
+  ) => {
+    const currentValues = settings[key] as Array<any>;
+    const newValues = checked 
+      ? [...currentValues, value]
+      : currentValues.filter(v => v !== value);
+    
+    // Ensure at least one option is selected
+    if (newValues.length === 0) {
+      return;
+    }
+    
+    onSettingsChange({
+      ...settings,
+      [key]: newValues
     });
   };
 
@@ -89,30 +132,67 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
 
-        {/* Orientation control - more touch-friendly on mobile */}
+        {/* Orientation checkboxes - instead of the radio buttons */}
         {settings.type !== "circle" && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>Orientation</Label>
-            <RadioGroup 
-              value={settings.orientation} 
-              onValueChange={(value) => handleSettingChange("orientation", value as VisualizationOrientation)}
-              className={`flex ${isMobile ? "flex-col space-y-2" : "space-x-4"}`}
-            >
+            <div className="flex flex-col space-y-2">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="horizontal" id="horizontal" />
+                <Checkbox 
+                  id="horizontal" 
+                  checked={settings.horizontalOrientation}
+                  onCheckedChange={(checked) => handleOrientationChange("horizontalOrientation", !!checked)}
+                />
                 <Label htmlFor="horizontal" className="cursor-pointer">Horizontal</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="vertical" id="vertical" />
+                <Checkbox 
+                  id="vertical" 
+                  checked={settings.verticalOrientation}
+                  onCheckedChange={(checked) => handleOrientationChange("verticalOrientation", !!checked)}
+                />
                 <Label htmlFor="vertical" className="cursor-pointer">Vertical</Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="both" id="both" />
-                <Label htmlFor="both" className="cursor-pointer">Both</Label>
-              </div>
-            </RadioGroup>
+            </div>
           </div>
         )}
+
+        {/* Bar Placement multi-select */}
+        <div className="space-y-3">
+          <Label>Bar Placement</Label>
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="bottom-placement" 
+                checked={settings.barPlacement.includes("bottom")}
+                onCheckedChange={(checked) => 
+                  handleMultiSelectChange("barPlacement", "bottom", !!checked)
+                }
+              />
+              <Label htmlFor="bottom-placement" className="cursor-pointer">Bottom</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="middle-placement" 
+                checked={settings.barPlacement.includes("middle")}
+                onCheckedChange={(checked) => 
+                  handleMultiSelectChange("barPlacement", "middle", !!checked)
+                }
+              />
+              <Label htmlFor="middle-placement" className="cursor-pointer">Middle</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="top-placement" 
+                checked={settings.barPlacement.includes("top")}
+                onCheckedChange={(checked) => 
+                  handleMultiSelectChange("barPlacement", "top", !!checked)
+                }
+              />
+              <Label htmlFor="top-placement" className="cursor-pointer">Top</Label>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div className="space-y-3 md:space-y-4">
@@ -164,6 +244,43 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
             onCheckedChange={(checked) => handleSettingChange("showMirror", checked)}
           />
           <Label htmlFor="mirror" className="cursor-pointer">Mirrored Effect</Label>
+        </div>
+
+        {/* Animation Start multi-select */}
+        <div className="space-y-3">
+          <Label>Animation Start</Label>
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="beginning-start" 
+                checked={settings.animationStart.includes("beginning")}
+                onCheckedChange={(checked) => 
+                  handleMultiSelectChange("animationStart", "beginning", !!checked)
+                }
+              />
+              <Label htmlFor="beginning-start" className="cursor-pointer">Beginning</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="middle-start" 
+                checked={settings.animationStart.includes("middle")}
+                onCheckedChange={(checked) => 
+                  handleMultiSelectChange("animationStart", "middle", !!checked)
+                }
+              />
+              <Label htmlFor="middle-start" className="cursor-pointer">Middle</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="end-start" 
+                checked={settings.animationStart.includes("end")}
+                onCheckedChange={(checked) => 
+                  handleMultiSelectChange("animationStart", "end", !!checked)
+                }
+              />
+              <Label htmlFor="end-start" className="cursor-pointer">End</Label>
+            </div>
+          </div>
         </div>
       </div>
     </div>

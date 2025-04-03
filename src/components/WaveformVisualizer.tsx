@@ -1,24 +1,27 @@
 
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AudioWaveform } from "lucide-react";
+import { AudioWaveform, Play, Pause } from "lucide-react";
 import { VisualizerSettings } from "@/hooks/useAudioVisualization";
 import VisualizationCanvas from "./visualization/VisualizationCanvas";
 import VisualizationSettings from "./visualization/VisualizationSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "./ui/button";
 
 interface WaveformVisualizerProps {
   audioBuffer: AudioBuffer | null;
   isPlaying: boolean;
   onSettingsChange: (settings: VisualizerSettings) => void;
   settings: VisualizerSettings;
+  onPlayPauseToggle: () => void;
 }
 
 const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ 
   audioBuffer, 
   isPlaying,
   onSettingsChange,
-  settings
+  settings,
+  onPlayPauseToggle
 }) => {
   const isMobile = useIsMobile();
   const handleSettingsChange = (newSettings: VisualizerSettings) => {
@@ -36,13 +39,37 @@ const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* Adjust visualization canvas height based on device */}
-          <div className={isMobile ? "h-[250px]" : "h-[400px]"}>
-            <VisualizationCanvas 
-              audioBuffer={audioBuffer}
-              isPlaying={isPlaying}
-              settings={settings}
-            />
+          {/* Visualization Canvas with Play Button */}
+          <div className="space-y-2">
+            <div className={isMobile ? "h-[250px]" : "h-[400px]"}>
+              <VisualizationCanvas 
+                audioBuffer={audioBuffer}
+                isPlaying={isPlaying}
+                settings={settings}
+              />
+            </div>
+            
+            {/* Play Preview Button */}
+            <div className="flex justify-center">
+              <Button
+                onClick={onPlayPauseToggle}
+                className="w-full md:w-auto"
+                disabled={!audioBuffer}
+                variant="default"
+              >
+                {isPlaying ? (
+                  <>
+                    <Pause className="h-5 w-5 mr-2" />
+                    Pause Preview
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-5 w-5 mr-2" />
+                    Play Preview
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
           
           <VisualizationSettings 

@@ -31,88 +31,46 @@ export const renderVisualization = (
   ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
+  // Convert old orientation format to new format for compatibility
+  const oldStyleSettings = {
+    ...settings,
+    orientation: settings.horizontalOrientation && settings.verticalOrientation 
+      ? "both" 
+      : settings.horizontalOrientation 
+        ? "horizontal" 
+        : "vertical"
+  };
+  
   // Call the appropriate visualization function based on settings
   switch(settings.type) {
     case "bars":
-      drawBars(ctx, dataArray, canvas, bufferLength, {
-        barWidth: settings.barWidth,
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawBars(ctx, dataArray, canvas, bufferLength, settings);
       break;
     case "wave":
-      drawWave(ctx, dataArray, canvas, bufferLength, {
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawWave(ctx, dataArray, canvas, bufferLength, oldStyleSettings);
       break;
     case "circle":
-      drawCircle(ctx, dataArray, canvas, bufferLength, rotationAngle, {
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawCircle(ctx, dataArray, canvas, bufferLength, rotationAngle, oldStyleSettings);
       break;
     case "line":
-      drawLineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawLineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, oldStyleSettings);
       break;
     case "siri":
-      drawSiriAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawSiriAnimation(ctx, dataArray, canvas, bufferLength, timestamp, oldStyleSettings);
       break;
     case "dots":
-      drawDotsAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawDotsAnimation(ctx, dataArray, canvas, bufferLength, timestamp, oldStyleSettings);
       break;
     case "formation":
-      drawFormationAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawFormationAnimation(ctx, dataArray, canvas, bufferLength, timestamp, oldStyleSettings);
       break;
     case "multiline":
-      drawMultilineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawMultilineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, oldStyleSettings);
       break;
     case "stack":
-      drawStackAnimation(ctx, dataArray, canvas, bufferLength, timestamp, {
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawStackAnimation(ctx, dataArray, canvas, bufferLength, timestamp, oldStyleSettings);
       break;
     default:
-      drawBars(ctx, dataArray, canvas, bufferLength, {
-        barWidth: settings.barWidth,
-        color: settings.color,
-        sensitivity: settings.sensitivity,
-        showMirror: settings.showMirror,
-        orientation: settings.orientation
-      });
+      drawBars(ctx, dataArray, canvas, bufferLength, settings);
   }
 };

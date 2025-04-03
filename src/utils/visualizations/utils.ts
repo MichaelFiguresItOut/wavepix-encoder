@@ -48,12 +48,42 @@ export const formatColorWithOpacity = (color: string, opacity: number): string =
   return `rgba(0, 0, 0, ${opacity})`;
 };
 
+// Calculate Y position based on bar placement
+export const getYPositionForPlacement = (canvasHeight: number, placement: string, barHeight: number) => {
+  switch (placement) {
+    case 'top':
+      return 0;
+    case 'middle':
+      return (canvasHeight - barHeight) / 2;
+    case 'bottom':
+    default:
+      return canvasHeight - barHeight;
+  }
+};
+
+// Get animation starting position based on settings
+export const getAnimationStartPosition = (canvasWidth: number, animationStart: string) => {
+  switch (animationStart) {
+    case 'beginning':
+      return 0;
+    case 'middle':
+      return canvasWidth / 2;
+    case 'end':
+      return canvasWidth;
+    default:
+      return 0;
+  }
+};
+
 // Common visualization settings interface
 export interface VisualizationSettings {
   color: string;
   sensitivity: number;
   showMirror: boolean;
-  orientation: "horizontal" | "vertical" | "both";
+  horizontalOrientation: boolean;
+  verticalOrientation: boolean;
+  barPlacement: string[];
+  animationStart: string[];
 }
 
 // Bar-specific settings

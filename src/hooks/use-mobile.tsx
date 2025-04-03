@@ -4,7 +4,7 @@ import * as React from "react"
 const MOBILE_BREAKPOINT = 768
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+  const [isMobile, setIsMobile] = React.useState<boolean>(false)
 
   React.useEffect(() => {
     // Initial check
@@ -27,5 +27,7 @@ export function useIsMobile() {
     setIsMobile(mql.matches || window.innerWidth < MOBILE_BREAKPOINT)
   }
 
-  return !!isMobile
+  // Return the current mobile state, defaulting to true until we know for sure
+  // This ensures mobile-first layout is applied initially
+  return isMobile
 }

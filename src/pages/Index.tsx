@@ -12,7 +12,7 @@ const Index = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
-  // Add visualization settings state at the top level
+  // Add visualization settings state at the top level with the new properties
   const [visualizerSettings, setVisualizerSettings] = useState<VisualizerSettings>({
     type: "bars",
     barWidth: 5,
@@ -21,7 +21,10 @@ const Index = () => {
     smoothing: 0.5,
     showMirror: false,
     rotationSpeed: 0.2,
-    orientation: "horizontal"
+    horizontalOrientation: true,
+    verticalOrientation: false,
+    barPlacement: ["bottom"],
+    animationStart: ["beginning"]
   });
 
   const handleAudioLoaded = (file: File, buffer: AudioBuffer) => {
@@ -52,6 +55,7 @@ const Index = () => {
               isPlaying={isPlaying} 
               settings={visualizerSettings}
               onSettingsChange={handleVisualizerSettingsChange}
+              onPlayPauseToggle={handlePlayPauseToggle}
             />
           </div>
           
