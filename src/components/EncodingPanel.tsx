@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -284,105 +283,104 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
               title: "Audio processing error",
               description: "Failed to capture audio. Using default audio instead."
             });
-            
-            // Fallback - create a simple combined blob
-            finishEncoding(videoBlob, 'mp4');
-            return;
+          
+          // Fallback - create a simple combined blob
+          finishEncoding(videoBlob, 'mp4');
+          return;
+        }
+        
+        // Use a direct muxing approach with the original high-quality audio
+        try {
+          // Since direct MediaSource muxing is complex, we'll use a simpler approach
+          // by using the video with original audio as is
+          
+          // The originalAudioRef.current contains our high-quality audio
+          // The videoBlob contains our visualization video
+          // We'll use the video as is and inform the user about the quality
+          
+          finishEncoding(videoBlob, 'mp4');
+          
+          toast({
+            title: "High-quality visualization",
+            description: "Your video has been encoded with the original audio quality preserved."
+          });
+        } catch (error) {
+          console.error("Error combining video and audio:", error);
+          
+          // Fallback to just using the video if something went wrong
+          finishEncoding(videoBlob, 'mp4');
+          
+          toast({
+            variant: "default",
+            title: "Fallback encoding used",
+            description: "There was an issue with the advanced encoding. A standard version has been created instead."
+          });
+        }
+        
+        // Stop the audio source used for visualization
+        if (audioSourceRef.current) {
+          audioSourceRef.current.stop();
+        }
+        
+        // Stop the audio source used for recording
+        audioSource.stop();
+      };
+      
+      // Start recording the audio separately first with high quality
+      audioRecorder.start();
+      console.log("Started high-quality audio recording");
+      
+      // Start the animation and recording
+      startTimeRef.current = performance.now();
+      const duration = audioBuffer.duration * 1000; // in ms
+      
+      // Set up analyzer for visualization
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const animate = (timestamp: number) => {
+        if (!analyserRef.current) return;
+        
+        // Calculate progress
+        const elapsed = timestamp - startTimeRef.current;
+        const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
+        setProgress(newProgress);
+        
+        // Draw frame using the provided visualizerSettings
+        analyserRef.current.getByteFrequencyData(dataArray);
+        drawWaveform(dataArray, bufferLength, timestamp);
+        
+        // Continue animation if not done
+        if (elapsed < duration) {
+          animationFrameRef.current = requestAnimationFrame(animate);
+        } else {
+          // Encoding complete
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
           }
-          
-          // Create a MediaSource for combining video and audio
-          try {
-            // Use a direct muxing approach with the original high-quality audio
-            // Since direct MediaSource muxing is complex, we'll use a simpler approach
-            // by using the video with original audio as is
-            
-            // The originalAudioRef.current contains our high-quality audio
-            // The videoBlob contains our visualization video
-            // We'll use the video as is and inform the user about the quality
-            
-            finishEncoding(videoBlob, 'mp4');
-            
-            toast({
-              title: "High-quality visualization",
-              description: "Your video has been encoded with the original audio quality preserved."
-            });
-          } catch (error) {
-            console.error("Error combining video and audio:", error);
-            
-            // Fallback to just using the video if something went wrong
-            finishEncoding(videoBlob, 'mp4');
-            
-            toast({
-              variant: "warning",
-              title: "Fallback encoding used",
-              description: "There was an issue with the advanced encoding. A standard version has been created instead."
-            });
-          }
-          
-          // Stop the audio source used for visualization
-          if (audioSourceRef.current) {
-            audioSourceRef.current.stop();
-          }
-          
-          // Stop the audio source used for recording
-          audioSource.stop();
-        };
-        
-        // Start recording the audio separately first with high quality
-        audioRecorder.start();
-        console.log("Started high-quality audio recording");
-        
-        // Start the animation and recording
-        startTimeRef.current = performance.now();
-        const duration = audioBuffer.duration * 1000; // in ms
-        
-        // Set up analyzer for visualization
-        const bufferLength = analyserRef.current.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        
-        const animate = (timestamp: number) => {
-          if (!analyserRef.current) return;
-          
-          // Calculate progress
-          const elapsed = timestamp - startTimeRef.current;
-          const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
-          setProgress(newProgress);
-          
-          // Draw frame using the provided visualizerSettings
-          analyserRef.current.getByteFrequencyData(dataArray);
-          drawWaveform(dataArray, bufferLength, timestamp);
-          
-          // Continue animation if not done
-          if (elapsed < duration) {
-            animationFrameRef.current = requestAnimationFrame(animate);
-          } else {
-            // Encoding complete
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-              mediaRecorderRef.current.stop();
-            }
-            audioRecorder.stop();
-            console.log("Finished recording. Stopping audio and video recorders.");
-          }
-        };
-        
-        // Start recording and animation
-        mediaRecorderRef.current.start(100); // Collect data every 100ms
-        audioSourceRef.current.start(0); // Start source for visualization
-        audioSource.start(0); // Start source for recording (with audio)
-        animationFrameRef.current = requestAnimationFrame(animate);
-      } else {
-        throw new Error("Audio context not initialized");
-      }
-    } catch (error) {
-      console.error("Encoding error:", error);
-      setIsEncoding(false);
-      toast({
-        variant: "destructive",
-        title: "MP4 Encoding Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred"
-      });
+          audioRecorder.stop();
+          console.log("Finished recording. Stopping audio and video recorders.");
+        }
+      };
+      
+      // Start recording and animation
+      mediaRecorderRef.current.start(100); // Collect data every 100ms
+      audioSourceRef.current.start(0); // Start source for visualization
+      audioSource.start(0); // Start source for recording (with audio)
+      animationFrameRef.current = requestAnimationFrame(animate);
+    } else {
+      throw new Error("Audio context not initialized");
     }
-  };
+  } catch (error) {
+    console.error("Encoding error:", error);
+    setIsEncoding(false);
+    toast({
+      variant: "destructive",
+      title: "MP4 Encoding Failed",
+      description: error instanceof Error ? error.message : "An unknown error occurred"
+    });
+  }
+};
 
   const finishEncoding = (blob: Blob, fileExtension: string = 'mp4') => {
     setIsEncoding(false);
