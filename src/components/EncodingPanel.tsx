@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
   const downloadFileNameRef = useRef<string>("waveform-visualization.mp4");
   const downloadUrlRef = useRef<string>("");
   const selectedMimeTypeRef = useRef<string>("");
+  const originalAudioRef = useRef<Blob | null>(null);
   
   // Set up canvas and context for encoding
   useEffect(() => {
@@ -151,7 +153,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         audioSourceRef.current.buffer = audioBuffer;
         audioSourceRef.current.connect(analyserRef.current);
         
-        // Create audio stream for recording
+        // Create audio stream for recording - this will be the direct audio
         const audioStreamDestination = audioContextRef.current.createMediaStreamDestination();
         const audioSource = audioContextRef.current.createBufferSource();
         audioSource.buffer = audioBuffer;
@@ -160,7 +162,28 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         // Combine canvas and audio streams
         const combinedStream = new MediaStream();
         canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
-        audioStreamDestination.stream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
+        audioStreamDestination.stream.getAudioTracks().forEach(track => {
+          // Set audio track settings for better quality
+          combinedStream.addTrack(track);
+        });
+
+        // Record the original audio for later adding to the video
+        const audioTrack = audioStreamDestination.stream.getAudioTracks()[0];
+        const audioOnlyStream = new MediaStream([audioTrack]);
+        const audioRecorder = new MediaRecorder(audioOnlyStream, {
+          mimeType: 'audio/webm;codecs=opus'
+        });
+        const audioChunks: Blob[] = [];
+        
+        audioRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            audioChunks.push(e.data);
+          }
+        };
+        
+        audioRecorder.onstop = () => {
+          originalAudioRef.current = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+        };
         
         // Only MP4 MIME types to try
         const mp4MimeTypes = [
@@ -223,6 +246,9 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
           audioSource.stop();
         };
         
+        // Start recording the audio separately first
+        audioRecorder.start();
+        
         // Start the animation and recording
         startTimeRef.current = performance.now();
         const duration = audioBuffer.duration * 1000; // in ms
@@ -251,6 +277,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
             if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
               mediaRecorderRef.current.stop();
             }
+            audioRecorder.stop();
           }
         };
         
