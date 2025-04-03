@@ -61,6 +61,19 @@ export const getYPositionForPlacement = (canvasHeight: number, placement: string
   }
 };
 
+// Calculate X position based on bar placement for vertical orientation
+export const getXPositionForPlacement = (canvasWidth: number, placement: string, barWidth: number) => {
+  switch (placement) {
+    case 'top': // Right side in vertical mode
+      return canvasWidth - barWidth;
+    case 'middle':
+      return (canvasWidth - barWidth) / 2;
+    case 'bottom': // Left side in vertical mode
+    default:
+      return 0;
+  }
+};
+
 // Get animation starting position based on settings
 export const getAnimationStartPosition = (canvasWidth: number, animationStart: string) => {
   switch (animationStart) {
@@ -72,6 +85,34 @@ export const getAnimationStartPosition = (canvasWidth: number, animationStart: s
       return canvasWidth;
     default:
       return 0;
+  }
+};
+
+// Get horizontal drawing direction based on animation start
+export const getHorizontalDirection = (animationStart: string) => {
+  switch (animationStart) {
+    case 'beginning':
+      return 1; // Left to right
+    case 'end':
+      return -1; // Right to left
+    case 'middle':
+      return 0; // Both directions
+    default:
+      return 1;
+  }
+};
+
+// Get vertical drawing direction based on animation start
+export const getVerticalDirection = (animationStart: string) => {
+  switch (animationStart) {
+    case 'beginning':
+      return 1; // Top to bottom
+    case 'end':
+      return -1; // Bottom to top
+    case 'middle':
+      return 0; // Both directions
+    default:
+      return 1;
   }
 };
 
