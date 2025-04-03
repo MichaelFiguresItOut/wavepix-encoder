@@ -42,7 +42,6 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const downloadFileNameRef = useRef<string>("waveform-visualization.mp4");
   const downloadUrlRef = useRef<string>("");
-  const selectedMimeTypeRef = useRef<string>("");
   const originalAudioRef = useRef<Blob | null>(null);
   
   // Set up canvas and context for encoding
@@ -138,199 +137,89 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       // Set up canvas stream
       const canvasStream = canvas.captureStream(fps);
       
-      // Set up audio context for visualization (but not playback)
-      if (audioContextRef.current && analyserRef.current) {
-        // Create a silent offline context for visualization
-        const offlineContext = new OfflineAudioContext({
-          numberOfChannels: audioBuffer.numberOfChannels,
-          length: audioBuffer.length,
-          sampleRate: audioBuffer.sampleRate
-        });
-        
-        // Create a source for visualization only
-        audioSourceRef.current = audioContextRef.current.createBufferSource();
-        audioSourceRef.current.buffer = audioBuffer;
-        audioSourceRef.current.connect(analyserRef.current);
-        
-        // Check available MIME types for audio - prefer uncompressed or lossless formats
-        const preferredAudioTypes = [
-          'audio/wav',
-          'audio/wave',
-          'audio/x-wav',
-          'audio/webm;codecs=pcm',
-          'audio/webm',
-          'audio/ogg',
-          'audio/mp4'
-        ];
-        
-        let selectedAudioMimeType = '';
-        for (const type of preferredAudioTypes) {
-          if (MediaRecorder.isTypeSupported(type)) {
-            selectedAudioMimeType = type;
-            console.log(`Using audio MIME type: ${type}`);
-            break;
-          }
+      // Set up audio context and source
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      if (!analyserRef.current) {
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+      }
+      
+      // Create a media stream for the audio
+      const audioStreamDestination = audioContextRef.current.createMediaStreamDestination();
+      audioSourceRef.current = audioContextRef.current.createBufferSource();
+      audioSourceRef.current.buffer = audioBuffer;
+      
+      // Connect the audio source to both the analyzer (for visualization) and the destination (for recording)
+      audioSourceRef.current.connect(analyserRef.current);
+      audioSourceRef.current.connect(audioStreamDestination);
+      
+      // Combine the audio and video streams
+      const combinedStream = new MediaStream();
+      
+      // Add video tracks from canvas
+      canvasStream.getVideoTracks().forEach(track => {
+        combinedStream.addTrack(track);
+      });
+      
+      // Add audio tracks
+      audioStreamDestination.stream.getAudioTracks().forEach(track => {
+        combinedStream.addTrack(track);
+      });
+      
+      // Check available MIME types for MP4
+      const mp4MimeTypes = [
+        'video/mp4;codecs=h264,mp4a.40.2',
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+        'video/mp4',
+        'video/webm;codecs=h264,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+      ];
+      
+      let selectedMimeType = '';
+      for (const type of mp4MimeTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          selectedMimeType = type;
+          console.log(`Using MIME type: ${type}`);
+          break;
         }
-        
-        if (!selectedAudioMimeType) {
-          // Fallback to default
-          selectedAudioMimeType = 'audio/webm';
-          console.log('No preferred audio MIME type supported, using default: audio/webm');
-        }
-        
-        // Create audio stream for recording - with minimal processing
-        const audioStreamDestination = audioContextRef.current.createMediaStreamDestination();
-        const audioSource = audioContextRef.current.createBufferSource();
-        audioSource.buffer = audioBuffer;
-        audioSource.connect(audioStreamDestination);
-        
-        // Record original audio separately with preferred format
-        const audioTracks = audioStreamDestination.stream.getAudioTracks();
-        if (audioTracks.length === 0) {
-          throw new Error("Unable to get audio tracks from stream");
-        }
-        
-        // Create a standalone audio recorder with high quality settings
-        const audioOnlyStream = new MediaStream(audioTracks);
-        const audioRecorder = new MediaRecorder(audioOnlyStream, {
-          mimeType: selectedAudioMimeType,
-          audioBitsPerSecond: 256000 // High bitrate for better quality
-        });
-        
-        const audioChunks: Blob[] = [];
-        
-        audioRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            audioChunks.push(e.data);
-          }
-        };
-        
-        audioRecorder.onstop = () => {
-          // Create high-quality audio blob
-          originalAudioRef.current = new Blob(audioChunks, { type: selectedAudioMimeType });
-          console.log(`Original audio recorded with MIME type: ${selectedAudioMimeType}`);
-        };
-        
-        // Only MP4 MIME types to try
-        const mp4MimeTypes = [
-          'video/mp4',
-          'video/mp4;codecs=h264,mp4a.40.2',
-          'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-          'video/mp4;codecs=h264,aac',
-          'video/quicktime',
-          'video/x-mp4'
-        ];
-        
-        // Check if any MP4 format is supported
-        let mp4Supported = false;
-        let selectedMimeType = '';
-        
-        for (const type of mp4MimeTypes) {
-          if (MediaRecorder.isTypeSupported(type)) {
-            mp4Supported = true;
-            selectedMimeType = type;
-            selectedMimeTypeRef.current = type;
-            console.log(`Found supported MP4 format: ${type}`);
-            break;
-          }
-        }
-        
-        if (!mp4Supported) {
-          throw new Error("MP4 encoding is not supported in this browser");
-        }
-        
-        console.log(`Using MP4 format with MIME type: ${selectedMimeType}`);
-        
-        // For video recording - we'll use video-only first, then mux with the high-quality audio
-        const videoOnlyStream = new MediaStream(canvasStream.getVideoTracks());
-        
-        // Set up MediaRecorder with MP4 options
-        const recorderOptions = {
-          mimeType: selectedMimeType,
-          videoBitsPerSecond: quality * 100000  // Adjust bitrate based on quality setting
-        };
-        
-        // Create and configure the MediaRecorder
-        mediaRecorderRef.current = new MediaRecorder(videoOnlyStream, recorderOptions);
-        chunksRef.current = [];
-        
-        mediaRecorderRef.current.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            chunksRef.current.push(e.data);
-          }
-        };
-        
-        mediaRecorderRef.current.onstop = async () => {
-          // Create video and audio blobs
-          const videoBlob = new Blob(chunksRef.current, { type: selectedMimeType });
-          
-          // Wait for audio recorder to finish if it hasn't already
-          if (audioRecorder.state !== 'inactive') {
-            toast({
-              title: "Processing audio...",
-              description: "Finalizing high-quality audio for your video."
-            });
-          }
-          
-          // Process the audio to ensure it's properly formatted
-          while (audioRecorder.state !== 'inactive') {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-          
-          if (!originalAudioRef.current) {
-            toast({
-              variant: "destructive",
-              title: "Audio processing error",
-              description: "Failed to capture audio. Using default audio instead."
-            });
-          
-          // Fallback - create a simple combined blob
-          finishEncoding(videoBlob, 'mp4');
-          return;
-        }
-        
-        // Use a direct muxing approach with the original high-quality audio
-        try {
-          // Since direct MediaSource muxing is complex, we'll use a simpler approach
-          // by using the video with original audio as is
-          
-          // The originalAudioRef.current contains our high-quality audio
-          // The videoBlob contains our visualization video
-          // We'll use the video as is and inform the user about the quality
-          
-          finishEncoding(videoBlob, 'mp4');
-          
-          toast({
-            title: "High-quality visualization",
-            description: "Your video has been encoded with the original audio quality preserved."
-          });
-        } catch (error) {
-          console.error("Error combining video and audio:", error);
-          
-          // Fallback to just using the video if something went wrong
-          finishEncoding(videoBlob, 'mp4');
-          
-          toast({
-            variant: "default",
-            title: "Fallback encoding used",
-            description: "There was an issue with the advanced encoding. A standard version has been created instead."
-          });
-        }
-        
-        // Stop the audio source used for visualization
-        if (audioSourceRef.current) {
-          audioSourceRef.current.stop();
-        }
-        
-        // Stop the audio source used for recording
-        audioSource.stop();
+      }
+      
+      if (!selectedMimeType) {
+        throw new Error("No supported video format found");
+      }
+      
+      // Configure MediaRecorder with high quality
+      const recorderOptions = {
+        mimeType: selectedMimeType,
+        videoBitsPerSecond: quality * 100000,  // Adjust based on quality slider
+        audioBitsPerSecond: 128000  // Ensure high audio quality
       };
       
-      // Start recording the audio separately first with high quality
-      audioRecorder.start();
-      console.log("Started high-quality audio recording");
+      mediaRecorderRef.current = new MediaRecorder(combinedStream, recorderOptions);
+      chunksRef.current = [];
       
-      // Start the animation and recording
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+      
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: selectedMimeType });
+        finishEncoding(blob);
+      };
+      
+      // Start recording
+      mediaRecorderRef.current.start(100); // Collect data every 100ms
+      
+      // Start the audio source
+      audioSourceRef.current.start(0);
+      
+      // Animation loop for visualization and progress tracking
       startTimeRef.current = performance.now();
       const duration = audioBuffer.duration * 1000; // in ms
       
@@ -346,7 +235,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
         setProgress(newProgress);
         
-        // Draw frame using the provided visualizerSettings
+        // Draw visualization
         analyserRef.current.getByteFrequencyData(dataArray);
         drawWaveform(dataArray, bufferLength, timestamp);
         
@@ -358,37 +247,36 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
           if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop();
           }
-          audioRecorder.stop();
-          console.log("Finished recording. Stopping audio and video recorders.");
+          
+          // Stop the audio source
+          if (audioSourceRef.current) {
+            audioSourceRef.current.stop();
+          }
         }
       };
       
-      // Start recording and animation
-      mediaRecorderRef.current.start(100); // Collect data every 100ms
-      audioSourceRef.current.start(0); // Start source for visualization
-      audioSource.start(0); // Start source for recording (with audio)
+      // Start animation
       animationFrameRef.current = requestAnimationFrame(animate);
-    } else {
-      throw new Error("Audio context not initialized");
+      
+    } catch (error) {
+      console.error("Encoding error:", error);
+      setIsEncoding(false);
+      toast({
+        variant: "destructive",
+        title: "Encoding Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred"
+      });
     }
-  } catch (error) {
-    console.error("Encoding error:", error);
-    setIsEncoding(false);
-    toast({
-      variant: "destructive",
-      title: "MP4 Encoding Failed",
-      description: error instanceof Error ? error.message : "An unknown error occurred"
-    });
-  }
-};
+  };
 
   const finishEncoding = (blob: Blob, fileExtension: string = 'mp4') => {
     setIsEncoding(false);
     setProgress(100);
     
     toast({
+      variant: "default",
       title: "Encoding complete",
-      description: "Your MP4 video has been successfully encoded!"
+      description: "Your video has been successfully encoded!"
     });
     
     // Create download URL
@@ -405,7 +293,8 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     
     // Show download toast
     toast({
-      title: "MP4 Download ready",
+      variant: "default",
+      title: "Download ready",
       description: "Click the Download button to save your video."
     });
   };
