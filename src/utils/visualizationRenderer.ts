@@ -9,6 +9,7 @@ import { drawFormationAnimation } from './visualizations/formation';
 import { drawMultilineAnimation } from './visualizations/multiline';
 import { drawLightningAnimation } from './visualizations/lightning';
 import { drawHoneycombAnimation } from './visualizations/honeycomb';
+import { drawFireAnimation } from './visualizations/fire';
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 
 export const renderVisualization = (
@@ -63,6 +64,9 @@ export const renderVisualization = (
       break;
     case "honeycomb":
       drawHoneycombAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+      break;
+    case "fire":
+      drawFireAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
       break;
     default:
       drawBars(ctx, dataArray, canvas, bufferLength, settings);

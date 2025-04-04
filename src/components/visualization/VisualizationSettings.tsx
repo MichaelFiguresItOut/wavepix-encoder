@@ -105,6 +105,7 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               <SelectItem value="multiline">Multiline Animation</SelectItem>
               <SelectItem value="lightning">Lightning Animation</SelectItem>
               <SelectItem value="honeycomb">Honeycomb Animation</SelectItem>
+              <SelectItem value="fire">Fire Animation</SelectItem>
             </SelectContent>
           </Select>
         </div>
