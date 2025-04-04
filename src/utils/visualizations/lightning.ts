@@ -1,6 +1,31 @@
-
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 import { getYPositionForPlacement, getXPositionForPlacement } from './utils';
+
+interface LightningBolt {
+  x: number;
+  y: number;
+  angle: number;
+  speed: number;
+  intensity: number;
+  segments: number[];
+  width: number;
+  color: string;
+  branches: LightningBranch[];
+  age: number;
+  maxAge: number;
+}
+
+interface LightningBranch {
+  startIndex: number;
+  angle: number;
+  length: number;
+  segments: number[];
+  width: number;
+}
+
+// Pool of lightning bolts for reuse
+const lightningBolts: LightningBolt[] = [];
+const maxBolts = 8;
 
 export const drawLightningAnimation = (
   ctx: CanvasRenderingContext2D,
@@ -17,365 +42,326 @@ export const drawLightningAnimation = (
   const primaryColor = settings.color;
   const glowColor = settings.color + "99";
   
-  // Draw horizontal lightning
-  if (settings.horizontalOrientation) {
-    settings.barPlacement.forEach(placement => {
-      const baseY = getYPositionForPlacement(canvasHeight, placement, canvasHeight / 2);
-      
-      settings.animationStart.forEach(animationStart => {
-        // Set up based on animation start position
-        if (animationStart === 'middle') {
-          // Handle middle animation start differently - draw in both directions
-          const halfPoint = Math.floor(bufferLength / 2);
-          
-          // Draw from middle to right
-          drawLightningBolt(
-            ctx, 
-            dataArray.slice(0, halfPoint), 
-            canvasWidth / 2, 
-            baseY, 
-            canvasWidth, 
-            timestamp, 
-            1, 
-            placement,
-            settings
-          );
-          
-          // Draw from middle to left
-          drawLightningBolt(
-            ctx, 
-            dataArray.slice(halfPoint), 
-            canvasWidth / 2, 
-            baseY, 
-            0, 
-            timestamp, 
-            -1, 
-            placement,
-            settings
-          );
-        } else {
-          // Handle beginning or end animation start
-          let startX: number;
-          let endX: number;
-          let direction: number;
-          
-          if (animationStart === 'beginning') {
-            startX = 0;
-            endX = canvasWidth;
-            direction = 1;
-          } else { // 'end'
-            startX = canvasWidth;
-            endX = 0;
-            direction = -1;
-          }
-          
-          drawLightningBolt(
-            ctx, 
-            dataArray, 
-            startX, 
-            baseY, 
-            endX, 
-            timestamp, 
-            direction, 
-            placement,
-            settings
-          );
-        }
-      });
-    });
-  }
-  
-  // Draw vertical lightning
-  if (settings.verticalOrientation) {
-    settings.barPlacement.forEach(placement => {
-      const baseX = getXPositionForPlacement(canvasWidth, placement, canvasWidth / 2);
-      
-      settings.animationStart.forEach(animationStart => {
-        // Set up based on animation start position
-        if (animationStart === 'middle') {
-          // Handle middle animation start differently - draw in both directions
-          const halfPoint = Math.floor(bufferLength / 2);
-          
-          // Draw from middle to bottom
-          drawVerticalLightningBolt(
-            ctx, 
-            dataArray.slice(0, halfPoint), 
-            baseX, 
-            canvasHeight / 2, 
-            canvasHeight, 
-            timestamp, 
-            1, 
-            placement,
-            settings
-          );
-          
-          // Draw from middle to top
-          drawVerticalLightningBolt(
-            ctx, 
-            dataArray.slice(halfPoint), 
-            baseX, 
-            canvasHeight / 2, 
-            0, 
-            timestamp, 
-            -1, 
-            placement,
-            settings
-          );
-        } else {
-          // Handle beginning or end animation start
-          let startY: number;
-          let endY: number;
-          let direction: number;
-          
-          if (animationStart === 'beginning') {
-            startY = 0;
-            endY = canvasHeight;
-            direction = 1;
-          } else { // 'end'
-            startY = canvasHeight;
-            endY = 0;
-            direction = -1;
-          }
-          
-          drawVerticalLightningBolt(
-            ctx, 
-            dataArray, 
-            baseX, 
-            startY, 
-            endY, 
-            timestamp, 
-            direction, 
-            placement,
-            settings
-          );
-        }
-      });
-    });
-  }
-  
-  // Helper function to draw a horizontal lightning bolt
-  function drawLightningBolt(
-    ctx: CanvasRenderingContext2D, 
-    data: Uint8Array, 
-    startX: number, 
-    startY: number, 
-    endX: number, 
-    timestamp: number, 
-    direction: number, 
-    placement: string,
-    settings: VisualizerSettings
-  ) {
-    const segmentCount = data.length;
-    const totalDistance = Math.abs(endX - startX);
-    const segmentLength = totalDistance / segmentCount;
-    
-    ctx.strokeStyle = primaryColor;
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'bevel';
-    
-    // Add glow effect
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = glowColor;
-    
-    // Start drawing the main bolt
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    
-    let currentX = startX;
-    const variance = 40 * settings.sensitivity; // How much the bolt can deviate vertically
-    const timeVariance = Math.sin(timestamp / 500) * 15; // Add some time-based movement
-    
-    // Draw each segment of the lightning bolt
-    for (let i = 0; i < segmentCount; i++) {
-      const value = data[i] / 255.0;
-      const jitter = (Math.random() - 0.5) * variance * value; // Vertical jitter based on audio data
-      
-      currentX += segmentLength * direction;
-      
-      let newY;
-      if (placement === 'bottom') {
-        newY = startY - jitter - timeVariance * value;
-      } else if (placement === 'top') {
-        newY = startY + jitter + timeVariance * value;
-      } else { // middle
-        newY = startY + jitter + timeVariance * value;
-      }
-      
-      // Add some branching occasionally
-      if (Math.random() > 0.85 && value > 0.5) {
-        const branchLength = Math.random() * 30 * value * settings.sensitivity;
-        const branchAngle = Math.random() * Math.PI / 2 - Math.PI / 4;
-        
-        const branchEndX = currentX + Math.cos(branchAngle) * branchLength * direction;
-        const branchEndY = newY + Math.sin(branchAngle) * branchLength;
-        
-        // Draw a small branch
-        ctx.moveTo(currentX, newY);
-        
-        // Create a jagged branch with a few segments
-        let branchX = currentX;
-        let branchY = newY;
-        const branchSegments = 3;
-        const branchSegmentLength = (branchEndX - currentX) / branchSegments;
-        
-        for (let j = 0; j < branchSegments; j++) {
-          branchX += branchSegmentLength;
-          branchY = newY + (branchEndY - newY) * (j + 1) / branchSegments + (Math.random() - 0.5) * 10;
-          ctx.lineTo(branchX, branchY);
-        }
-        
-        // Move back to main bolt
-        ctx.moveTo(currentX, newY);
-      }
-      
-      ctx.lineTo(currentX, newY);
-    }
-    
-    ctx.stroke();
-    
-    // Reset shadow for other drawings
-    ctx.shadowBlur = 0;
-    
-    // If mirror effect is enabled, draw a mirrored version of the lightning
-    if (settings.showMirror) {
-      ctx.strokeStyle = glowColor;
-      ctx.beginPath();
-      ctx.moveTo(startX, 2 * startY - startY);
-      
-      currentX = startX;
-      
-      for (let i = 0; i < segmentCount; i++) {
-        const value = data[i] / 255.0;
-        const jitter = (Math.random() - 0.5) * variance * value;
-        
-        currentX += segmentLength * direction;
-        
-        let mirrorY;
-        if (placement === 'bottom') {
-          mirrorY = 2 * startY - (startY - jitter - timeVariance * value);
-        } else if (placement === 'top') {
-          mirrorY = 2 * startY - (startY + jitter + timeVariance * value);
-        } else { // middle
-          mirrorY = 2 * startY - (startY + jitter + timeVariance * value);
-        }
-        
-        ctx.lineTo(currentX, mirrorY);
-      }
-      
-      ctx.stroke();
+  // Initialize lightning bolts if needed
+  if (lightningBolts.length === 0) {
+    for (let i = 0; i < maxBolts; i++) {
+      createLightningBolt(canvasWidth, canvasHeight, dataArray, settings);
     }
   }
   
-  // Helper function to draw a vertical lightning bolt
-  function drawVerticalLightningBolt(
-    ctx: CanvasRenderingContext2D, 
-    data: Uint8Array, 
-    startX: number, 
-    startY: number, 
-    endY: number, 
-    timestamp: number, 
-    direction: number, 
-    placement: string,
-    settings: VisualizerSettings
-  ) {
-    const segmentCount = data.length;
-    const totalDistance = Math.abs(endY - startY);
-    const segmentLength = totalDistance / segmentCount;
+  // Calculate average audio intensity for this frame
+  let averageIntensity = 0;
+  for (let i = 0; i < bufferLength; i++) {
+    averageIntensity += dataArray[i] / 255.0;
+  }
+  averageIntensity /= bufferLength;
+  
+  // Clear the canvas with a dark background
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  
+  // Update and draw each lightning bolt
+  for (let i = 0; i < lightningBolts.length; i++) {
+    const bolt = lightningBolts[i];
     
-    ctx.strokeStyle = primaryColor;
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'bevel';
+    // Update bolt position based on its angle and speed
+    bolt.x += Math.cos(bolt.angle) * bolt.speed;
+    bolt.y += Math.sin(bolt.angle) * bolt.speed;
     
-    // Add glow effect
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = glowColor;
+    // Increase age
+    bolt.age += 1;
     
-    // Start drawing the main bolt
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    
-    let currentY = startY;
-    const variance = 40 * settings.sensitivity; // How much the bolt can deviate horizontally
-    const timeVariance = Math.sin(timestamp / 500) * 15; // Add some time-based movement
-    
-    // Draw each segment of the lightning bolt
-    for (let i = 0; i < segmentCount; i++) {
-      const value = data[i] / 255.0;
-      const jitter = (Math.random() - 0.5) * variance * value; // Horizontal jitter based on audio data
-      
-      currentY += segmentLength * direction;
-      
-      let newX;
-      if (placement === 'bottom') { // left in vertical
-        newX = startX + jitter + timeVariance * value;
-      } else if (placement === 'top') { // right in vertical
-        newX = startX - jitter - timeVariance * value;
-      } else { // middle
-        newX = startX + jitter + timeVariance * value;
-      }
-      
-      // Add some branching occasionally
-      if (Math.random() > 0.85 && value > 0.5) {
-        const branchLength = Math.random() * 30 * value * settings.sensitivity;
-        const branchAngle = Math.random() * Math.PI / 2 - Math.PI / 4;
-        
-        const branchEndX = newX + Math.sin(branchAngle) * branchLength;
-        const branchEndY = currentY + Math.cos(branchAngle) * branchLength * direction;
-        
-        // Draw a small branch
-        ctx.moveTo(newX, currentY);
-        
-        // Create a jagged branch with a few segments
-        let branchX = newX;
-        let branchY = currentY;
-        const branchSegments = 3;
-        const branchSegmentLength = (branchEndY - currentY) / branchSegments;
-        
-        for (let j = 0; j < branchSegments; j++) {
-          branchY += branchSegmentLength;
-          branchX = newX + (branchEndX - newX) * (j + 1) / branchSegments + (Math.random() - 0.5) * 10;
-          ctx.lineTo(branchX, branchY);
-        }
-        
-        // Move back to main bolt
-        ctx.moveTo(newX, currentY);
-      }
-      
-      ctx.lineTo(newX, currentY);
+    // Reset bolt if it moved off screen or reached max age
+    if (bolt.x < -100 || bolt.x > canvasWidth + 100 || 
+        bolt.y < -100 || bolt.y > canvasHeight + 100 ||
+        bolt.age > bolt.maxAge) {
+      // Reposition on the opposite side of the canvas
+      resetLightningBolt(bolt, canvasWidth, canvasHeight, dataArray, settings);
     }
     
-    ctx.stroke();
-    
-    // Reset shadow for other drawings
-    ctx.shadowBlur = 0;
-    
-    // If mirror effect is enabled, draw a mirrored version of the lightning
-    if (settings.showMirror) {
-      ctx.strokeStyle = glowColor;
-      ctx.beginPath();
-      ctx.moveTo(2 * startX - startX, startY);
-      
-      currentY = startY;
-      
-      for (let i = 0; i < segmentCount; i++) {
-        const value = data[i] / 255.0;
-        const jitter = (Math.random() - 0.5) * variance * value;
-        
-        currentY += segmentLength * direction;
-        
-        let mirrorX;
-        if (placement === 'bottom') { // left in vertical
-          mirrorX = 2 * startX - (startX + jitter + timeVariance * value);
-        } else if (placement === 'top') { // right in vertical
-          mirrorX = 2 * startX - (startX - jitter - timeVariance * value);
-        } else { // middle
-          mirrorX = 2 * startX - (startX + jitter + timeVariance * value);
-        }
-        
-        ctx.lineTo(mirrorX, currentY);
-      }
-      
-      ctx.stroke();
-    }
+    // Draw the lightning bolt
+    drawDynamicLightningBolt(ctx, bolt, primaryColor, glowColor, averageIntensity * settings.sensitivity, timestamp);
   }
 };
+
+function createLightningBolt(
+  canvasWidth: number,
+  canvasHeight: number,
+  dataArray: Uint8Array,
+  settings: VisualizerSettings
+): LightningBolt {
+  // Calculate average audio intensity
+  let avgIntensity = 0;
+  for (let i = 0; i < Math.min(dataArray.length, 32); i++) {
+    avgIntensity += dataArray[i] / 255.0;
+  }
+  avgIntensity = Math.max(0.3, avgIntensity / 32);
+  
+  // Generate random position, usually starting from edges
+  const startEdge = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
+  let x, y;
+  
+  switch (startEdge) {
+    case 0: // top
+      x = Math.random() * canvasWidth;
+      y = -20;
+      break;
+    case 1: // right
+      x = canvasWidth + 20;
+      y = Math.random() * canvasHeight;
+      break;
+    case 2: // bottom
+      x = Math.random() * canvasWidth;
+      y = canvasHeight + 20;
+      break;
+    default: // left
+      x = -20;
+      y = Math.random() * canvasHeight;
+      break;
+  }
+  
+  // Create random angle (slightly biased toward the center of the canvas)
+  const centerAngle = Math.atan2(canvasHeight/2 - y, canvasWidth/2 - x);
+  let angle = centerAngle + (Math.random() - 0.5) * Math.PI / 2;
+  
+  // Create segments array with random values
+  const segmentCount = 10 + Math.floor(Math.random() * 15);
+  const segments = [];
+  for (let i = 0; i < segmentCount; i++) {
+    segments.push(Math.random() * 2 - 1);
+  }
+  
+  // Create branches
+  const branchCount = Math.floor(Math.random() * 3) + 1;
+  const branches = [];
+  
+  for (let i = 0; i < branchCount; i++) {
+    const startIndex = Math.floor(Math.random() * (segmentCount - 4)) + 2;
+    const branchSegments = [];
+    const branchSegmentCount = 3 + Math.floor(Math.random() * 5);
+    
+    for (let j = 0; j < branchSegmentCount; j++) {
+      branchSegments.push(Math.random() * 2 - 1);
+    }
+    
+    branches.push({
+      startIndex,
+      angle: (Math.random() - 0.5) * Math.PI / 2,
+      length: 10 + Math.random() * 40,
+      segments: branchSegments,
+      width: 1 + Math.random()
+    });
+  }
+  
+  // Create and add the bolt
+  const bolt: LightningBolt = {
+    x,
+    y,
+    angle,
+    speed: 2 + Math.random() * 5 * settings.sensitivity,
+    intensity: 0.5 + Math.random() * 0.5,
+    segments,
+    width: 2 + Math.random() * 3,
+    color: settings.color,
+    branches,
+    age: 0,
+    maxAge: 30 + Math.floor(Math.random() * 30)
+  };
+  
+  lightningBolts.push(bolt);
+  return bolt;
+}
+
+function resetLightningBolt(
+  bolt: LightningBolt,
+  canvasWidth: number,
+  canvasHeight: number,
+  dataArray: Uint8Array,
+  settings: VisualizerSettings
+) {
+  // Position on an edge based on previous direction
+  // This creates the effect of appearing on the opposite side
+  if (bolt.x < 0) {
+    bolt.x = canvasWidth + 20;
+    bolt.y = Math.random() * canvasHeight;
+  } else if (bolt.x > canvasWidth) {
+    bolt.x = -20;
+    bolt.y = Math.random() * canvasHeight;
+  } else if (bolt.y < 0) {
+    bolt.x = Math.random() * canvasWidth;
+    bolt.y = canvasHeight + 20;
+  } else {
+    bolt.x = Math.random() * canvasWidth;
+    bolt.y = -20;
+  }
+  
+  // New random angle (slightly biased toward the center)
+  const centerAngle = Math.atan2(canvasHeight/2 - bolt.y, canvasWidth/2 - bolt.x);
+  bolt.angle = centerAngle + (Math.random() - 0.5) * Math.PI / 2;
+  
+  // Update other properties
+  bolt.speed = 2 + Math.random() * 5 * settings.sensitivity;
+  bolt.intensity = 0.5 + Math.random() * 0.5;
+  bolt.width = 2 + Math.random() * 3;
+  bolt.age = 0;
+  bolt.maxAge = 30 + Math.floor(Math.random() * 30);
+  
+  // Regenerate segments
+  const segmentCount = 10 + Math.floor(Math.random() * 15);
+  bolt.segments = [];
+  for (let i = 0; i < segmentCount; i++) {
+    bolt.segments.push(Math.random() * 2 - 1);
+  }
+  
+  // Regenerate branches
+  const branchCount = Math.floor(Math.random() * 3) + 1;
+  bolt.branches = [];
+  
+  for (let i = 0; i < branchCount; i++) {
+    const startIndex = Math.floor(Math.random() * (segmentCount - 4)) + 2;
+    const branchSegments = [];
+    const branchSegmentCount = 3 + Math.floor(Math.random() * 5);
+    
+    for (let j = 0; j < branchSegmentCount; j++) {
+      branchSegments.push(Math.random() * 2 - 1);
+    }
+    
+    bolt.branches.push({
+      startIndex,
+      angle: (Math.random() - 0.5) * Math.PI / 2,
+      length: 10 + Math.random() * 40,
+      segments: branchSegments,
+      width: 1 + Math.random()
+    });
+  }
+}
+
+function drawDynamicLightningBolt(
+  ctx: CanvasRenderingContext2D,
+  bolt: LightningBolt,
+  primaryColor: string,
+  glowColor: string,
+  intensity: number,
+  timestamp: number
+) {
+  const { x, y, segments, width, branches } = bolt;
+  
+  // Set up for drawing
+  ctx.strokeStyle = primaryColor;
+  ctx.lineWidth = width;
+  ctx.lineJoin = 'miter';
+  ctx.lineCap = 'round';
+  
+  // Add glow effect
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = glowColor;
+  
+  // Calculate segment length
+  const mainLength = 200 * (0.5 + intensity);
+  const segmentLength = mainLength / segments.length;
+  
+  // Start drawing the main bolt
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  
+  // Variables to keep track of current position
+  let currentX = x;
+  let currentY = y;
+  
+  // Randomize based on time for flickering effect
+  const timeVariance = Math.sin(timestamp / 200) * 5;
+  
+  // Draw each segment of the lightning bolt
+  for (let i = 0; i < segments.length; i++) {
+    // Calculate new position
+    const segmentAngle = bolt.angle + segments[i] * 0.5;
+    const nextX = currentX + Math.cos(segmentAngle) * segmentLength;
+    const nextY = currentY + Math.sin(segmentAngle) * segmentLength;
+    
+    // Add slight jitter based on time
+    const jitterX = (Math.random() - 0.5) * 4 * intensity + timeVariance;
+    const jitterY = (Math.random() - 0.5) * 4 * intensity + timeVariance;
+    
+    // Draw line to next point
+    ctx.lineTo(nextX + jitterX, nextY + jitterY);
+    
+    // Draw branches at their starting points
+    branches.forEach(branch => {
+      if (branch.startIndex === i) {
+        drawBranch(
+          ctx, 
+          currentX, 
+          currentY, 
+          bolt.angle + branch.angle, 
+          branch.length * intensity, 
+          branch.segments, 
+          branch.width, 
+          intensity,
+          timeVariance
+        );
+      }
+    });
+    
+    // Update current position
+    currentX = nextX;
+    currentY = nextY;
+  }
+  
+  // Finish drawing the main bolt
+  ctx.stroke();
+  
+  // Reset shadow for other drawings
+  ctx.shadowBlur = 0;
+}
+
+function drawBranch(
+  ctx: CanvasRenderingContext2D,
+  startX: number,
+  startY: number,
+  angle: number,
+  length: number,
+  segments: number[],
+  width: number,
+  intensity: number,
+  timeVariance: number
+) {
+  // Set width for branch
+  const origWidth = ctx.lineWidth;
+  ctx.lineWidth = width;
+  
+  // Start drawing the branch
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  
+  // Variables to keep track of current position
+  let currentX = startX;
+  let currentY = startY;
+  
+  // Calculate segment length
+  const segmentLength = length / segments.length;
+  
+  // Draw each segment of the branch
+  for (let i = 0; i < segments.length; i++) {
+    // Calculate new position
+    const segmentAngle = angle + segments[i] * 0.7;
+    const nextX = currentX + Math.cos(segmentAngle) * segmentLength;
+    const nextY = currentY + Math.sin(segmentAngle) * segmentLength;
+    
+    // Add slight jitter based on time
+    const jitterX = (Math.random() - 0.5) * 3 * intensity + timeVariance;
+    const jitterY = (Math.random() - 0.5) * 3 * intensity + timeVariance;
+    
+    // Draw line to next point
+    ctx.lineTo(nextX + jitterX, nextY + jitterY);
+    
+    // Update current position
+    currentX = nextX;
+    currentY = nextY;
+  }
+  
+  // Finish drawing the branch
+  ctx.stroke();
+  
+  // Restore original line width
+  ctx.lineWidth = origWidth;
+}
