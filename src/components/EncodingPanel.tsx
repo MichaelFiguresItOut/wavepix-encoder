@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -134,7 +135,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       const canvas = canvasRef.current;
       const fps = parseInt(frameRate, 10);
       
-      // Set up canvas stream
+      // Set up canvas stream - explicitly set the frame rate
       const canvasStream = canvas.captureStream(fps);
       
       // Set up audio context and source
@@ -196,7 +197,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       const recorderOptions = {
         mimeType: selectedMimeType,
         videoBitsPerSecond: quality * 100000,  // Adjust based on quality slider
-        audioBitsPerSecond: 128000  // Ensure high audio quality
+        audioBitsPerSecond: 128000,  // Ensure high audio quality
       };
       
       mediaRecorderRef.current = new MediaRecorder(combinedStream, recorderOptions);
@@ -213,9 +214,8 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         finishEncoding(blob);
       };
       
-      // Start recording with a small timeslice to ensure constant frame rate
-      // The smaller the timeslice, the more constant the frame rate
-      mediaRecorderRef.current.start(1000 / fps); // Record at the specified framerate
+      // Start recording with a timeslice to ensure constant frame rate
+      mediaRecorderRef.current.start(100); // Use smaller timeslice for more consistent recording
       
       // Start the audio source
       audioSourceRef.current.start(0);
@@ -228,27 +228,37 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       const bufferLength = analyserRef.current.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       
-      // For constant frame rate, we'll use a fixed timestep
-      const frameInterval = 1000 / fps;
-      let lastFrameTime = performance.now();
+      // For constant frame rate, we need to render at precise intervals
+      const frameInterval = 1000 / fps; 
+      let lastFrameTime = 0;
+      let frameCount = 0;
       
       const animate = (timestamp: number) => {
-        if (!analyserRef.current) return;
+        if (!analyserRef.current || !canvasRef.current) return;
         
-        // Calculate progress
+        // Calculate elapsed time and progress
         const elapsed = timestamp - startTimeRef.current;
         const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
         setProgress(newProgress);
         
-        // For constant frame rate, only draw when needed
-        const currentTime = performance.now();
-        const deltaTime = currentTime - lastFrameTime;
-        
-        if (deltaTime >= frameInterval) {
-          // Draw visualization
-          analyserRef.current.getByteFrequencyData(dataArray);
-          drawWaveform(dataArray, bufferLength, timestamp);
-          lastFrameTime = currentTime - (deltaTime % frameInterval); // Adjust for precise timing
+        // Ensure we're rendering at the specified frame rate
+        // This is critical for constant frame rate
+        const expectedFrame = Math.floor(elapsed / frameInterval);
+        if (expectedFrame > frameCount) {
+          // We need to catch up frames
+          const framesToDraw = Math.min(expectedFrame - frameCount, 1);
+          
+          for (let i = 0; i < framesToDraw; i++) {
+            // Calculate the exact timestamp for this frame
+            const frameTimestamp = startTimeRef.current + (frameCount + i) * frameInterval;
+            
+            // Draw visualization for this exact frame
+            analyserRef.current.getByteFrequencyData(dataArray);
+            drawWaveform(dataArray, bufferLength, frameTimestamp);
+          }
+          
+          frameCount = expectedFrame;
+          lastFrameTime = timestamp;
         }
         
         // Continue animation if not done
@@ -267,7 +277,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         }
       };
       
-      // Start animation
+      // Start animation with precise timing
       animationFrameRef.current = requestAnimationFrame(animate);
       
     } catch (error) {
