@@ -24,19 +24,8 @@ export const drawLightningAnimation = (
       
       settings.animationStart.forEach(animationStart => {
         // Set up based on animation start position
-        let startX: number;
-        let endX: number;
-        let direction: number;
-        
-        if (animationStart === 'beginning') {
-          startX = 0;
-          endX = canvasWidth;
-          direction = 1;
-        } else if (animationStart === 'end') {
-          startX = canvasWidth;
-          endX = 0;
-          direction = -1;
-        } else { // 'middle'
+        if (animationStart === 'middle') {
+          // Handle middle animation start differently - draw in both directions
           const halfPoint = Math.floor(bufferLength / 2);
           
           // Draw from middle to right
@@ -64,21 +53,34 @@ export const drawLightningAnimation = (
             placement,
             settings
           );
+        } else {
+          // Handle beginning or end animation start
+          let startX: number;
+          let endX: number;
+          let direction: number;
           
-          continue; // Skip the regular drawing as we've handled middle specially
+          if (animationStart === 'beginning') {
+            startX = 0;
+            endX = canvasWidth;
+            direction = 1;
+          } else { // 'end'
+            startX = canvasWidth;
+            endX = 0;
+            direction = -1;
+          }
+          
+          drawLightningBolt(
+            ctx, 
+            dataArray, 
+            startX, 
+            baseY, 
+            endX, 
+            timestamp, 
+            direction, 
+            placement,
+            settings
+          );
         }
-        
-        drawLightningBolt(
-          ctx, 
-          dataArray, 
-          startX, 
-          baseY, 
-          endX, 
-          timestamp, 
-          direction, 
-          placement,
-          settings
-        );
       });
     });
   }
@@ -90,19 +92,8 @@ export const drawLightningAnimation = (
       
       settings.animationStart.forEach(animationStart => {
         // Set up based on animation start position
-        let startY: number;
-        let endY: number;
-        let direction: number;
-        
-        if (animationStart === 'beginning') {
-          startY = 0;
-          endY = canvasHeight;
-          direction = 1;
-        } else if (animationStart === 'end') {
-          startY = canvasHeight;
-          endY = 0;
-          direction = -1;
-        } else { // 'middle'
+        if (animationStart === 'middle') {
+          // Handle middle animation start differently - draw in both directions
           const halfPoint = Math.floor(bufferLength / 2);
           
           // Draw from middle to bottom
@@ -130,21 +121,34 @@ export const drawLightningAnimation = (
             placement,
             settings
           );
+        } else {
+          // Handle beginning or end animation start
+          let startY: number;
+          let endY: number;
+          let direction: number;
           
-          continue; // Skip the regular drawing as we've handled middle specially
+          if (animationStart === 'beginning') {
+            startY = 0;
+            endY = canvasHeight;
+            direction = 1;
+          } else { // 'end'
+            startY = canvasHeight;
+            endY = 0;
+            direction = -1;
+          }
+          
+          drawVerticalLightningBolt(
+            ctx, 
+            dataArray, 
+            baseX, 
+            startY, 
+            endY, 
+            timestamp, 
+            direction, 
+            placement,
+            settings
+          );
         }
-        
-        drawVerticalLightningBolt(
-          ctx, 
-          dataArray, 
-          baseX, 
-          startY, 
-          endY, 
-          timestamp, 
-          direction, 
-          placement,
-          settings
-        );
       });
     });
   }
