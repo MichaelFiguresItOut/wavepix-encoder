@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 
 export type VisualizationOrientation = "horizontal" | "vertical" | "both";
@@ -5,7 +6,7 @@ export type BarPlacement = "bottom" | "middle" | "top";
 export type AnimationStart = "beginning" | "middle" | "end";
 
 export interface VisualizerSettings {
-  type: "bars" | "wave" | "circle" | "line" | "siri" | "dots" | "formation" | "multiline" | "stack";
+  type: "bars" | "wave" | "circle" | "line" | "siri" | "dots" | "formation" | "multiline" | "lightning" | "honeycomb";
   barWidth: number;
   color: string;
   sensitivity: number;

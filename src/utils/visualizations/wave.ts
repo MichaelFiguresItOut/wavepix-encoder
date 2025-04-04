@@ -1,4 +1,3 @@
-
 import { VisualizationSettings, getYPositionForPlacement, getXPositionForPlacement } from './utils';
 
 export const drawWave = (
@@ -22,7 +21,7 @@ export const drawWave = (
     // Process each bar placement option
     settings.barPlacement.forEach(placement => {
       // Calculate base y position based on placement
-      const baseY = getYPositionForPlacement(canvasHeight, placement, canvasHeight * 0.8);
+      const baseY = getYPositionForPlacement(canvasHeight, placement, canvasHeight * 0.4);
       
       // Process each animation start option
       settings.animationStart.forEach(animationStart => {
@@ -35,7 +34,7 @@ export const drawWave = (
           
           for (let i = 0; i < bufferLength; i++) {
             const value = dataArray[i] * settings.sensitivity;
-            const amplitude = (value / 255) * canvasHeight * 0.8;
+            const amplitude = (value / 255) * canvasHeight * 0.4;
             let y;
             
             // Adjust y position based on placement
@@ -44,7 +43,7 @@ export const drawWave = (
             } else if (placement === 'top') {
               y = amplitude;
             } else { // middle
-              y = baseY + amplitude - (canvasHeight * 0.4); // Centered around the middle position
+              y = baseY + amplitude - (canvasHeight * 0.2); // Centered around the middle position
             }
             
             if (i === 0) {
@@ -73,7 +72,7 @@ export const drawWave = (
           
           for (let i = 0; i < bufferLength; i++) {
             const value = dataArray[i] * settings.sensitivity;
-            const amplitude = (value / 255) * canvasHeight * 0.8;
+            const amplitude = (value / 255) * canvasHeight * 0.4;
             let y;
             
             // Adjust y position based on placement
@@ -82,7 +81,7 @@ export const drawWave = (
             } else if (placement === 'top') {
               y = amplitude;
             } else { // middle
-              y = baseY + amplitude - (canvasHeight * 0.4); // Centered around the middle position
+              y = baseY + amplitude - (canvasHeight * 0.2); // Centered around the middle position
             }
             
             if (i === 0) {
@@ -113,7 +112,7 @@ export const drawWave = (
           
           for (let i = 0; i < bufferLength / 2; i++) {
             const value = dataArray[i] * settings.sensitivity;
-            const amplitude = (value / 255) * canvasHeight * 0.8;
+            const amplitude = (value / 255) * canvasHeight * 0.4;
             let y;
             
             // Adjust y position based on placement
@@ -122,7 +121,7 @@ export const drawWave = (
             } else if (placement === 'top') {
               y = amplitude;
             } else { // middle
-              y = baseY + amplitude - (canvasHeight * 0.4); // Centered around the middle position
+              y = baseY + amplitude - (canvasHeight * 0.2); // Centered around the middle position
             }
             
             if (i === 0) {
@@ -142,7 +141,7 @@ export const drawWave = (
           
           for (let i = 0; i < bufferLength / 2; i++) {
             const value = dataArray[bufferLength / 2 + i] * settings.sensitivity;
-            const amplitude = (value / 255) * canvasHeight * 0.8;
+            const amplitude = (value / 255) * canvasHeight * 0.4;
             let y;
             
             // Adjust y position based on placement
@@ -151,7 +150,7 @@ export const drawWave = (
             } else if (placement === 'top') {
               y = amplitude;
             } else { // middle
-              y = baseY + amplitude - (canvasHeight * 0.4); // Centered around the middle position
+              y = baseY + amplitude - (canvasHeight * 0.2); // Centered around the middle position
             }
             
             if (i === 0) {
@@ -186,7 +185,7 @@ export const drawWave = (
             
             for (let i = 0; i < bufferLength; i++) {
               const value = dataArray[i] * settings.sensitivity;
-              const amplitude = (value / 255) * canvasHeight * 0.8;
+              const amplitude = (value / 255) * canvasHeight * 0.4;
               let y;
               
               // For mirror, invert the y position
@@ -195,7 +194,7 @@ export const drawWave = (
               } else if (placement === 'top') {
                 y = canvasHeight - amplitude;
               } else { // middle
-                y = baseY - amplitude + (canvasHeight * 0.4); // Centered around the middle position
+                y = baseY - amplitude + (canvasHeight * 0.2); // Centered around the middle position
               }
               
               if (i === 0) {
@@ -217,7 +216,7 @@ export const drawWave = (
             
             for (let i = 0; i < bufferLength; i++) {
               const value = dataArray[i] * settings.sensitivity;
-              const amplitude = (value / 255) * canvasHeight * 0.8;
+              const amplitude = (value / 255) * canvasHeight * 0.4;
               let y;
               
               // For mirror, invert the y position
@@ -226,7 +225,7 @@ export const drawWave = (
               } else if (placement === 'top') {
                 y = canvasHeight - amplitude;
               } else { // middle
-                y = baseY - amplitude + (canvasHeight * 0.4); // Centered around the middle position
+                y = baseY - amplitude + (canvasHeight * 0.2); // Centered around the middle position
               }
               
               if (i === 0) {
@@ -251,7 +250,7 @@ export const drawWave = (
             
             for (let i = 0; i < bufferLength / 2; i++) {
               const value = dataArray[i] * settings.sensitivity;
-              const amplitude = (value / 255) * canvasHeight * 0.8;
+              const amplitude = (value / 255) * canvasHeight * 0.4;
               let y;
               
               // For mirror, invert the y position
@@ -260,7 +259,7 @@ export const drawWave = (
               } else if (placement === 'top') {
                 y = canvasHeight - amplitude;
               } else { // middle
-                y = baseY - amplitude + (canvasHeight * 0.4); // Centered around the middle position
+                y = baseY - amplitude + (canvasHeight * 0.2); // Centered around the middle position
               }
               
               if (i === 0) {
@@ -280,7 +279,7 @@ export const drawWave = (
             
             for (let i = 0; i < bufferLength / 2; i++) {
               const value = dataArray[bufferLength / 2 + i] * settings.sensitivity;
-              const amplitude = (value / 255) * canvasHeight * 0.8;
+              const amplitude = (value / 255) * canvasHeight * 0.4;
               let y;
               
               // For mirror, invert the y position
@@ -289,7 +288,7 @@ export const drawWave = (
               } else if (placement === 'top') {
                 y = canvasHeight - amplitude;
               } else { // middle
-                y = baseY - amplitude + (canvasHeight * 0.4); // Centered around the middle position
+                y = baseY - amplitude + (canvasHeight * 0.2); // Centered around the middle position
               }
               
               if (i === 0) {

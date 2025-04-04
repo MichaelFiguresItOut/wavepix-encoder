@@ -192,7 +192,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         throw new Error("No supported video format found");
       }
       
-      // Configure MediaRecorder with high quality
+      // Configure MediaRecorder with high quality and constant frame rate
       const recorderOptions = {
         mimeType: selectedMimeType,
         videoBitsPerSecond: quality * 100000,  // Adjust based on quality slider
@@ -213,8 +213,9 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         finishEncoding(blob);
       };
       
-      // Start recording
-      mediaRecorderRef.current.start(100); // Collect data every 100ms
+      // Start recording with a small timeslice to ensure constant frame rate
+      // The smaller the timeslice, the more constant the frame rate
+      mediaRecorderRef.current.start(1000 / fps); // Record at the specified framerate
       
       // Start the audio source
       audioSourceRef.current.start(0);
@@ -227,6 +228,10 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       const bufferLength = analyserRef.current.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       
+      // For constant frame rate, we'll use a fixed timestep
+      const frameInterval = 1000 / fps;
+      let lastFrameTime = performance.now();
+      
       const animate = (timestamp: number) => {
         if (!analyserRef.current) return;
         
@@ -235,9 +240,16 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
         setProgress(newProgress);
         
-        // Draw visualization
-        analyserRef.current.getByteFrequencyData(dataArray);
-        drawWaveform(dataArray, bufferLength, timestamp);
+        // For constant frame rate, only draw when needed
+        const currentTime = performance.now();
+        const deltaTime = currentTime - lastFrameTime;
+        
+        if (deltaTime >= frameInterval) {
+          // Draw visualization
+          analyserRef.current.getByteFrequencyData(dataArray);
+          drawWaveform(dataArray, bufferLength, timestamp);
+          lastFrameTime = currentTime - (deltaTime % frameInterval); // Adjust for precise timing
+        }
         
         // Continue animation if not done
         if (elapsed < duration) {

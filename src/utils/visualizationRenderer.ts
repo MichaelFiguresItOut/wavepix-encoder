@@ -7,7 +7,8 @@ import { drawSiriAnimation } from './visualizations/siri';
 import { drawDotsAnimation } from './visualizations/dots';
 import { drawFormationAnimation } from './visualizations/formation';
 import { drawMultilineAnimation } from './visualizations/multiline';
-import { drawStackAnimation } from './visualizations/stack';
+import { drawLightningAnimation } from './visualizations/lightning';
+import { drawHoneycombAnimation } from './visualizations/honeycomb';
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 
 export const renderVisualization = (
@@ -57,8 +58,11 @@ export const renderVisualization = (
     case "multiline":
       drawMultilineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
       break;
-    case "stack":
-      drawStackAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+    case "lightning":
+      drawLightningAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+      break;
+    case "honeycomb":
+      drawHoneycombAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
       break;
     default:
       drawBars(ctx, dataArray, canvas, bufferLength, settings);

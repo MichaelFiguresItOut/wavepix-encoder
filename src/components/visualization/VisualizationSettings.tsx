@@ -75,8 +75,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
 
   // Determine if bar placement options should be disabled based on visualization type
   const isBarPlacementDisabled = (placement: BarPlacement) => {
-    // For Siri and Dots animations, only allow "middle" as bar placement
-    if ((settings.type === "siri" || settings.type === "dots") && placement !== "middle") {
+    // For Siri, Dots and Multiline animations, only allow "middle" as bar placement
+    if ((settings.type === "siri" || settings.type === "dots" || settings.type === "multiline") && placement !== "middle") {
       return true;
     }
     return false;
@@ -103,7 +103,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               <SelectItem value="dots">Dots Animation</SelectItem>
               <SelectItem value="formation">Formation Animation</SelectItem>
               <SelectItem value="multiline">Multiline Animation</SelectItem>
-              <SelectItem value="stack">Stack Animation</SelectItem>
+              <SelectItem value="lightning">Lightning Animation</SelectItem>
+              <SelectItem value="honeycomb">Honeycomb Animation</SelectItem>
             </SelectContent>
           </Select>
         </div>
