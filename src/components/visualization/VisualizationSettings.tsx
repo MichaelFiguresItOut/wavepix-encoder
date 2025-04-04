@@ -73,6 +73,15 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
     });
   };
 
+  // Determine if bar placement options should be disabled based on visualization type
+  const isBarPlacementDisabled = (placement: BarPlacement) => {
+    // For Siri and Dots animations, only allow "middle" as bar placement
+    if ((settings.type === "siri" || settings.type === "dots") && placement !== "middle") {
+      return true;
+    }
+    return false;
+  };
+
   return (
     <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4 md:gap-6`}>
       <div className="space-y-3 md:space-y-4">
@@ -168,8 +177,14 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                 onCheckedChange={(checked) => 
                   handleMultiSelectChange("barPlacement", "bottom", !!checked)
                 }
+                disabled={isBarPlacementDisabled("bottom")}
               />
-              <Label htmlFor="bottom-placement" className="cursor-pointer">Bottom</Label>
+              <Label 
+                htmlFor="bottom-placement" 
+                className={`cursor-pointer ${isBarPlacementDisabled("bottom") ? "text-gray-400" : ""}`}
+              >
+                {settings.verticalOrientation && !settings.horizontalOrientation ? "Left" : "Bottom"}
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox 
@@ -188,8 +203,14 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                 onCheckedChange={(checked) => 
                   handleMultiSelectChange("barPlacement", "top", !!checked)
                 }
+                disabled={isBarPlacementDisabled("top")}
               />
-              <Label htmlFor="top-placement" className="cursor-pointer">Top</Label>
+              <Label 
+                htmlFor="top-placement" 
+                className={`cursor-pointer ${isBarPlacementDisabled("top") ? "text-gray-400" : ""}`}
+              >
+                {settings.verticalOrientation && !settings.horizontalOrientation ? "Right" : "Top"}
+              </Label>
             </div>
           </div>
         </div>
@@ -258,7 +279,9 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                   handleMultiSelectChange("animationStart", "beginning", !!checked)
                 }
               />
-              <Label htmlFor="beginning-start" className="cursor-pointer">Beginning</Label>
+              <Label htmlFor="beginning-start" className="cursor-pointer">
+                {settings.verticalOrientation && !settings.horizontalOrientation ? "Top" : "Left"}
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox 
@@ -278,7 +301,9 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                   handleMultiSelectChange("animationStart", "end", !!checked)
                 }
               />
-              <Label htmlFor="end-start" className="cursor-pointer">End</Label>
+              <Label htmlFor="end-start" className="cursor-pointer">
+                {settings.verticalOrientation && !settings.horizontalOrientation ? "Bottom" : "Right"}
+              </Label>
             </div>
           </div>
         </div>

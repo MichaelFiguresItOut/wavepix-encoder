@@ -1,4 +1,5 @@
-import { VisualizationSettings } from './utils';
+
+import { VisualizationSettings, getYPositionForPlacement, getXPositionForPlacement } from './utils';
 
 export const drawLineAnimation = (
   ctx: CanvasRenderingContext2D,
@@ -11,521 +12,661 @@ export const drawLineAnimation = (
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
   
-  // Animation phase based on time
-  const phase = (timestamp % 10000) / 10000 * Math.PI * 2;
+  // Calculate phase for animation
+  const basePhase = (timestamp % 10000) / 10000;
   
-  // Horizontal animation mode
   if (settings.horizontalOrientation) {
-    // For non-mirror mode, keep original animation
-    if (!settings.showMirror) {
-      // Draw a single animated line in the center that reacts to music
-      const centerY = canvasHeight / 2;
-      const amplitude = canvasHeight * 0.4;
+    // Process each bar placement option
+    settings.barPlacement.forEach(placement => {
+      const baseY = getYPositionForPlacement(canvasHeight, placement, canvasHeight * 0.5);
       
+      // Draw horizontal line animations
       settings.animationStart.forEach(animationStart => {
-        ctx.strokeStyle = settings.color;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
+        let startPoint, endPoint, direction;
         
+        // Determine start and end points based on animation direction
         if (animationStart === 'beginning') {
-          // Left to right
-          const sliceWidth = canvasWidth / (bufferLength / 4);
+          startPoint = 0;
+          endPoint = canvasWidth;
+          direction = 1;
+        } else if (animationStart === 'end') {
+          startPoint = canvasWidth;
+          endPoint = 0;
+          direction = -1;
+        } else { // middle
+          // For middle, we'll draw two separate lines in opposite directions
           
-          for (let i = 0; i < bufferLength / 4; i++) {
-            const value = dataArray[i] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate y position based on frequency data and phase
-            const x = i * sliceWidth;
-            const y = centerY + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.bezierCurveTo(
-                x - sliceWidth / 2, 
-                centerY + Math.sin((i - 0.5) * 0.2 + phase) * amplitude * (normalizedValue + dataArray[i-1]/255*settings.sensitivity)/2,
-                x - sliceWidth / 2, 
-                y,
-                x, 
-                y
-              );
-            }
-          }
-        }
-        else if (animationStart === 'end') {
-          // Right to left
-          const sliceWidth = canvasWidth / (bufferLength / 4);
+          // First half (center to right)
+          drawHalfLine(
+            ctx, dataArray, bufferLength, basePhase, 
+            canvasWidth / 2, canvasWidth, 
+            canvasHeight, baseY, placement, settings, 1
+          );
           
-          for (let i = 0; i < bufferLength / 4; i++) {
-            const value = dataArray[i] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate y position based on frequency data and phase
-            const x = canvasWidth - (i * sliceWidth);
-            const y = centerY + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.bezierCurveTo(
-                x + sliceWidth / 2, 
-                centerY + Math.sin((i - 0.5) * 0.2 + phase) * amplitude * (normalizedValue + dataArray[i-1]/255*settings.sensitivity)/2,
-                x + sliceWidth / 2, 
-                y,
-                x, 
-                y
-              );
-            }
-          }
-        }
-        else if (animationStart === 'middle') {
-          // From middle outward
-          const centerX = canvasWidth / 2;
-          const sliceWidth = (canvasWidth / 2) / (bufferLength / 8);
+          // Second half (center to left)
+          drawHalfLine(
+            ctx, dataArray, bufferLength, basePhase, 
+            canvasWidth / 2, 0, 
+            canvasHeight, baseY, placement, settings, -1
+          );
           
-          // Right half
-          for (let i = 0; i < bufferLength / 8; i++) {
-            const value = dataArray[i] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate y position based on frequency data and phase
-            const x = centerX + (i * sliceWidth);
-            const y = centerY + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(centerX, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          }
-          
-          // Left half
-          for (let i = 0; i < bufferLength / 8; i++) {
-            const value = dataArray[i] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate y position based on frequency data and phase
-            const x = centerX - (i * sliceWidth);
-            const y = centerY + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-            
-            if (i === 0) {
-              // Already at center
-            } else {
-              ctx.lineTo(x, y);
-            }
-          }
+          // Skip the rest of the code for middle animation
+          return;
         }
         
-        // Add glow effect
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = settings.color;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        
-        // Add subtle echo effect
-        for (let echo = 1; echo <= 3; echo++) {
-          ctx.strokeStyle = `${settings.color}${Math.floor(30 - echo * 10).toString(16)}`;
-          ctx.lineWidth = 2 - echo * 0.5;
-          ctx.beginPath();
-          
-          const echoPhase = phase - echo * 0.5;
-          
-          if (animationStart === 'beginning') {
-            // Left to right echo
-            const sliceWidth = canvasWidth / (bufferLength / 4);
-            
-            for (let i = 0; i < bufferLength / 4; i++) {
-              const value = dataArray[i] * settings.sensitivity;
-              const normalizedValue = value / 255;
-              
-              const x = i * sliceWidth;
-              const y = centerY + Math.sin(i * 0.2 + echoPhase) * amplitude * normalizedValue * 0.8;
-              
-              if (i === 0) {
-                ctx.moveTo(x, y);
-              } else {
-                ctx.bezierCurveTo(
-                  x - sliceWidth / 2, 
-                  centerY + Math.sin((i - 0.5) * 0.2 + echoPhase) * amplitude * (normalizedValue + dataArray[i-1]/255*settings.sensitivity)/2 * 0.8,
-                  x - sliceWidth / 2, 
-                  y,
-                  x, 
-                  y
-                );
-              }
-            }
-          }
-          else if (animationStart === 'end') {
-            // Right to left echo
-            const sliceWidth = canvasWidth / (bufferLength / 4);
-            
-            for (let i = 0; i < bufferLength / 4; i++) {
-              const value = dataArray[i] * settings.sensitivity;
-              const normalizedValue = value / 255;
-              
-              const x = canvasWidth - (i * sliceWidth);
-              const y = centerY + Math.sin(i * 0.2 + echoPhase) * amplitude * normalizedValue * 0.8;
-              
-              if (i === 0) {
-                ctx.moveTo(x, y);
-              } else {
-                ctx.bezierCurveTo(
-                  x + sliceWidth / 2, 
-                  centerY + Math.sin((i - 0.5) * 0.2 + echoPhase) * amplitude * (normalizedValue + dataArray[i-1]/255*settings.sensitivity)/2 * 0.8,
-                  x + sliceWidth / 2, 
-                  y,
-                  x, 
-                  y
-                );
-              }
-            }
-          }
-          else if (animationStart === 'middle') {
-            // From middle outward echo
-            const centerX = canvasWidth / 2;
-            const sliceWidth = (canvasWidth / 2) / (bufferLength / 8);
-            
-            // Right half
-            for (let i = 0; i < bufferLength / 8; i++) {
-              const value = dataArray[i] * settings.sensitivity;
-              const normalizedValue = value / 255;
-              
-              const x = centerX + (i * sliceWidth);
-              const y = centerY + Math.sin(i * 0.2 + echoPhase) * amplitude * normalizedValue * 0.8;
-              
-              if (i === 0) {
-                ctx.moveTo(centerX, y);
-              } else {
-                ctx.lineTo(x, y);
-              }
-            }
-            
-            // Left half
-            for (let i = 0; i < bufferLength / 8; i++) {
-              const value = dataArray[i] * settings.sensitivity;
-              const normalizedValue = value / 255;
-              
-              const x = centerX - (i * sliceWidth);
-              const y = centerY + Math.sin(i * 0.2 + echoPhase) * amplitude * normalizedValue * 0.8;
-              
-              if (i === 0) {
-                // Already at center
-              } else {
-                ctx.lineTo(x, y);
-              }
-            }
-          }
-          
-          ctx.stroke();
-        }
+        // Draw the line for beginning or end animation start
+        drawFullLine(
+          ctx, dataArray, bufferLength, basePhase,
+          startPoint, endPoint,
+          canvasHeight, baseY, placement, settings, direction
+        );
       });
+    });
+  }
+  
+  if (settings.verticalOrientation) {
+    // Process each bar placement option
+    settings.barPlacement.forEach(placement => {
+      // For vertical orientation, "bottom" means left, "top" means right
+      const baseX = getXPositionForPlacement(canvasWidth, placement, canvasWidth * 0.5);
+      
+      // Draw vertical line animations
+      settings.animationStart.forEach(animationStart => {
+        let startPoint, endPoint, direction;
+        
+        // Determine start and end points based on animation direction
+        if (animationStart === 'beginning') {
+          startPoint = 0;
+          endPoint = canvasHeight;
+          direction = 1;
+        } else if (animationStart === 'end') {
+          startPoint = canvasHeight;
+          endPoint = 0;
+          direction = -1;
+        } else { // middle
+          // For middle, we'll draw two separate lines in opposite directions
+          
+          // First half (center to bottom)
+          drawVerticalHalfLine(
+            ctx, dataArray, bufferLength, basePhase, 
+            canvasHeight / 2, canvasHeight, 
+            canvasWidth, baseX, placement, settings, 1
+          );
+          
+          // Second half (center to top)
+          drawVerticalHalfLine(
+            ctx, dataArray, bufferLength, basePhase, 
+            canvasHeight / 2, 0, 
+            canvasWidth, baseX, placement, settings, -1
+          );
+          
+          // Skip the rest of the code for middle animation
+          return;
+        }
+        
+        // Draw the line for beginning or end animation start
+        drawVerticalFullLine(
+          ctx, dataArray, bufferLength, basePhase,
+          startPoint, endPoint,
+          canvasWidth, baseX, placement, settings, direction
+        );
+      });
+    });
+  }
+};
+
+// Helper function to draw a full horizontal line
+const drawFullLine = (
+  ctx: CanvasRenderingContext2D,
+  dataArray: Uint8Array,
+  bufferLength: number,
+  basePhase: number,
+  startX: number,
+  endX: number,
+  canvasHeight: number,
+  baseY: number,
+  placement: string,
+  settings: VisualizationSettings,
+  direction: number
+) => {
+  const length = Math.abs(endX - startX);
+  const segmentCount = 100; // Number of line segments
+  const segmentWidth = length / segmentCount;
+  
+  ctx.strokeStyle = settings.color;
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = settings.color;
+  
+  ctx.beginPath();
+  
+  for (let i = 0; i <= segmentCount; i++) {
+    const x = startX + (i * segmentWidth * direction);
+    
+    // Sample data from frequency array
+    const dataIndex = Math.floor(i * (bufferLength / segmentCount));
+    const value = dataArray[dataIndex] * settings.sensitivity;
+    const normalizedValue = value / 255;
+    
+    // Calculate wave effect
+    const phase = basePhase * Math.PI * 4;
+    const amplitude = canvasHeight * 0.3 * normalizedValue;
+    const waveY = Math.sin(i * 0.1 + phase) * amplitude;
+    
+    // Calculate y position based on placement and wave
+    let y;
+    if (placement === 'bottom') {
+      y = (canvasHeight - amplitude) + waveY;
+    } else if (placement === 'top') {
+      y = amplitude + waveY;
+    } else { // middle
+      y = baseY + waveY;
+    }
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
     } else {
-      // Center-origin animation for mirror mode
-      const centerX = canvasWidth / 2;
-      const centerY = canvasHeight / 2;
-      const maxWidth = canvasWidth / 2;
+      // Use curves for smoother animation
+      const prevX = startX + ((i - 1) * segmentWidth * direction);
+      const controlX = (prevX + x) / 2;
       
-      // Draw from center to right
-      ctx.strokeStyle = settings.color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
+      const prevDataIndex = Math.floor((i - 1) * (bufferLength / segmentCount));
+      const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
+      const prevNormalizedValue = prevValue / 255;
+      const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
+      const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       
-      const sliceWidth = maxWidth / (bufferLength / 8);
-      
-      for (let i = 0; i < bufferLength / 8; i++) {
-        const value = dataArray[i] * settings.sensitivity;
-        const normalizedValue = value / 255;
-        const amplitude = canvasHeight * 0.4;
-        
-        const x = centerX + i * sliceWidth;
-        const y = centerY + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-        
-        if (i === 0) {
-          ctx.moveTo(centerX, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
+      // Previous y based on placement
+      let prevY;
+      if (placement === 'bottom') {
+        prevY = (canvasHeight - prevAmplitude) + prevWaveY;
+      } else if (placement === 'top') {
+        prevY = prevAmplitude + prevWaveY;
+      } else { // middle
+        prevY = baseY + prevWaveY;
       }
       
-      // Draw from center to left (mirrored)
-      for (let i = 0; i < bufferLength / 8; i++) {
-        const value = dataArray[i] * settings.sensitivity;
-        const normalizedValue = value / 255;
-        const amplitude = canvasHeight * 0.4;
-        
-        const x = centerX - i * sliceWidth;
-        const y = centerY + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-        
-        if (i === 0) {
-          // Already moved to center
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-      
-      // Add glow effect
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = settings.color;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
+      ctx.quadraticCurveTo(controlX, prevY, x, y);
     }
   }
   
-  // Vertical animation mode
-  if (settings.verticalOrientation) {
-    if (!settings.showMirror) {
-      // Draw a single animated line in the center that reacts to music
-      const centerX = canvasWidth / 2;
-      const amplitude = canvasWidth * 0.4;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  
+  // Draw mirror if enabled
+  if (settings.showMirror) {
+    ctx.strokeStyle = `${settings.color}44`;
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    
+    for (let i = 0; i <= segmentCount; i++) {
+      const x = startX + (i * segmentWidth * direction);
       
-      settings.animationStart.forEach(animationStart => {
-        ctx.strokeStyle = settings.color;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        
-        if (animationStart === 'beginning') {
-          // Top to bottom
-          const sliceHeight = canvasHeight / (bufferLength / 4);
-          
-          for (let i = 0; i < bufferLength / 4; i++) {
-            const value = dataArray[i] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate x position based on frequency data and phase
-            const y = i * sliceHeight;
-            const x = centerX + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.bezierCurveTo(
-                x,
-                y - sliceHeight / 2,
-                x,
-                y - sliceHeight / 2,
-                x, 
-                y
-              );
-            }
-          }
-        }
-        else if (animationStart === 'end') {
-          // Bottom to top
-          const sliceHeight = canvasHeight / (bufferLength / 4);
-          
-          for (let i = 0; i < bufferLength / 4; i++) {
-            const value = dataArray[i] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate x position based on frequency data and phase
-            const y = canvasHeight - (i * sliceHeight);
-            const x = centerX + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.bezierCurveTo(
-                x,
-                y + sliceHeight / 2,
-                x,
-                y + sliceHeight / 2,
-                x, 
-                y
-              );
-            }
-          }
-        }
-        else if (animationStart === 'middle') {
-          // From middle outward
-          const centerY = canvasHeight / 2;
-          const sliceHeight = (canvasHeight / 2) / (bufferLength / 8);
-          
-          // Bottom half
-          for (let i = 0; i < bufferLength / 8; i++) {
-            const value = dataArray[i] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate x position based on frequency data and phase
-            const y = centerY + (i * sliceHeight);
-            const x = centerX + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, centerY);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          }
-          
-          // Top half
-          for (let i = 0; i < bufferLength / 8; i++) {
-            const value = dataArray[i] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate x position based on frequency data and phase
-            const y = centerY - (i * sliceHeight);
-            const x = centerX + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-            
-            if (i === 0) {
-              // Already at center
-            } else {
-              ctx.lineTo(x, y);
-            }
-          }
-        }
-        
-        // Add glow effect
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = settings.color;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        
-        // Add subtle echo effect
-        for (let echo = 1; echo <= 3; echo++) {
-          ctx.strokeStyle = `${settings.color}${Math.floor(30 - echo * 10).toString(16)}`;
-          ctx.lineWidth = 2 - echo * 0.5;
-          ctx.beginPath();
-          
-          const echoPhase = phase - echo * 0.5;
-          
-          if (animationStart === 'beginning') {
-            // Top to bottom echo
-            const sliceHeight = canvasHeight / (bufferLength / 4);
-            
-            for (let i = 0; i < bufferLength / 4; i++) {
-              const value = dataArray[i] * settings.sensitivity;
-              const normalizedValue = value / 255;
-              
-              const y = i * sliceHeight;
-              const x = centerX + Math.sin(i * 0.2 + echoPhase) * amplitude * normalizedValue * 0.8;
-              
-              if (i === 0) {
-                ctx.moveTo(x, y);
-              } else {
-                ctx.bezierCurveTo(
-                  x,
-                  y - sliceHeight / 2,
-                  x,
-                  y - sliceHeight / 2,
-                  x, 
-                  y
-                );
-              }
-            }
-          }
-          else if (animationStart === 'end') {
-            // Bottom to top echo
-            const sliceHeight = canvasHeight / (bufferLength / 4);
-            
-            for (let i = 0; i < bufferLength / 4; i++) {
-              const value = dataArray[i] * settings.sensitivity;
-              const normalizedValue = value / 255;
-              
-              const y = canvasHeight - (i * sliceHeight);
-              const x = centerX + Math.sin(i * 0.2 + echoPhase) * amplitude * normalizedValue * 0.8;
-              
-              if (i === 0) {
-                ctx.moveTo(x, y);
-              } else {
-                ctx.bezierCurveTo(
-                  x,
-                  y + sliceHeight / 2,
-                  x,
-                  y + sliceHeight / 2,
-                  x, 
-                  y
-                );
-              }
-            }
-          }
-          else if (animationStart === 'middle') {
-            // From middle outward echo
-            const centerY = canvasHeight / 2;
-            const sliceHeight = (canvasHeight / 2) / (bufferLength / 8);
-            
-            // Bottom half
-            for (let i = 0; i < bufferLength / 8; i++) {
-              const value = dataArray[i] * settings.sensitivity;
-              const normalizedValue = value / 255;
-              
-              const y = centerY + (i * sliceHeight);
-              const x = centerX + Math.sin(i * 0.2 + echoPhase) * amplitude * normalizedValue * 0.8;
-              
-              if (i === 0) {
-                ctx.moveTo(x, centerY);
-              } else {
-                ctx.lineTo(x, y);
-              }
-            }
-            
-            // Top half
-            for (let i = 0; i < bufferLength / 8; i++) {
-              const value = dataArray[i] * settings.sensitivity;
-              const normalizedValue = value / 255;
-              
-              const y = centerY - (i * sliceHeight);
-              const x = centerX + Math.sin(i * 0.2 + echoPhase) * amplitude * normalizedValue * 0.8;
-              
-              if (i === 0) {
-                // Already at center
-              } else {
-                ctx.lineTo(x, y);
-              }
-            }
-          }
-          
-          ctx.stroke();
-        }
-      });
-    } else {
-      // Center-origin animation for mirror mode
-      const centerX = canvasWidth / 2;
-      const centerY = canvasHeight / 2;
-      const maxHeight = canvasHeight / 2;
+      // Sample data from frequency array
+      const dataIndex = Math.floor(i * (bufferLength / segmentCount));
+      const value = dataArray[dataIndex] * settings.sensitivity;
+      const normalizedValue = value / 255;
       
-      // Draw from center to bottom
-      ctx.strokeStyle = settings.color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
+      // Calculate wave effect
+      const phase = basePhase * Math.PI * 4;
+      const amplitude = canvasHeight * 0.3 * normalizedValue;
+      const waveY = Math.sin(i * 0.1 + phase) * amplitude;
       
-      const sliceHeight = maxHeight / (bufferLength / 8);
-      
-      for (let i = 0; i < bufferLength / 8; i++) {
-        const value = dataArray[i] * settings.sensitivity;
-        const normalizedValue = value / 255;
-        const amplitude = canvasWidth * 0.4;
-        
-        const y = centerY + i * sliceHeight;
-        const x = centerX + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
-        
-        if (i === 0) {
-          ctx.moveTo(x, centerY);
-        } else {
-          ctx.lineTo(x, y);
-        }
+      // Calculate mirrored y position
+      let y;
+      if (placement === 'bottom') {
+        y = amplitude - waveY;
+      } else if (placement === 'top') {
+        y = (canvasHeight - amplitude) - waveY;
+      } else { // middle
+        y = baseY - waveY;
       }
       
-      // Draw from center to top (mirrored)
-      for (let i = 0; i < bufferLength / 8; i++) {
-        const value = dataArray[i] * settings.sensitivity;
-        const normalizedValue = value / 255;
-        const amplitude = canvasWidth * 0.4;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        // Use curves for smoother animation
+        const prevX = startX + ((i - 1) * segmentWidth * direction);
+        const controlX = (prevX + x) / 2;
         
-        const y = centerY - i * sliceHeight;
-        const x = centerX + Math.sin(i * 0.2 + phase) * amplitude * normalizedValue;
+        const prevDataIndex = Math.floor((i - 1) * (bufferLength / segmentCount));
+        const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
+        const prevNormalizedValue = prevValue / 255;
+        const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
+        const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
         
-        if (i === 0) {
-          // Already moved to center
-        } else {
-          ctx.lineTo(x, y);
+        // Previous mirrored y
+        let prevY;
+        if (placement === 'bottom') {
+          prevY = prevAmplitude - prevWaveY;
+        } else if (placement === 'top') {
+          prevY = (canvasHeight - prevAmplitude) - prevWaveY;
+        } else { // middle
+          prevY = baseY - prevWaveY;
         }
+        
+        ctx.quadraticCurveTo(controlX, prevY, x, y);
       }
-      
-      // Add glow effect
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = settings.color;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
     }
+    
+    ctx.stroke();
+  }
+};
+
+// Helper function to draw half of a horizontal line (for middle animation start)
+const drawHalfLine = (
+  ctx: CanvasRenderingContext2D,
+  dataArray: Uint8Array,
+  bufferLength: number,
+  basePhase: number,
+  startX: number,
+  endX: number,
+  canvasHeight: number,
+  baseY: number,
+  placement: string,
+  settings: VisualizationSettings,
+  direction: number
+) => {
+  const length = Math.abs(endX - startX);
+  const segmentCount = 50; // Number of line segments for half line
+  const segmentWidth = length / segmentCount;
+  
+  ctx.strokeStyle = settings.color;
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = settings.color;
+  
+  ctx.beginPath();
+  
+  for (let i = 0; i <= segmentCount; i++) {
+    const x = startX + (i * segmentWidth * direction);
+    
+    // Sample data from frequency array
+    const dataIndex = Math.floor(i * (bufferLength / segmentCount));
+    const value = dataArray[dataIndex] * settings.sensitivity;
+    const normalizedValue = value / 255;
+    
+    // Calculate wave effect
+    const phase = basePhase * Math.PI * 4;
+    const amplitude = canvasHeight * 0.3 * normalizedValue;
+    const waveY = Math.sin(i * 0.1 + phase) * amplitude;
+    
+    // Calculate y position based on placement and wave
+    let y;
+    if (placement === 'bottom') {
+      y = (canvasHeight - amplitude) + waveY;
+    } else if (placement === 'top') {
+      y = amplitude + waveY;
+    } else { // middle
+      y = baseY + waveY;
+    }
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      // Use curves for smoother animation
+      const prevX = startX + ((i - 1) * segmentWidth * direction);
+      const controlX = (prevX + x) / 2;
+      
+      const prevDataIndex = Math.floor((i - 1) * (bufferLength / segmentCount));
+      const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
+      const prevNormalizedValue = prevValue / 255;
+      const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
+      const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+      
+      // Previous y based on placement
+      let prevY;
+      if (placement === 'bottom') {
+        prevY = (canvasHeight - prevAmplitude) + prevWaveY;
+      } else if (placement === 'top') {
+        prevY = prevAmplitude + prevWaveY;
+      } else { // middle
+        prevY = baseY + prevWaveY;
+      }
+      
+      ctx.quadraticCurveTo(controlX, prevY, x, y);
+    }
+  }
+  
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  
+  // Draw mirror if enabled
+  if (settings.showMirror) {
+    ctx.strokeStyle = `${settings.color}44`;
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    
+    for (let i = 0; i <= segmentCount; i++) {
+      const x = startX + (i * segmentWidth * direction);
+      
+      // Sample data from frequency array
+      const dataIndex = Math.floor(i * (bufferLength / segmentCount));
+      const value = dataArray[dataIndex] * settings.sensitivity;
+      const normalizedValue = value / 255;
+      
+      // Calculate wave effect
+      const phase = basePhase * Math.PI * 4;
+      const amplitude = canvasHeight * 0.3 * normalizedValue;
+      const waveY = Math.sin(i * 0.1 + phase) * amplitude;
+      
+      // Calculate mirrored y position
+      let y;
+      if (placement === 'bottom') {
+        y = amplitude - waveY;
+      } else if (placement === 'top') {
+        y = (canvasHeight - amplitude) - waveY;
+      } else { // middle
+        y = baseY - waveY;
+      }
+      
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        // Use curves for smoother animation
+        const prevX = startX + ((i - 1) * segmentWidth * direction);
+        const controlX = (prevX + x) / 2;
+        
+        const prevDataIndex = Math.floor((i - 1) * (bufferLength / segmentCount));
+        const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
+        const prevNormalizedValue = prevValue / 255;
+        const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
+        const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+        
+        // Previous mirrored y
+        let prevY;
+        if (placement === 'bottom') {
+          prevY = prevAmplitude - prevWaveY;
+        } else if (placement === 'top') {
+          prevY = (canvasHeight - prevAmplitude) - prevWaveY;
+        } else { // middle
+          prevY = baseY - prevWaveY;
+        }
+        
+        ctx.quadraticCurveTo(controlX, prevY, x, y);
+      }
+    }
+    
+    ctx.stroke();
+  }
+};
+
+// Helper function to draw a full vertical line
+const drawVerticalFullLine = (
+  ctx: CanvasRenderingContext2D,
+  dataArray: Uint8Array,
+  bufferLength: number,
+  basePhase: number,
+  startY: number,
+  endY: number,
+  canvasWidth: number,
+  baseX: number,
+  placement: string,
+  settings: VisualizationSettings,
+  direction: number
+) => {
+  const length = Math.abs(endY - startY);
+  const segmentCount = 100; // Number of line segments
+  const segmentHeight = length / segmentCount;
+  
+  ctx.strokeStyle = settings.color;
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = settings.color;
+  
+  ctx.beginPath();
+  
+  for (let i = 0; i <= segmentCount; i++) {
+    const y = startY + (i * segmentHeight * direction);
+    
+    // Sample data from frequency array
+    const dataIndex = Math.floor(i * (bufferLength / segmentCount));
+    const value = dataArray[dataIndex] * settings.sensitivity;
+    const normalizedValue = value / 255;
+    
+    // Calculate wave effect
+    const phase = basePhase * Math.PI * 4;
+    const amplitude = canvasWidth * 0.3 * normalizedValue;
+    const waveX = Math.sin(i * 0.1 + phase) * amplitude;
+    
+    // Calculate x position based on placement and wave
+    let x;
+    if (placement === 'bottom') { // left
+      x = amplitude + waveX;
+    } else if (placement === 'top') { // right
+      x = (canvasWidth - amplitude) + waveX;
+    } else { // middle
+      x = baseX + waveX;
+    }
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      // Use curves for smoother animation
+      const prevY = startY + ((i - 1) * segmentHeight * direction);
+      const controlY = (prevY + y) / 2;
+      
+      const prevDataIndex = Math.floor((i - 1) * (bufferLength / segmentCount));
+      const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
+      const prevNormalizedValue = prevValue / 255;
+      const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
+      const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+      
+      // Previous x based on placement
+      let prevX;
+      if (placement === 'bottom') { // left
+        prevX = prevAmplitude + prevWaveX;
+      } else if (placement === 'top') { // right
+        prevX = (canvasWidth - prevAmplitude) + prevWaveX;
+      } else { // middle
+        prevX = baseX + prevWaveX;
+      }
+      
+      ctx.quadraticCurveTo(prevX, controlY, x, y);
+    }
+  }
+  
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  
+  // Draw mirror if enabled
+  if (settings.showMirror) {
+    ctx.strokeStyle = `${settings.color}44`;
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    
+    for (let i = 0; i <= segmentCount; i++) {
+      const y = startY + (i * segmentHeight * direction);
+      
+      // Sample data from frequency array
+      const dataIndex = Math.floor(i * (bufferLength / segmentCount));
+      const value = dataArray[dataIndex] * settings.sensitivity;
+      const normalizedValue = value / 255;
+      
+      // Calculate wave effect
+      const phase = basePhase * Math.PI * 4;
+      const amplitude = canvasWidth * 0.3 * normalizedValue;
+      const waveX = Math.sin(i * 0.1 + phase) * amplitude;
+      
+      // Calculate mirrored x position
+      let x;
+      if (placement === 'bottom') { // left
+        x = (canvasWidth - amplitude) - waveX;
+      } else if (placement === 'top') { // right
+        x = amplitude - waveX;
+      } else { // middle
+        x = baseX - waveX;
+      }
+      
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        // Use curves for smoother animation
+        const prevY = startY + ((i - 1) * segmentHeight * direction);
+        const controlY = (prevY + y) / 2;
+        
+        const prevDataIndex = Math.floor((i - 1) * (bufferLength / segmentCount));
+        const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
+        const prevNormalizedValue = prevValue / 255;
+        const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
+        const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+        
+        // Previous mirrored x
+        let prevX;
+        if (placement === 'bottom') { // left
+          prevX = (canvasWidth - prevAmplitude) - prevWaveX;
+        } else if (placement === 'top') { // right
+          prevX = prevAmplitude - prevWaveX;
+        } else { // middle
+          prevX = baseX - prevWaveX;
+        }
+        
+        ctx.quadraticCurveTo(prevX, controlY, x, y);
+      }
+    }
+    
+    ctx.stroke();
+  }
+};
+
+// Helper function to draw half of a vertical line (for middle animation start)
+const drawVerticalHalfLine = (
+  ctx: CanvasRenderingContext2D,
+  dataArray: Uint8Array,
+  bufferLength: number,
+  basePhase: number,
+  startY: number,
+  endY: number,
+  canvasWidth: number,
+  baseX: number,
+  placement: string,
+  settings: VisualizationSettings,
+  direction: number
+) => {
+  const length = Math.abs(endY - startY);
+  const segmentCount = 50; // Number of line segments for half line
+  const segmentHeight = length / segmentCount;
+  
+  ctx.strokeStyle = settings.color;
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = settings.color;
+  
+  ctx.beginPath();
+  
+  for (let i = 0; i <= segmentCount; i++) {
+    const y = startY + (i * segmentHeight * direction);
+    
+    // Sample data from frequency array
+    const dataIndex = Math.floor(i * (bufferLength / segmentCount));
+    const value = dataArray[dataIndex] * settings.sensitivity;
+    const normalizedValue = value / 255;
+    
+    // Calculate wave effect
+    const phase = basePhase * Math.PI * 4;
+    const amplitude = canvasWidth * 0.3 * normalizedValue;
+    const waveX = Math.sin(i * 0.1 + phase) * amplitude;
+    
+    // Calculate x position based on placement and wave
+    let x;
+    if (placement === 'bottom') { // left
+      x = amplitude + waveX;
+    } else if (placement === 'top') { // right
+      x = (canvasWidth - amplitude) + waveX;
+    } else { // middle
+      x = baseX + waveX;
+    }
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      // Use curves for smoother animation
+      const prevY = startY + ((i - 1) * segmentHeight * direction);
+      const controlY = (prevY + y) / 2;
+      
+      const prevDataIndex = Math.floor((i - 1) * (bufferLength / segmentCount));
+      const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
+      const prevNormalizedValue = prevValue / 255;
+      const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
+      const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+      
+      // Previous x based on placement
+      let prevX;
+      if (placement === 'bottom') { // left
+        prevX = prevAmplitude + prevWaveX;
+      } else if (placement === 'top') { // right
+        prevX = (canvasWidth - prevAmplitude) + prevWaveX;
+      } else { // middle
+        prevX = baseX + prevWaveX;
+      }
+      
+      ctx.quadraticCurveTo(prevX, controlY, x, y);
+    }
+  }
+  
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  
+  // Draw mirror if enabled
+  if (settings.showMirror) {
+    ctx.strokeStyle = `${settings.color}44`;
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    
+    for (let i = 0; i <= segmentCount; i++) {
+      const y = startY + (i * segmentHeight * direction);
+      
+      // Sample data from frequency array
+      const dataIndex = Math.floor(i * (bufferLength / segmentCount));
+      const value = dataArray[dataIndex] * settings.sensitivity;
+      const normalizedValue = value / 255;
+      
+      // Calculate wave effect
+      const phase = basePhase * Math.PI * 4;
+      const amplitude = canvasWidth * 0.3 * normalizedValue;
+      const waveX = Math.sin(i * 0.1 + phase) * amplitude;
+      
+      // Calculate mirrored x position
+      let x;
+      if (placement === 'bottom') { // left
+        x = (canvasWidth - amplitude) - waveX;
+      } else if (placement === 'top') { // right
+        x = amplitude - waveX;
+      } else { // middle
+        x = baseX - waveX;
+      }
+      
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        // Use curves for smoother animation
+        const prevY = startY + ((i - 1) * segmentHeight * direction);
+        const controlY = (prevY + y) / 2;
+        
+        const prevDataIndex = Math.floor((i - 1) * (bufferLength / segmentCount));
+        const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
+        const prevNormalizedValue = prevValue / 255;
+        const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
+        const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+        
+        // Previous mirrored x
+        let prevX;
+        if (placement === 'bottom') { // left
+          prevX = (canvasWidth - prevAmplitude) - prevWaveX;
+        } else if (placement === 'top') { // right
+          prevX = prevAmplitude - prevWaveX;
+        } else { // middle
+          prevX = baseX - prevWaveX;
+        }
+        
+        ctx.quadraticCurveTo(prevX, controlY, x, y);
+      }
+    }
+    
+    ctx.stroke();
   }
 };

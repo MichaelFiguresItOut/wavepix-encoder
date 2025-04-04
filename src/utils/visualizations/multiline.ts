@@ -175,7 +175,7 @@ export const drawMultilineAnimation = (
     }
   } else {
     // Apply orientation settings for non-mirrored mode
-    if (settings.orientation === "horizontal" || settings.orientation === "both") {
+    if (settings.horizontalOrientation) {
       // Horizontal lines
       const lineCount = 5;
       const lineHeight = canvasHeight / (lineCount + 1);
@@ -269,7 +269,7 @@ export const drawMultilineAnimation = (
       }
     }
     
-    if (settings.orientation === "vertical" || settings.orientation === "both") {
+    if (settings.verticalOrientation) {
       // Vertical lines
       const lineCount = 5;
       const lineWidth = canvasWidth / (lineCount + 1);
