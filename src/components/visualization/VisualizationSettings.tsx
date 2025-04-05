@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -73,14 +72,14 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
     });
   };
 
-  // Determine if bar placement options should be disabled based on visualization type
-  const isBarPlacementDisabled = (placement: BarPlacement) => {
-    // For Siri, Dots and Multiline animations, only allow "middle" as bar placement
-    if ((settings.type === "siri" || settings.type === "dots" || settings.type === "multiline") && placement !== "middle") {
-      return true;
-    }
-    return false;
-  };
+  // Check if orientation section should be shown
+  const showOrientationSection = settings.type !== "circle" && settings.type !== "formation";
+
+  // Check if bar placement section should be shown
+  const showBarPlacementSection = settings.type !== "circle" && settings.type !== "formation" && settings.type !== "multiline";
+
+  // Check if animation start section should be shown
+  const showAnimationStartSection = settings.type !== "circle" && settings.type !== "formation";
 
   return (
     <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4 md:gap-6`}>
@@ -101,11 +100,13 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               <SelectItem value="line">Line Animation</SelectItem>
               <SelectItem value="siri">Siri Animation</SelectItem>
               <SelectItem value="dots">Dots Animation</SelectItem>
+              <SelectItem value="bubbles">Bubbles Animation</SelectItem>
               <SelectItem value="formation">Formation Animation</SelectItem>
               <SelectItem value="multiline">Multiline Animation</SelectItem>
               <SelectItem value="lightning">Lightning Animation</SelectItem>
               <SelectItem value="honeycomb">Honeycomb Animation</SelectItem>
               <SelectItem value="fire">Fire Animation</SelectItem>
+              <SelectItem value="spiderweb">SpiderWeb Animation</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -143,8 +144,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
 
-        {/* Orientation checkboxes - instead of the radio buttons */}
-        {settings.type !== "circle" && (
+        {/* Orientation checkboxes - only display for specific visualizations */}
+        {showOrientationSection && (
           <div className="space-y-3">
             <Label>Orientation</Label>
             <div className="flex flex-col space-y-2">
@@ -168,54 +169,48 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
 
-        {/* Bar Placement multi-select */}
-        <div className="space-y-3">
-          <Label>Bar Placement</Label>
-          <div className="flex flex-col space-y-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="bottom-placement" 
-                checked={settings.barPlacement.includes("bottom")}
-                onCheckedChange={(checked) => 
-                  handleMultiSelectChange("barPlacement", "bottom", !!checked)
-                }
-                disabled={isBarPlacementDisabled("bottom")}
-              />
-              <Label 
-                htmlFor="bottom-placement" 
-                className={`cursor-pointer ${isBarPlacementDisabled("bottom") ? "text-gray-400" : ""}`}
-              >
-                {settings.verticalOrientation && !settings.horizontalOrientation ? "Left" : "Bottom"}
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="middle-placement" 
-                checked={settings.barPlacement.includes("middle")}
-                onCheckedChange={(checked) => 
-                  handleMultiSelectChange("barPlacement", "middle", !!checked)
-                }
-              />
-              <Label htmlFor="middle-placement" className="cursor-pointer">Middle</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="top-placement" 
-                checked={settings.barPlacement.includes("top")}
-                onCheckedChange={(checked) => 
-                  handleMultiSelectChange("barPlacement", "top", !!checked)
-                }
-                disabled={isBarPlacementDisabled("top")}
-              />
-              <Label 
-                htmlFor="top-placement" 
-                className={`cursor-pointer ${isBarPlacementDisabled("top") ? "text-gray-400" : ""}`}
-              >
-                {settings.verticalOrientation && !settings.horizontalOrientation ? "Right" : "Top"}
-              </Label>
+        {/* Bar Placement multi-select - only display for specific visualizations */}
+        {showBarPlacementSection && (
+          <div className="space-y-3">
+            <Label>Bar Placement</Label>
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="bottom-placement" 
+                  checked={settings.barPlacement.includes("bottom")}
+                  onCheckedChange={(checked) => 
+                    handleMultiSelectChange("barPlacement", "bottom", !!checked)
+                  }
+                />
+                <Label htmlFor="bottom-placement" className="cursor-pointer">
+                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Left" : "Bottom"}
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="middle-placement" 
+                  checked={settings.barPlacement.includes("middle")}
+                  onCheckedChange={(checked) => 
+                    handleMultiSelectChange("barPlacement", "middle", !!checked)
+                  }
+                />
+                <Label htmlFor="middle-placement" className="cursor-pointer">Middle</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="top-placement" 
+                  checked={settings.barPlacement.includes("top")}
+                  onCheckedChange={(checked) => 
+                    handleMultiSelectChange("barPlacement", "top", !!checked)
+                  }
+                />
+                <Label htmlFor="top-placement" className="cursor-pointer">
+                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Right" : "Top"}
+                </Label>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
       
       <div className="space-y-3 md:space-y-4">
@@ -269,46 +264,48 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           <Label htmlFor="mirror" className="cursor-pointer">Mirrored Effect</Label>
         </div>
 
-        {/* Animation Start multi-select */}
-        <div className="space-y-3">
-          <Label>Animation Start</Label>
-          <div className="flex flex-col space-y-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="beginning-start" 
-                checked={settings.animationStart.includes("beginning")}
-                onCheckedChange={(checked) => 
-                  handleMultiSelectChange("animationStart", "beginning", !!checked)
-                }
-              />
-              <Label htmlFor="beginning-start" className="cursor-pointer">
-                {settings.verticalOrientation && !settings.horizontalOrientation ? "Top" : "Left"}
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="middle-start" 
-                checked={settings.animationStart.includes("middle")}
-                onCheckedChange={(checked) => 
-                  handleMultiSelectChange("animationStart", "middle", !!checked)
-                }
-              />
-              <Label htmlFor="middle-start" className="cursor-pointer">Middle</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="end-start" 
-                checked={settings.animationStart.includes("end")}
-                onCheckedChange={(checked) => 
-                  handleMultiSelectChange("animationStart", "end", !!checked)
-                }
-              />
-              <Label htmlFor="end-start" className="cursor-pointer">
-                {settings.verticalOrientation && !settings.horizontalOrientation ? "Bottom" : "Right"}
-              </Label>
+        {/* Animation Start multi-select - only display for specific visualizations */}
+        {showAnimationStartSection && (
+          <div className="space-y-3">
+            <Label>Animation Start</Label>
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="beginning-start" 
+                  checked={settings.animationStart.includes("beginning")}
+                  onCheckedChange={(checked) => 
+                    handleMultiSelectChange("animationStart", "beginning", !!checked)
+                  }
+                />
+                <Label htmlFor="beginning-start" className="cursor-pointer">
+                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Top" : "Left"}
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="middle-start" 
+                  checked={settings.animationStart.includes("middle")}
+                  onCheckedChange={(checked) => 
+                    handleMultiSelectChange("animationStart", "middle", !!checked)
+                  }
+                />
+                <Label htmlFor="middle-start" className="cursor-pointer">Center</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="end-start" 
+                  checked={settings.animationStart.includes("end")}
+                  onCheckedChange={(checked) => 
+                    handleMultiSelectChange("animationStart", "end", !!checked)
+                  }
+                />
+                <Label htmlFor="end-start" className="cursor-pointer">
+                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Bottom" : "Right"}
+                </Label>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

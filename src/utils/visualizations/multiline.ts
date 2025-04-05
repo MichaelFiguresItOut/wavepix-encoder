@@ -1,4 +1,3 @@
-
 import { VisualizationSettings, formatColorWithOpacity } from './utils';
 
 export const drawMultilineAnimation = (
@@ -201,6 +200,27 @@ export const drawMultilineAnimation = (
         `rgb(${Math.min(r + 20, 255)}, ${Math.min(g + 20, 255)}, ${b})`
       ];
       
+      // Determine direction based on animation start
+      let startX, endX, direction;
+      
+      // If multiple animation start points are selected, use the first one
+      const animStart = settings.animationStart[0] || "beginning";
+      
+      if (animStart === "beginning") {
+        startX = 0;
+        endX = canvasWidth;
+        direction = 1; // Left to right
+      } else if (animStart === "end") {
+        startX = canvasWidth;
+        endX = 0;
+        direction = -1; // Right to left
+      } else { // middle
+        // Handle middle specially later
+        startX = canvasWidth / 2;
+        endX = canvasWidth;
+        direction = 0; // Both directions
+      }
+      
       // Draw each line
       for (let lineIndex = 0; lineIndex < lineCount; lineIndex++) {
         const y = (lineIndex + 1) * lineHeight;
@@ -210,7 +230,6 @@ export const drawMultilineAnimation = (
         const endFreq = Math.floor(bufferLength * rangeEnd);
         
         const pointCount = 100; // Number of points per line
-        const pointSpacing = canvasWidth / (pointCount - 1);
         
         // Line style
         ctx.strokeStyle = lineColors[lineIndex];
@@ -218,35 +237,111 @@ export const drawMultilineAnimation = (
         ctx.shadowBlur = 5;
         ctx.shadowColor = lineColors[lineIndex];
         
-        ctx.beginPath();
-        
-        for (let i = 0; i < pointCount; i++) {
-          const x = i * pointSpacing;
+        if (animStart === "middle") {
+          // Draw from middle outward
+          // First half (center to right)
+          const halfPointCount = Math.floor(pointCount / 2);
+          const pointSpacing = (canvasWidth / 2) / halfPointCount;
           
-          // Map data point to frequency range for this line
-          const dataIndex = startFreq + Math.floor((i / pointCount) * (endFreq - startFreq));
-          const value = dataArray[dataIndex] * settings.sensitivity;
-          const normalizedValue = value / 255;
+          ctx.beginPath();
+          const centerX = canvasWidth / 2;
           
-          // Add wave effect with phase offset for each line
-          const linePhase = phase + (lineIndex * Math.PI / 5);
-          const amplitude = lineHeight * 0.8 * normalizedValue;
-          const waveY = Math.sin(i * 0.12 + linePhase) * amplitude;
-          
-          const pointY = y + waveY;
-          
-          if (i === 0) {
-            ctx.moveTo(x, pointY);
-          } else {
-            // Use curves for smoother lines
-            const prevX = (i - 1) * pointSpacing;
-            const cpX = (prevX + x) / 2;
-            ctx.quadraticCurveTo(cpX, pointY, x, pointY);
+          for (let i = 0; i <= halfPointCount; i++) {
+            const x = centerX + i * pointSpacing;
+            
+            // Map data point to frequency range for this line
+            const dataIndex = startFreq + Math.floor((i / halfPointCount) * (endFreq - startFreq));
+            const value = dataArray[dataIndex] * settings.sensitivity;
+            const normalizedValue = value / 255;
+            
+            // Add wave effect with phase offset for each line
+            const linePhase = phase + (lineIndex * Math.PI / 5);
+            const amplitude = lineHeight * 0.8 * normalizedValue;
+            const waveY = Math.sin(i * 0.12 + linePhase) * amplitude;
+            
+            const pointY = y + waveY;
+            
+            if (i === 0) {
+              ctx.moveTo(x, pointY);
+            } else {
+              // Use curves for smoother lines
+              const prevX = centerX + (i - 1) * pointSpacing;
+              const cpX = (prevX + x) / 2;
+              ctx.quadraticCurveTo(cpX, pointY, x, pointY);
+            }
           }
+          
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+          
+          // Second half (center to left)
+          ctx.strokeStyle = lineColors[lineIndex];
+          ctx.shadowBlur = 5;
+          ctx.shadowColor = lineColors[lineIndex];
+          
+          ctx.beginPath();
+          
+          for (let i = 0; i <= halfPointCount; i++) {
+            const x = centerX - i * pointSpacing;
+            
+            // Map data point to frequency range for this line
+            const dataIndex = startFreq + Math.floor(((halfPointCount + i) / pointCount) * (endFreq - startFreq));
+            const value = dataArray[dataIndex] * settings.sensitivity;
+            const normalizedValue = value / 255;
+            
+            // Add wave effect with phase offset for each line
+            const linePhase = phase + (lineIndex * Math.PI / 5);
+            const amplitude = lineHeight * 0.8 * normalizedValue;
+            const waveY = Math.sin((halfPointCount + i) * 0.12 + linePhase) * amplitude;
+            
+            const pointY = y + waveY;
+            
+            if (i === 0) {
+              ctx.moveTo(x, pointY);
+            } else {
+              // Use curves for smoother lines
+              const prevX = centerX - (i - 1) * pointSpacing;
+              const cpX = (prevX + x) / 2;
+              ctx.quadraticCurveTo(cpX, pointY, x, pointY);
+            }
+          }
+          
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        } else {
+          // Draw from start to end based on direction
+          const pointSpacing = Math.abs(endX - startX) / pointCount;
+          
+          ctx.beginPath();
+          
+          for (let i = 0; i < pointCount; i++) {
+            const x = startX + i * pointSpacing * direction;
+            
+            // Map data point to frequency range for this line
+            const dataIndex = startFreq + Math.floor((i / pointCount) * (endFreq - startFreq));
+            const value = dataArray[dataIndex] * settings.sensitivity;
+            const normalizedValue = value / 255;
+            
+            // Add wave effect with phase offset for each line
+            const linePhase = phase + (lineIndex * Math.PI / 5);
+            const amplitude = lineHeight * 0.8 * normalizedValue;
+            const waveY = Math.sin(i * 0.12 + linePhase) * amplitude;
+            
+            const pointY = y + waveY;
+            
+            if (i === 0) {
+              ctx.moveTo(x, pointY);
+            } else {
+              // Use curves for smoother lines
+              const prevX = startX + (i - 1) * pointSpacing * direction;
+              const cpX = (prevX + x) / 2;
+              ctx.quadraticCurveTo(cpX, pointY, x, pointY);
+            }
+          }
+          
+          ctx.stroke();
+          ctx.shadowBlur = 0;
         }
-        
-        ctx.stroke();
-        ctx.shadowBlur = 0;
       }
       
       // Add subtle vertical connecting lines

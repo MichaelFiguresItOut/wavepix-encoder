@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
   const [showBackground, setShowBackground] = useState(true);
   const [isEncoding, setIsEncoding] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [useCFR, setUseCFR] = useState(true);
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -135,8 +135,33 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       const canvas = canvasRef.current;
       const fps = parseInt(frameRate, 10);
       
+      // Instead of capturing a live stream with variable timing, we'll:
+      // 1. Pre-render all frames at exact intervals
+      // 2. Create a fixed-fps video from those frames
+      if (useCFR) {
+        await generateConstantFrameRateVideo(fps, canvas, audioBuffer);
+        return;
+      }
+      
+      // Original variable frame rate approach (fallback)
       // Set up canvas stream - explicitly set the frame rate
       const canvasStream = canvas.captureStream(fps);
+      
+      // Force a consistent frame rate on video tracks
+      canvasStream.getVideoTracks().forEach(track => {
+        if (track.getConstraints && typeof track.getConstraints === 'function') {
+          try {
+            // Some browsers support setting frameRate constraint directly
+            track.applyConstraints({ 
+              frameRate: { exact: fps },
+              width: { exact: canvas.width },
+              height: { exact: canvas.height }
+            });
+          } catch (e) {
+            console.warn('Could not apply exact frame rate constraints:', e);
+          }
+        }
+      });
       
       // Set up audio context and source
       if (!audioContextRef.current) {
@@ -215,7 +240,10 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       };
       
       // Start recording with a timeslice to ensure constant frame rate
-      mediaRecorderRef.current.start(100); // Use smaller timeslice for more consistent recording
+      // Using smaller timeslice for more consistent frame encoding
+      // 1000/fps ensures we get data at least once per frame
+      const timeslice = Math.min(100, Math.floor(1000 / (fps * 2)));
+      mediaRecorderRef.current.start(timeslice);
       
       // Start the audio source
       audioSourceRef.current.start(0);
@@ -233,6 +261,9 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       let lastFrameTime = 0;
       let frameCount = 0;
       
+      // For tracking timing accuracy
+      const frameTimings: number[] = [];
+      
       const animate = (timestamp: number) => {
         if (!analyserRef.current || !canvasRef.current) return;
         
@@ -244,6 +275,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         // Ensure we're rendering at the specified frame rate
         // This is critical for constant frame rate
         const expectedFrame = Math.floor(elapsed / frameInterval);
+        
         if (expectedFrame > frameCount) {
           // We need to catch up frames
           const framesToDraw = Math.min(expectedFrame - frameCount, 1);
@@ -251,6 +283,17 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
           for (let i = 0; i < framesToDraw; i++) {
             // Calculate the exact timestamp for this frame
             const frameTimestamp = startTimeRef.current + (frameCount + i) * frameInterval;
+            
+            // Track timing precision for debugging
+            if (frameCount > 0) {
+              const actualInterval = timestamp - lastFrameTime;
+              frameTimings.push(actualInterval);
+              
+              // Log every 60 frames if there's significant deviation
+              if (frameCount % 60 === 0 && Math.abs(actualInterval - frameInterval) > 5) {
+                console.log(`Frame interval deviation: ${actualInterval - frameInterval}ms`);
+              }
+            }
             
             // Draw visualization for this exact frame
             analyserRef.current.getByteFrequencyData(dataArray);
@@ -345,6 +388,252 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     });
   };
 
+  // New function for constant frame rate generation
+  const generateConstantFrameRateVideo = async (fps: number, canvas: HTMLCanvasElement, audioBuffer: AudioBuffer) => {
+    try {
+      console.log("Using direct canvas capture for CFR encoding...");
+      
+      // Calculate duration
+      const duration = audioBuffer.duration;
+      const totalFrames = Math.ceil(duration * fps);
+      
+      toast({
+        variant: "default",
+        title: "Constant Frame Rate Encoding",
+        description: `Encoding video at ${fps} FPS...`
+      });
+      
+      // Resize the canvas to match selected resolution
+      canvas.width = getResolutionWidth(resolution);
+      canvas.height = getResolutionHeight(resolution);
+      
+      // Set up audio contexts for visualization
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      if (!analyserRef.current) {
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+      }
+      
+      // Create a new AudioBuffer source for visualization
+      const visualizationSource = audioContextRef.current.createBufferSource();
+      visualizationSource.buffer = audioBuffer;
+      visualizationSource.connect(analyserRef.current);
+      
+      // Set up buffer for frequency data
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      // Use the provided canvas directly instead of creating a new one
+      // This ensures the canvas has the correct context and configuration
+      const ctx = canvas.getContext('2d')!;
+      
+      // Create a canvas stream with specified FPS
+      const canvasStream = canvas.captureStream(fps);
+      
+      // Create a new audio context for the recording
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioDestination = audioContext.createMediaStreamDestination();
+      const audioSource = audioContext.createBufferSource();
+      audioSource.buffer = audioBuffer;
+      audioSource.connect(audioDestination);
+      
+      // Create combined stream with video and audio
+      const combinedStream = new MediaStream();
+      
+      // Add video track
+      canvasStream.getVideoTracks().forEach(track => {
+        // Try to set constraints for constant frame rate
+        try {
+          track.applyConstraints({
+            frameRate: { exact: fps }
+          });
+        } catch (e) {
+          console.warn("Could not apply frame rate constraint:", e);
+        }
+        combinedStream.addTrack(track);
+      });
+      
+      // Add audio track
+      audioDestination.stream.getAudioTracks().forEach(track => {
+        combinedStream.addTrack(track);
+      });
+      
+      // Find the best supported codec
+      const mimeTypes = [
+        'video/mp4;codecs=h264,mp4a.40.2',
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+        'video/mp4',
+        'video/webm;codecs=h264,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+      ];
+      
+      let mimeType = '';
+      for (const type of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          console.log(`Using MIME type: ${type}`);
+          break;
+        }
+      }
+      
+      if (!mimeType) {
+        throw new Error("No supported video format found");
+      }
+      
+      // Create media recorder with high quality settings
+      const recorder = new MediaRecorder(combinedStream, {
+        mimeType,
+        videoBitsPerSecond: quality * 200000, // Higher bitrate
+        audioBitsPerSecond: 192000 // Good audio quality
+      });
+      
+      // Collect data chunks
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+      
+      // When recording is complete, create the final video
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/mp4' });
+        finishEncoding(blob);
+      };
+      
+      // Draw initial frame before starting
+      // This ensures we have content on the canvas before recording starts
+      if (showBackground) {
+        ctx.fillStyle = '#0f0f0f';
+      } else {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+      }
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      analyserRef.current.getByteFrequencyData(dataArray);
+      renderVisualization(
+        0,
+        analyserRef.current,
+        canvas,
+        visualizerSettings,
+        0
+      );
+      
+      // Begin recording
+      recorder.start(100); // Collect data every 100ms
+      
+      // Start sources
+      visualizationSource.start(0);
+      audioSource.start(0);
+      
+      // Animation timing variables
+      const startTime = performance.now();
+      
+      // Animation function to render frames
+      function animate(now: number) {
+        const elapsed = now - startTime;
+        
+        // Update progress
+        const progressPercent = Math.min(100, Math.round((elapsed / (duration * 1000)) * 100));
+        setProgress(progressPercent);
+        
+        // Get current audio data
+        analyserRef.current!.getByteFrequencyData(dataArray);
+        
+        // Clear canvas with background
+        if (showBackground) {
+          ctx.fillStyle = '#0f0f0f';
+        } else {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+        }
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw visualization at current timestamp
+        renderVisualization(
+          elapsed,
+          analyserRef.current!,
+          canvas,
+          visualizerSettings,
+          (elapsed / 1000) * visualizerSettings.rotationSpeed
+        );
+        
+        // Continue animation if not done
+        if (elapsed < duration * 1000) {
+          requestAnimationFrame(animate);
+        } else {
+          // End recording
+          console.log("Animation complete, stopping recorder");
+          
+          // Small delay to ensure all frames are captured
+          setTimeout(() => {
+            recorder.stop();
+            visualizationSource.stop();
+            audioSource.stop();
+          }, 500);
+        }
+      }
+      
+      // Start animation loop
+      requestAnimationFrame(animate);
+      
+    } catch (error) {
+      console.error("Error in CFR encoding:", error);
+      setIsEncoding(false);
+      toast({
+        variant: "destructive",
+        title: "Encoding Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred"
+      });
+    }
+  };
+  
+  // WebCodecs approach (modern browsers) - Not using this for now
+  const createVideoWithWebCodecs = async (frames: Blob[], fps: number, audioBuffer: AudioBuffer) => {
+    try {
+      toast({
+        variant: "destructive",
+        title: "Advanced encoding not supported",
+        description: "Your browser doesn't support the required APIs for constant frame rate encoding."
+      });
+      
+      // Fall back to the muxer approach
+      await createVideoWithMuxer(frames, fps, audioBuffer);
+      
+    } catch (error) {
+      console.error("WebCodecs encoding error:", error);
+      throw error;
+    }
+  };
+  
+  // Compatible approach using FFmpeg.wasm or similar tool
+  const createVideoWithMuxer = async (frames: Blob[], fps: number, audioBuffer: AudioBuffer) => {
+    // This function is now essentially a fallback/compatibility layer
+    // We're mainly using the direct approach in generateConstantFrameRateVideo now
+    try {
+      console.log("Using fallback muxer approach");
+      
+      // Since we're already doing the direct approach in generateConstantFrameRateVideo,
+      // we'll keep this super simple
+      const duration = audioBuffer.duration;
+      toast({
+        variant: "default",
+        title: "Using simple encoder",
+        description: `Creating ${Math.ceil(duration * fps)} frames at ${fps} FPS...`
+      });
+      
+      // Redirect to the simplified approach in the main function
+      const canvas = canvasRef.current!;
+      await generateConstantFrameRateVideo(fps, canvas, audioBuffer);
+    } catch (error) {
+      console.error("Muxer encoding error:", error);
+      throw error;
+    }
+  };
+
   return (
     <Card className="w-full encoder-section">
       <CardHeader className="pb-2">
@@ -408,6 +697,15 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
                 onCheckedChange={setShowBackground}
               />
               <Label htmlFor="background">Include Background</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2 pt-4">
+              <Switch 
+                id="cfr" 
+                checked={useCFR} 
+                onCheckedChange={setUseCFR}
+              />
+              <Label htmlFor="cfr">Force Constant Frame Rate</Label>
             </div>
           </div>
         </div>

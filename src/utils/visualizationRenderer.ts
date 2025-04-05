@@ -1,15 +1,16 @@
-
 import { drawBars } from './visualizations/bars';
 import { drawWave } from './visualizations/wave';
 import { drawCircle } from './visualizations/circle';
 import { drawLineAnimation } from './visualizations/line';
 import { drawSiriAnimation } from './visualizations/siri';
 import { drawDotsAnimation } from './visualizations/dots';
+import { drawBubblesAnimation } from './visualizations/bubbles';
 import { drawFormationAnimation } from './visualizations/formation';
 import { drawMultilineAnimation } from './visualizations/multiline';
 import { drawLightningAnimation } from './visualizations/lightning';
 import { drawHoneycombAnimation } from './visualizations/honeycomb';
 import { drawFireAnimation } from './visualizations/fire';
+import { drawSpiderWebAnimation } from './visualizations/spiderweb';
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 
 export const renderVisualization = (
@@ -53,6 +54,9 @@ export const renderVisualization = (
     case "dots":
       drawDotsAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
       break;
+    case "bubbles":
+      drawBubblesAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+      break;
     case "formation":
       drawFormationAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
       break;
@@ -67,6 +71,9 @@ export const renderVisualization = (
       break;
     case "fire":
       drawFireAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+      break;
+    case "spiderweb":
+      drawSpiderWebAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
       break;
     default:
       drawBars(ctx, dataArray, canvas, bufferLength, settings);

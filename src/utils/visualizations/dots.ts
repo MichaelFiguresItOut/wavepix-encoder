@@ -1,4 +1,3 @@
-
 import { VisualizationSettings, formatColorWithOpacity } from './utils';
 
 export const drawDotsAnimation = (
@@ -11,7 +10,6 @@ export const drawDotsAnimation = (
 ) => {
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
-  const centerY = canvasHeight / 2;
   const centerX = canvasWidth / 2;
   
   // Animation phase
@@ -38,7 +36,7 @@ export const drawDotsAnimation = (
         
         // Calculate dot position
         const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
+        const y = canvasHeight / 2 + Math.sin(angle) * radius;
         
         if (i === 0) {
           ctx.moveTo(x, y);
@@ -68,7 +66,7 @@ export const drawDotsAnimation = (
         
         // Calculate dot position
         const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
+        const y = canvasHeight / 2 + Math.sin(angle) * radius;
         
         // Dot size based on frequency data
         const dotSize = 2 + normalizedValue * 6;
@@ -89,224 +87,356 @@ export const drawDotsAnimation = (
     }
   } else {
     // Non-mirrored mode - we'll use orientation settings here
-    if (settings.horizontalOrientation) {
-      // Horizontal dots in a wave pattern
-      const dotCount = Math.min(bufferLength, 100);
+    // Process each bar placement option
+    settings.barPlacement.forEach(placement => {
+      if (settings.horizontalOrientation) {
+        // Horizontal dots in a wave pattern
+        const dotCount = Math.min(bufferLength, 100);
+        
+        // Calculate centerY based on placement
+        let centerY;
+        if (placement === 'top') {
+          centerY = canvasHeight * 0.2; // Near the top
+        } else if (placement === 'middle') {
+          centerY = canvasHeight / 2; // Middle of the screen
+        } else { // bottom
+          centerY = canvasHeight * 0.8; // Near the bottom
+        }
+        
+        settings.animationStart.forEach(animationStart => {
+          // Determine drawing direction based on animation start
+          let startX = 0;
+          let endX = canvasWidth;
+          let directionMultiplier = 1;
+          
+          if (animationStart === 'beginning') {
+            startX = 0;
+            endX = canvasWidth;
+            directionMultiplier = 1;
+          } else if (animationStart === 'end') {
+            startX = canvasWidth;
+            endX = 0;
+            directionMultiplier = -1;
+          } else if (animationStart === 'middle') {
+            // For middle, we'll draw from center outward
+            const halfDotCount = Math.floor(dotCount / 2);
+            
+            // Draw first half (center to right)
+            const dotSpacing = (canvasWidth / 2) / halfDotCount;
+            
+            // Draw connecting line first (behind dots)
+            ctx.beginPath();
+            for (let i = 0; i <= halfDotCount; i++) {
+              const x = centerX + i * dotSpacing;
+              const dataIndex = Math.floor(i * (bufferLength / dotCount));
+              const value = dataArray[dataIndex] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Calculate dot position with subtle wave motion
+              const waveY = Math.sin(i * 0.15 + phase) * 20;
+              const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+            }
+            
+            // Style the connecting line
+            ctx.strokeStyle = `${settings.color}44`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw dots with shadow/glow
+            for (let i = 0; i <= halfDotCount; i++) {
+              const x = centerX + i * dotSpacing;
+              const dataIndex = Math.floor(i * (bufferLength / dotCount));
+              const value = dataArray[dataIndex] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Calculate dot position with subtle wave motion
+              const waveY = Math.sin(i * 0.15 + phase) * 20;
+              const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+              
+              // Dot size based on frequency data
+              const dotSize = 2 + normalizedValue * 8;
+              
+              // Draw glow/shadow
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = settings.color;
+              
+              // Draw dot
+              ctx.beginPath();
+              ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+              ctx.fillStyle = settings.color;
+              ctx.fill();
+              
+              // Reset shadow
+              ctx.shadowBlur = 0;
+            }
+            
+            // Draw second half (center to left)
+            // Draw connecting line first (behind dots)
+            ctx.beginPath();
+            for (let i = 0; i <= halfDotCount; i++) {
+              const x = centerX - i * dotSpacing;
+              const dataIndex = Math.floor((halfDotCount + i) * (bufferLength / dotCount));
+              const value = dataArray[dataIndex] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Calculate dot position with subtle wave motion
+              const waveY = Math.sin(i * 0.15 + phase) * 20;
+              const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+            }
+            
+            // Style the connecting line
+            ctx.strokeStyle = `${settings.color}44`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw dots with shadow/glow
+            for (let i = 0; i <= halfDotCount; i++) {
+              const x = centerX - i * dotSpacing;
+              const dataIndex = Math.floor((halfDotCount + i) * (bufferLength / dotCount));
+              const value = dataArray[dataIndex] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Calculate dot position with subtle wave motion
+              const waveY = Math.sin(i * 0.15 + phase) * 20;
+              const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+              
+              // Dot size based on frequency data
+              const dotSize = 2 + normalizedValue * 8;
+              
+              // Draw glow/shadow
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = settings.color;
+              
+              // Draw dot
+              ctx.beginPath();
+              ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+              ctx.fillStyle = settings.color;
+              ctx.fill();
+              
+              // Reset shadow
+              ctx.shadowBlur = 0;
+            }
+            
+            return; // Skip the rest of the code for middle animation start
+          }
+          
+          const dotSpacing = Math.abs(endX - startX) / dotCount;
+          
+          // Draw connecting line first (behind dots)
+          ctx.beginPath();
+          for (let i = 0; i < dotCount; i++) {
+            const x = startX + i * dotSpacing * directionMultiplier;
+            const dataIndex = Math.floor(i * (bufferLength / dotCount));
+            const value = dataArray[dataIndex] * settings.sensitivity;
+            const normalizedValue = value / 255;
+            
+            // Calculate dot position with subtle wave motion
+            const waveY = Math.sin(i * 0.15 + phase) * 20;
+            const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+            
+            if (i === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          
+          // Style the connecting line
+          ctx.strokeStyle = `${settings.color}44`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Draw dots with shadow/glow
+          for (let i = 0; i < dotCount; i++) {
+            const x = startX + i * dotSpacing * directionMultiplier;
+            const dataIndex = Math.floor(i * (bufferLength / dotCount));
+            const value = dataArray[dataIndex] * settings.sensitivity;
+            const normalizedValue = value / 255;
+            
+            // Calculate dot position with subtle wave motion
+            const waveY = Math.sin(i * 0.15 + phase) * 20;
+            const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+            
+            // Dot size based on frequency data
+            const dotSize = 2 + normalizedValue * 8;
+            
+            // Draw glow/shadow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = settings.color;
+            
+            // Draw dot
+            ctx.beginPath();
+            ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+            ctx.fillStyle = settings.color;
+            ctx.fill();
+            
+            // Reset shadow
+            ctx.shadowBlur = 0;
+          }
+        });
+      }
       
-      settings.animationStart.forEach(animationStart => {
-        // Determine drawing direction based on animation start
-        let startX = 0;
-        let endX = canvasWidth;
-        let directionMultiplier = 1;
+      if (settings.verticalOrientation) {
+        // Vertical dots in a wave pattern
+        const dotCount = Math.min(bufferLength, 100);
         
-        if (animationStart === 'beginning') {
-          startX = 0;
-          endX = canvasWidth;
-          directionMultiplier = 1;
-        } else if (animationStart === 'end') {
-          startX = canvasWidth;
-          endX = 0;
-          directionMultiplier = -1;
-        } else if (animationStart === 'middle') {
-          // For middle, we'll draw from center outward
-          const halfDotCount = Math.floor(dotCount / 2);
+        // Calculate centerX based on placement
+        let centerX;
+        if (placement === 'bottom') { // Left in vertical orientation
+          centerX = canvasWidth * 0.2; // Near the left
+        } else if (placement === 'middle') {
+          centerX = canvasWidth / 2; // Middle of the screen
+        } else { // top (Right in vertical orientation)
+          centerX = canvasWidth * 0.8; // Near the right
+        }
+        
+        settings.animationStart.forEach(animationStart => {
+          // Determine drawing direction based on animation start
+          let startY = 0;
+          let endY = canvasHeight;
+          let directionMultiplier = 1;
           
-          // Draw first half (center to right)
-          const dotSpacing = (canvasWidth / 2) / halfDotCount;
-          
-          // Draw connecting line first (behind dots)
-          ctx.beginPath();
-          for (let i = 0; i <= halfDotCount; i++) {
-            const x = centerX + i * dotSpacing;
-            const dataIndex = Math.floor(i * (bufferLength / dotCount));
-            const value = dataArray[dataIndex] * settings.sensitivity;
-            const normalizedValue = value / 255;
+          if (animationStart === 'beginning') {
+            startY = 0;
+            endY = canvasHeight;
+            directionMultiplier = 1;
+          } else if (animationStart === 'end') {
+            startY = canvasHeight;
+            endY = 0;
+            directionMultiplier = -1;
+          } else if (animationStart === 'middle') {
+            // For middle, we'll draw from center outward
+            const halfDotCount = Math.floor(dotCount / 2);
             
-            // Calculate dot position with subtle wave motion
-            const waveY = Math.sin(i * 0.15 + phase) * 20;
-            const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+            // Draw first half (center to bottom)
+            const dotSpacing = (canvasHeight / 2) / halfDotCount;
             
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          }
-          
-          // Style the connecting line
-          ctx.strokeStyle = `${settings.color}44`;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          
-          // Draw dots with shadow/glow
-          for (let i = 0; i <= halfDotCount; i++) {
-            const x = centerX + i * dotSpacing;
-            const dataIndex = Math.floor(i * (bufferLength / dotCount));
-            const value = dataArray[dataIndex] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate dot position with subtle wave motion
-            const waveY = Math.sin(i * 0.15 + phase) * 20;
-            const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
-            
-            // Dot size based on frequency data
-            const dotSize = 2 + normalizedValue * 8;
-            
-            // Draw glow/shadow
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = settings.color;
-            
-            // Draw dot
+            // Draw connecting line first (behind dots)
             ctx.beginPath();
-            ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-            ctx.fillStyle = settings.color;
-            ctx.fill();
-            
-            // Reset shadow
-            ctx.shadowBlur = 0;
-          }
-          
-          // Draw second half (center to left)
-          // Draw connecting line first (behind dots)
-          ctx.beginPath();
-          for (let i = 0; i <= halfDotCount; i++) {
-            const x = centerX - i * dotSpacing;
-            const dataIndex = Math.floor((halfDotCount + i) * (bufferLength / dotCount));
-            const value = dataArray[dataIndex] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate dot position with subtle wave motion
-            const waveY = Math.sin(i * 0.15 + phase) * 20;
-            const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
+            for (let i = 0; i <= halfDotCount; i++) {
+              const y = canvasHeight / 2 + i * dotSpacing;
+              const dataIndex = Math.floor(i * (bufferLength / dotCount));
+              const value = dataArray[dataIndex] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Calculate dot position with subtle wave motion
+              const waveX = Math.sin(i * 0.15 + phase) * 20;
+              const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
             }
-          }
-          
-          // Style the connecting line
-          ctx.strokeStyle = `${settings.color}44`;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          
-          // Draw dots with shadow/glow
-          for (let i = 0; i <= halfDotCount; i++) {
-            const x = centerX - i * dotSpacing;
-            const dataIndex = Math.floor((halfDotCount + i) * (bufferLength / dotCount));
-            const value = dataArray[dataIndex] * settings.sensitivity;
-            const normalizedValue = value / 255;
             
-            // Calculate dot position with subtle wave motion
-            const waveY = Math.sin(i * 0.15 + phase) * 20;
-            const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+            // Style the connecting line
+            ctx.strokeStyle = `${settings.color}44`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
             
-            // Dot size based on frequency data
-            const dotSize = 2 + normalizedValue * 8;
+            // Draw dots with shadow/glow
+            for (let i = 0; i <= halfDotCount; i++) {
+              const y = canvasHeight / 2 + i * dotSpacing;
+              const dataIndex = Math.floor(i * (bufferLength / dotCount));
+              const value = dataArray[dataIndex] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Calculate dot position with subtle wave motion
+              const waveX = Math.sin(i * 0.15 + phase) * 20;
+              const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+              
+              // Dot size based on frequency data
+              const dotSize = 2 + normalizedValue * 8;
+              
+              // Draw glow/shadow
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = settings.color;
+              
+              // Draw dot
+              ctx.beginPath();
+              ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+              ctx.fillStyle = settings.color;
+              ctx.fill();
+              
+              // Reset shadow
+              ctx.shadowBlur = 0;
+            }
             
-            // Draw glow/shadow
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = settings.color;
-            
-            // Draw dot
+            // Draw second half (center to top)
+            // Draw connecting line first (behind dots)
             ctx.beginPath();
-            ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-            ctx.fillStyle = settings.color;
-            ctx.fill();
+            for (let i = 0; i <= halfDotCount; i++) {
+              const y = canvasHeight / 2 - i * dotSpacing;
+              const dataIndex = Math.floor((halfDotCount + i) * (bufferLength / dotCount));
+              const value = dataArray[dataIndex] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Calculate dot position with subtle wave motion
+              const waveX = Math.sin(i * 0.15 + phase) * 20;
+              const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+            }
             
-            // Reset shadow
-            ctx.shadowBlur = 0;
+            // Style the connecting line
+            ctx.strokeStyle = `${settings.color}44`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw dots with shadow/glow
+            for (let i = 0; i <= halfDotCount; i++) {
+              const y = canvasHeight / 2 - i * dotSpacing;
+              const dataIndex = Math.floor((halfDotCount + i) * (bufferLength / dotCount));
+              const value = dataArray[dataIndex] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Calculate dot position with subtle wave motion
+              const waveX = Math.sin(i * 0.15 + phase) * 20;
+              const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+              
+              // Dot size based on frequency data
+              const dotSize = 2 + normalizedValue * 8;
+              
+              // Draw glow/shadow
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = settings.color;
+              
+              // Draw dot
+              ctx.beginPath();
+              ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+              ctx.fillStyle = settings.color;
+              ctx.fill();
+              
+              // Reset shadow
+              ctx.shadowBlur = 0;
+            }
+            
+            return; // Skip the rest of the code for middle animation start
           }
           
-          return; // Skip the rest of the code for middle animation start
-        }
-        
-        const dotSpacing = Math.abs(endX - startX) / dotCount;
-        
-        // Draw connecting line first (behind dots)
-        ctx.beginPath();
-        for (let i = 0; i < dotCount; i++) {
-          const x = startX + i * dotSpacing * directionMultiplier;
-          const dataIndex = Math.floor(i * (bufferLength / dotCount));
-          const value = dataArray[dataIndex] * settings.sensitivity;
-          const normalizedValue = value / 255;
-          
-          // Calculate dot position with subtle wave motion
-          const waveY = Math.sin(i * 0.15 + phase) * 20;
-          const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
-          
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-        
-        // Style the connecting line
-        ctx.strokeStyle = `${settings.color}44`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Draw dots with shadow/glow
-        for (let i = 0; i < dotCount; i++) {
-          const x = startX + i * dotSpacing * directionMultiplier;
-          const dataIndex = Math.floor(i * (bufferLength / dotCount));
-          const value = dataArray[dataIndex] * settings.sensitivity;
-          const normalizedValue = value / 255;
-          
-          // Calculate dot position with subtle wave motion
-          const waveY = Math.sin(i * 0.15 + phase) * 20;
-          const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
-          
-          // Dot size based on frequency data
-          const dotSize = 2 + normalizedValue * 8;
-          
-          // Draw glow/shadow
-          ctx.shadowBlur = 15;
-          ctx.shadowColor = settings.color;
-          
-          // Draw dot
-          ctx.beginPath();
-          ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-          ctx.fillStyle = settings.color;
-          ctx.fill();
-          
-          // Reset shadow
-          ctx.shadowBlur = 0;
-        }
-      });
-    }
-    
-    if (settings.verticalOrientation) {
-      // Vertical dots in a wave pattern
-      const dotCount = Math.min(bufferLength, 100);
-      
-      settings.animationStart.forEach(animationStart => {
-        // Determine drawing direction based on animation start
-        let startY = 0;
-        let endY = canvasHeight;
-        let directionMultiplier = 1;
-        
-        if (animationStart === 'beginning') {
-          startY = 0;
-          endY = canvasHeight;
-          directionMultiplier = 1;
-        } else if (animationStart === 'end') {
-          startY = canvasHeight;
-          endY = 0;
-          directionMultiplier = -1;
-        } else if (animationStart === 'middle') {
-          // For middle, we'll draw from center outward
-          const halfDotCount = Math.floor(dotCount / 2);
-          
-          // Draw first half (center to bottom)
-          const dotSpacing = (canvasHeight / 2) / halfDotCount;
+          const dotSpacing = Math.abs(endY - startY) / dotCount;
           
           // Draw connecting line first (behind dots)
           ctx.beginPath();
-          for (let i = 0; i <= halfDotCount; i++) {
-            const y = centerY + i * dotSpacing;
+          for (let i = 0; i < dotCount; i++) {
+            const y = startY + i * dotSpacing * directionMultiplier;
             const dataIndex = Math.floor(i * (bufferLength / dotCount));
             const value = dataArray[dataIndex] * settings.sensitivity;
             const normalizedValue = value / 255;
@@ -328,8 +458,8 @@ export const drawDotsAnimation = (
           ctx.stroke();
           
           // Draw dots with shadow/glow
-          for (let i = 0; i <= halfDotCount; i++) {
-            const y = centerY + i * dotSpacing;
+          for (let i = 0; i < dotCount; i++) {
+            const y = startY + i * dotSpacing * directionMultiplier;
             const dataIndex = Math.floor(i * (bufferLength / dotCount));
             const value = dataArray[dataIndex] * settings.sensitivity;
             const normalizedValue = value / 255;
@@ -354,117 +484,8 @@ export const drawDotsAnimation = (
             // Reset shadow
             ctx.shadowBlur = 0;
           }
-          
-          // Draw second half (center to top)
-          // Draw connecting line first (behind dots)
-          ctx.beginPath();
-          for (let i = 0; i <= halfDotCount; i++) {
-            const y = centerY - i * dotSpacing;
-            const dataIndex = Math.floor((halfDotCount + i) * (bufferLength / dotCount));
-            const value = dataArray[dataIndex] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate dot position with subtle wave motion
-            const waveX = Math.sin(i * 0.15 + phase) * 20;
-            const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          }
-          
-          // Style the connecting line
-          ctx.strokeStyle = `${settings.color}44`;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          
-          // Draw dots with shadow/glow
-          for (let i = 0; i <= halfDotCount; i++) {
-            const y = centerY - i * dotSpacing;
-            const dataIndex = Math.floor((halfDotCount + i) * (bufferLength / dotCount));
-            const value = dataArray[dataIndex] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Calculate dot position with subtle wave motion
-            const waveX = Math.sin(i * 0.15 + phase) * 20;
-            const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
-            
-            // Dot size based on frequency data
-            const dotSize = 2 + normalizedValue * 8;
-            
-            // Draw glow/shadow
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = settings.color;
-            
-            // Draw dot
-            ctx.beginPath();
-            ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-            ctx.fillStyle = settings.color;
-            ctx.fill();
-            
-            // Reset shadow
-            ctx.shadowBlur = 0;
-          }
-          
-          return; // Skip the rest of the code for middle animation start
-        }
-        
-        const dotSpacing = Math.abs(endY - startY) / dotCount;
-        
-        // Draw connecting line first (behind dots)
-        ctx.beginPath();
-        for (let i = 0; i < dotCount; i++) {
-          const y = startY + i * dotSpacing * directionMultiplier;
-          const dataIndex = Math.floor(i * (bufferLength / dotCount));
-          const value = dataArray[dataIndex] * settings.sensitivity;
-          const normalizedValue = value / 255;
-          
-          // Calculate dot position with subtle wave motion
-          const waveX = Math.sin(i * 0.15 + phase) * 20;
-          const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
-          
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-        
-        // Style the connecting line
-        ctx.strokeStyle = `${settings.color}44`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Draw dots with shadow/glow
-        for (let i = 0; i < dotCount; i++) {
-          const y = startY + i * dotSpacing * directionMultiplier;
-          const dataIndex = Math.floor(i * (bufferLength / dotCount));
-          const value = dataArray[dataIndex] * settings.sensitivity;
-          const normalizedValue = value / 255;
-          
-          // Calculate dot position with subtle wave motion
-          const waveX = Math.sin(i * 0.15 + phase) * 20;
-          const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
-          
-          // Dot size based on frequency data
-          const dotSize = 2 + normalizedValue * 8;
-          
-          // Draw glow/shadow
-          ctx.shadowBlur = 15;
-          ctx.shadowColor = settings.color;
-          
-          // Draw dot
-          ctx.beginPath();
-          ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-          ctx.fillStyle = settings.color;
-          ctx.fill();
-          
-          // Reset shadow
-          ctx.shadowBlur = 0;
-        }
-      });
-    }
+        });
+      }
+    });
   }
 };

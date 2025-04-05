@@ -1,4 +1,3 @@
-
 import { VisualizationSettings, getYPositionForPlacement, getXPositionForPlacement } from './utils';
 
 export const drawLineAnimation = (
@@ -160,7 +159,7 @@ const drawFullLine = (
     } else if (placement === 'top') {
       y = amplitude + waveY;
     } else { // middle
-      y = baseY + waveY;
+      y = (canvasHeight / 2) + waveY;
     }
     
     if (i === 0) {
@@ -183,7 +182,7 @@ const drawFullLine = (
       } else if (placement === 'top') {
         prevY = prevAmplitude + prevWaveY;
       } else { // middle
-        prevY = baseY + prevWaveY;
+        prevY = (canvasHeight / 2) + prevWaveY;
       }
       
       ctx.quadraticCurveTo(controlX, prevY, x, y);
@@ -220,7 +219,7 @@ const drawFullLine = (
       } else if (placement === 'top') {
         y = (canvasHeight - amplitude) - waveY;
       } else { // middle
-        y = baseY - waveY;
+        y = (canvasHeight / 2) - waveY;
       }
       
       if (i === 0) {
@@ -243,7 +242,7 @@ const drawFullLine = (
         } else if (placement === 'top') {
           prevY = (canvasHeight - prevAmplitude) - prevWaveY;
         } else { // middle
-          prevY = baseY - prevWaveY;
+          prevY = (canvasHeight / 2) - prevWaveY;
         }
         
         ctx.quadraticCurveTo(controlX, prevY, x, y);
@@ -299,7 +298,7 @@ const drawHalfLine = (
     } else if (placement === 'top') {
       y = amplitude + waveY;
     } else { // middle
-      y = baseY + waveY;
+      y = (canvasHeight / 2) + waveY;
     }
     
     if (i === 0) {
@@ -322,7 +321,7 @@ const drawHalfLine = (
       } else if (placement === 'top') {
         prevY = prevAmplitude + prevWaveY;
       } else { // middle
-        prevY = baseY + prevWaveY;
+        prevY = (canvasHeight / 2) + prevWaveY;
       }
       
       ctx.quadraticCurveTo(controlX, prevY, x, y);
@@ -359,7 +358,7 @@ const drawHalfLine = (
       } else if (placement === 'top') {
         y = (canvasHeight - amplitude) - waveY;
       } else { // middle
-        y = baseY - waveY;
+        y = (canvasHeight / 2) - waveY;
       }
       
       if (i === 0) {
@@ -382,7 +381,7 @@ const drawHalfLine = (
         } else if (placement === 'top') {
           prevY = (canvasHeight - prevAmplitude) - prevWaveY;
         } else { // middle
-          prevY = baseY - prevWaveY;
+          prevY = (canvasHeight / 2) - prevWaveY;
         }
         
         ctx.quadraticCurveTo(controlX, prevY, x, y);

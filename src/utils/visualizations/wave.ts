@@ -43,7 +43,7 @@ export const drawWave = (
             } else if (placement === 'top') {
               y = amplitude;
             } else { // middle
-              y = baseY + amplitude - (canvasHeight * 0.2); // Centered around the middle position
+              y = (canvasHeight / 2) + (amplitude - (canvasHeight * 0.2)); // Center around the middle of the screen
             }
             
             if (i === 0) {
@@ -81,7 +81,7 @@ export const drawWave = (
             } else if (placement === 'top') {
               y = amplitude;
             } else { // middle
-              y = baseY + amplitude - (canvasHeight * 0.2); // Centered around the middle position
+              y = (canvasHeight / 2) + (amplitude - (canvasHeight * 0.2)); // Center around the middle of the screen
             }
             
             if (i === 0) {
@@ -121,7 +121,7 @@ export const drawWave = (
             } else if (placement === 'top') {
               y = amplitude;
             } else { // middle
-              y = baseY + amplitude - (canvasHeight * 0.2); // Centered around the middle position
+              y = (canvasHeight / 2) + (amplitude - (canvasHeight * 0.2)); // Center around the middle of the screen
             }
             
             if (i === 0) {
@@ -150,7 +150,7 @@ export const drawWave = (
             } else if (placement === 'top') {
               y = amplitude;
             } else { // middle
-              y = baseY + amplitude - (canvasHeight * 0.2); // Centered around the middle position
+              y = (canvasHeight / 2) + (amplitude - (canvasHeight * 0.2)); // Center around the middle of the screen
             }
             
             if (i === 0) {
@@ -194,7 +194,7 @@ export const drawWave = (
               } else if (placement === 'top') {
                 y = canvasHeight - amplitude;
               } else { // middle
-                y = baseY - amplitude + (canvasHeight * 0.2); // Centered around the middle position
+                y = (canvasHeight / 2) + (amplitude - (canvasHeight * 0.2)); // Center around the middle of the screen
               }
               
               if (i === 0) {
@@ -225,7 +225,7 @@ export const drawWave = (
               } else if (placement === 'top') {
                 y = canvasHeight - amplitude;
               } else { // middle
-                y = baseY - amplitude + (canvasHeight * 0.2); // Centered around the middle position
+                y = (canvasHeight / 2) + (amplitude - (canvasHeight * 0.2)); // Center around the middle of the screen
               }
               
               if (i === 0) {
@@ -259,7 +259,7 @@ export const drawWave = (
               } else if (placement === 'top') {
                 y = canvasHeight - amplitude;
               } else { // middle
-                y = baseY - amplitude + (canvasHeight * 0.2); // Centered around the middle position
+                y = (canvasHeight / 2) + (amplitude - (canvasHeight * 0.2)); // Center around the middle of the screen
               }
               
               if (i === 0) {
@@ -288,7 +288,7 @@ export const drawWave = (
               } else if (placement === 'top') {
                 y = canvasHeight - amplitude;
               } else { // middle
-                y = baseY - amplitude + (canvasHeight * 0.2); // Centered around the middle position
+                y = (canvasHeight / 2) + (amplitude - (canvasHeight * 0.2)); // Center around the middle of the screen
               }
               
               if (i === 0) {

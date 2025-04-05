@@ -1,4 +1,3 @@
-
 import { VisualizationSettings, getAverageFrequency } from './utils';
 
 export const drawSiriAnimation = (
@@ -13,280 +12,292 @@ export const drawSiriAnimation = (
   const canvasHeight = canvas.height;
   
   if (settings.horizontalOrientation) {
-    // Horizontal orientation (left to right)
-    const centerY = canvasHeight / 2;
-    
-    // Apple Siri-inspired animation (colorful waveform that moves)
-    const waveCount = 3; // Number of waves
-    const waveColors = [
-      `${settings.color}`, 
-      settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
-      settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
-    ];
-    
-    // Take a subset of the data for a cleaner look
-    const usableLength = Math.min(bufferLength, 64);
-    
-    // Time-based phase shift
-    const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
-    
-    settings.animationStart.forEach(animationStart => {
-      // Draw multiple waves with phase offset
-      for (let wave = 0; wave < waveCount; wave++) {
-        const wavePhase = basePhase + (wave * Math.PI * 0.5);
-        const waveAmplitude = canvasHeight * 0.15 * (1 - wave * 0.2);
-        
-        ctx.strokeStyle = waveColors[wave];
-        ctx.lineWidth = 5 - wave;
-        ctx.beginPath();
-        
-        if (animationStart === 'beginning') {
-          // Left to right
-          const sliceWidth = canvasWidth / usableLength;
-          
-          for (let i = 0; i < usableLength; i++) {
-            const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // X position across the screen
-            const x = i * sliceWidth;
-            
-            // Y position based on sine wave + audio data
-            const y = centerY + 
-                    Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              // Use quadratic curves for smoother wave
-              const prevX = (i - 1) * sliceWidth;
-              const cpX = (prevX + x) / 2;
-              ctx.quadraticCurveTo(cpX, y, x, y);
-            }
-          }
-        }
-        else if (animationStart === 'end') {
-          // Right to left
-          const sliceWidth = canvasWidth / usableLength;
-          
-          for (let i = 0; i < usableLength; i++) {
-            const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // X position across the screen (reversed)
-            const x = canvasWidth - (i * sliceWidth);
-            
-            // Y position based on sine wave + audio data
-            const y = centerY + 
-                    Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              // Use quadratic curves for smoother wave
-              const prevX = canvasWidth - ((i - 1) * sliceWidth);
-              const cpX = (prevX + x) / 2;
-              ctx.quadraticCurveTo(cpX, y, x, y);
-            }
-          }
-        }
-        else if (animationStart === 'middle') {
-          // From middle outward
-          const centerX = canvasWidth / 2;
-          const sliceWidth = (canvasWidth / 2) / (usableLength / 2);
-          
-          // Right half
-          for (let i = 0; i < usableLength / 2; i++) {
-            const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // X position from center to right
-            const x = centerX + (i * sliceWidth);
-            
-            // Y position based on sine wave + audio data
-            const y = centerY + 
-                    Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(centerX, y);
-            } else {
-              // Use quadratic curves for smoother wave
-              const prevX = centerX + ((i - 1) * sliceWidth);
-              const cpX = (prevX + x) / 2;
-              ctx.quadraticCurveTo(cpX, y, x, y);
-            }
-          }
-          
-          // Left half
-          ctx.moveTo(centerX, centerY); // Reset to center
-          
-          for (let i = 0; i < usableLength / 2; i++) {
-            const value = dataArray[Math.floor((usableLength / 2 + i) * (bufferLength / usableLength))] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // X position from center to left
-            const x = centerX - (i * sliceWidth);
-            
-            // Y position based on sine wave + audio data
-            const y = centerY + 
-                    Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(centerX, y);
-            } else {
-              // Use quadratic curves for smoother wave
-              const prevX = centerX - ((i - 1) * sliceWidth);
-              const cpX = (prevX + x) / 2;
-              ctx.quadraticCurveTo(cpX, y, x, y);
-            }
-          }
-        }
-        
-        // Add glow effect
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = waveColors[wave];
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+    // Process each bar placement option
+    settings.barPlacement.forEach(placement => {
+      // Calculate the base Y position based on placement
+      let baseY;
+      if (placement === 'top') {
+        baseY = canvasHeight * 0.2; // Near the top
+      } else if (placement === 'middle') {
+        baseY = canvasHeight / 2; // Middle of the screen
+      } else { // bottom
+        baseY = canvasHeight * 0.8; // Near the bottom
       }
+      
+      // Apple Siri-inspired animation (colorful waveform that moves)
+      const waveCount = 3; // Number of waves
+      const waveColors = [
+        `${settings.color}`, 
+        settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
+        settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
+      ];
+      
+      // Take a subset of the data for a cleaner look
+      const usableLength = Math.min(bufferLength, 64);
+      
+      // Time-based phase shift
+      const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
+      
+      settings.animationStart.forEach(animationStart => {
+        // Draw multiple waves with phase offset
+        for (let wave = 0; wave < waveCount; wave++) {
+          const wavePhase = basePhase + (wave * Math.PI * 0.5);
+          const waveAmplitude = canvasHeight * 0.15 * (1 - wave * 0.2);
+          
+          ctx.strokeStyle = waveColors[wave];
+          ctx.lineWidth = 5 - wave;
+          ctx.beginPath();
+          
+          if (animationStart === 'beginning') {
+            // Left to right
+            const sliceWidth = canvasWidth / usableLength;
+            
+            for (let i = 0; i < usableLength; i++) {
+              const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // X position across the screen
+              const x = i * sliceWidth;
+              
+              // Y position based on sine wave + audio data and placement
+              const y = baseY + Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                // Use quadratic curves for smoother wave
+                const prevX = (i - 1) * sliceWidth;
+                const cpX = (prevX + x) / 2;
+                ctx.quadraticCurveTo(cpX, y, x, y);
+              }
+            }
+          }
+          else if (animationStart === 'end') {
+            // Right to left
+            const sliceWidth = canvasWidth / usableLength;
+            
+            for (let i = 0; i < usableLength; i++) {
+              const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // X position across the screen (reversed)
+              const x = canvasWidth - (i * sliceWidth);
+              
+              // Y position based on sine wave + audio data and placement
+              const y = baseY + Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                // Use quadratic curves for smoother wave
+                const prevX = canvasWidth - ((i - 1) * sliceWidth);
+                const cpX = (prevX + x) / 2;
+                ctx.quadraticCurveTo(cpX, y, x, y);
+              }
+            }
+          }
+          else if (animationStart === 'middle') {
+            // From middle outward
+            const centerX = canvasWidth / 2;
+            const sliceWidth = (canvasWidth / 2) / (usableLength / 2);
+            
+            // Right half
+            for (let i = 0; i < usableLength / 2; i++) {
+              const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // X position from center to right
+              const x = centerX + (i * sliceWidth);
+              
+              // Y position based on sine wave + audio data and placement
+              const y = baseY + Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+              
+              if (i === 0) {
+                ctx.moveTo(centerX, y);
+              } else {
+                // Use quadratic curves for smoother wave
+                const prevX = centerX + ((i - 1) * sliceWidth);
+                const cpX = (prevX + x) / 2;
+                ctx.quadraticCurveTo(cpX, y, x, y);
+              }
+            }
+            
+            // Left half
+            ctx.moveTo(centerX, baseY); // Reset to center with proper Y position
+            
+            for (let i = 0; i < usableLength / 2; i++) {
+              const value = dataArray[Math.floor((usableLength / 2 + i) * (bufferLength / usableLength))] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // X position from center to left
+              const x = centerX - (i * sliceWidth);
+              
+              // Y position based on sine wave + audio data and placement
+              const y = baseY + Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+              
+              if (i === 0) {
+                ctx.moveTo(centerX, y);
+              } else {
+                // Use quadratic curves for smoother wave
+                const prevX = centerX - ((i - 1) * sliceWidth);
+                const cpX = (prevX + x) / 2;
+                ctx.quadraticCurveTo(cpX, y, x, y);
+              }
+            }
+          }
+          
+          // Add glow effect
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = waveColors[wave];
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+      });
     });
   }
   
   if (settings.verticalOrientation) {
-    // Vertical orientation (top to bottom)
-    const centerX = canvasWidth / 2;
-    
-    // Vertical Siri-inspired waves
-    const waveCount = 3;
-    const waveColors = [
-      `${settings.color}`, 
-      settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
-      settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
-    ];
-    
-    // Time-based phase shift
-    const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
-    
-    // Take a subset of the data for a cleaner look
-    const usableLength = Math.min(bufferLength, 64);
-    
-    settings.animationStart.forEach(animationStart => {
-      // Draw multiple waves with phase offset
-      for (let wave = 0; wave < waveCount; wave++) {
-        const wavePhase = basePhase + (wave * Math.PI * 0.5);
-        const waveAmplitude = canvasWidth * 0.15 * (1 - wave * 0.2);
-        
-        ctx.strokeStyle = waveColors[wave];
-        ctx.lineWidth = 5 - wave;
-        ctx.beginPath();
-        
-        if (animationStart === 'beginning') {
-          // Top to bottom
-          const sliceHeight = canvasHeight / usableLength;
-          
-          for (let i = 0; i < usableLength; i++) {
-            const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Y position down the screen
-            const y = i * sliceHeight;
-            
-            // X position based on sine wave + audio data
-            const x = centerX + 
-                    Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              // Use quadratic curves for smoother wave
-              const prevY = (i - 1) * sliceHeight;
-              const cpY = (prevY + y) / 2;
-              ctx.quadraticCurveTo(x, cpY, x, y);
-            }
-          }
-        }
-        else if (animationStart === 'end') {
-          // Bottom to top
-          const sliceHeight = canvasHeight / usableLength;
-          
-          for (let i = 0; i < usableLength; i++) {
-            const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Y position up the screen (reversed)
-            const y = canvasHeight - (i * sliceHeight);
-            
-            // X position based on sine wave + audio data
-            const x = centerX + 
-                    Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              // Use quadratic curves for smoother wave
-              const prevY = canvasHeight - ((i - 1) * sliceHeight);
-              const cpY = (prevY + y) / 2;
-              ctx.quadraticCurveTo(x, cpY, x, y);
-            }
-          }
-        }
-        else if (animationStart === 'middle') {
-          // From middle outward
-          const centerY = canvasHeight / 2;
-          const sliceHeight = (canvasHeight / 2) / (usableLength / 2);
-          
-          // Bottom half
-          for (let i = 0; i < usableLength / 2; i++) {
-            const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Y position from center to bottom
-            const y = centerY + (i * sliceHeight);
-            
-            // X position based on sine wave + audio data
-            const x = centerX + 
-                    Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, centerY);
-            } else {
-              // Use quadratic curves for smoother wave
-              const prevY = centerY + ((i - 1) * sliceHeight);
-              const cpY = (prevY + y) / 2;
-              ctx.quadraticCurveTo(x, cpY, x, y);
-            }
-          }
-          
-          // Top half
-          ctx.moveTo(centerX, centerY); // Reset to center
-          
-          for (let i = 0; i < usableLength / 2; i++) {
-            const value = dataArray[Math.floor((usableLength / 2 + i) * (bufferLength / usableLength))] * settings.sensitivity;
-            const normalizedValue = value / 255;
-            
-            // Y position from center to top
-            const y = centerY - (i * sliceHeight);
-            
-            // X position based on sine wave + audio data
-            const x = centerX + 
-                    Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
-            
-            if (i === 0) {
-              ctx.moveTo(x, centerY);
-            } else {
-              // Use quadratic curves for smoother wave
-              const prevY = centerY - ((i - 1) * sliceHeight);
-              const cpY = (prevY + y) / 2;
-              ctx.quadraticCurveTo(x, cpY, x, y);
-            }
-          }
-        }
-        
-        // Add glow effect
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = waveColors[wave];
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+    // Process each bar placement option
+    settings.barPlacement.forEach(placement => {
+      // Calculate the base X position based on placement
+      let baseX;
+      if (placement === 'bottom') { // Left in vertical orientation
+        baseX = canvasWidth * 0.2; // Near the left
+      } else if (placement === 'middle') {
+        baseX = canvasWidth / 2; // Middle of the screen
+      } else { // top (Right in vertical orientation)
+        baseX = canvasWidth * 0.8; // Near the right
       }
+      
+      // Vertical Siri-inspired waves
+      const waveCount = 3;
+      const waveColors = [
+        `${settings.color}`, 
+        settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
+        settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
+      ];
+      
+      // Time-based phase shift
+      const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
+      
+      // Take a subset of the data for a cleaner look
+      const usableLength = Math.min(bufferLength, 64);
+      
+      settings.animationStart.forEach(animationStart => {
+        // Draw multiple waves with phase offset
+        for (let wave = 0; wave < waveCount; wave++) {
+          const wavePhase = basePhase + (wave * Math.PI * 0.5);
+          const waveAmplitude = canvasWidth * 0.15 * (1 - wave * 0.2);
+          
+          ctx.strokeStyle = waveColors[wave];
+          ctx.lineWidth = 5 - wave;
+          ctx.beginPath();
+          
+          if (animationStart === 'beginning') {
+            // Top to bottom
+            const sliceHeight = canvasHeight / usableLength;
+            
+            for (let i = 0; i < usableLength; i++) {
+              const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Y position down the screen
+              const y = i * sliceHeight;
+              
+              // X position based on sine wave + audio data and placement
+              const x = baseX + Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                // Use quadratic curves for smoother wave
+                const prevY = (i - 1) * sliceHeight;
+                const cpY = (prevY + y) / 2;
+                ctx.quadraticCurveTo(x, cpY, x, y);
+              }
+            }
+          }
+          else if (animationStart === 'end') {
+            // Bottom to top
+            const sliceHeight = canvasHeight / usableLength;
+            
+            for (let i = 0; i < usableLength; i++) {
+              const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Y position up the screen (reversed)
+              const y = canvasHeight - (i * sliceHeight);
+              
+              // X position based on sine wave + audio data and placement
+              const x = baseX + Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                // Use quadratic curves for smoother wave
+                const prevY = canvasHeight - ((i - 1) * sliceHeight);
+                const cpY = (prevY + y) / 2;
+                ctx.quadraticCurveTo(x, cpY, x, y);
+              }
+            }
+          }
+          else if (animationStart === 'middle') {
+            // From middle outward
+            const centerY = canvasHeight / 2;
+            const sliceHeight = (canvasHeight / 2) / (usableLength / 2);
+            
+            // Bottom half
+            for (let i = 0; i < usableLength / 2; i++) {
+              const value = dataArray[Math.floor(i * (bufferLength / usableLength))] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Y position from center to bottom
+              const y = centerY + (i * sliceHeight);
+              
+              // X position based on sine wave + audio data and placement
+              const x = baseX + Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+              
+              if (i === 0) {
+                ctx.moveTo(x, centerY);
+              } else {
+                // Use quadratic curves for smoother wave
+                const prevY = centerY + ((i - 1) * sliceHeight);
+                const cpY = (prevY + y) / 2;
+                ctx.quadraticCurveTo(x, cpY, x, y);
+              }
+            }
+            
+            // Top half
+            ctx.moveTo(baseX, centerY); // Reset to center with proper X position
+            
+            for (let i = 0; i < usableLength / 2; i++) {
+              const value = dataArray[Math.floor((usableLength / 2 + i) * (bufferLength / usableLength))] * settings.sensitivity;
+              const normalizedValue = value / 255;
+              
+              // Y position from center to top
+              const y = centerY - (i * sliceHeight);
+              
+              // X position based on sine wave + audio data and placement
+              const x = baseX + Math.sin(i * 0.3 + wavePhase) * waveAmplitude * normalizedValue;
+              
+              if (i === 0) {
+                ctx.moveTo(x, centerY);
+              } else {
+                // Use quadratic curves for smoother wave
+                const prevY = centerY - ((i - 1) * sliceHeight);
+                const cpY = (prevY + y) / 2;
+                ctx.quadraticCurveTo(x, cpY, x, y);
+              }
+            }
+          }
+          
+          // Add glow effect
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = waveColors[wave];
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+      });
     });
   }
   
