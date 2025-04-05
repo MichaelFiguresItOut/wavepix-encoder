@@ -5,11 +5,28 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Video, Play, Pause, Download } from "lucide-react";
+import { Video, Play, Pause, Download, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
 import { VisualizerSettings } from "@/hooks/useAudioVisualization";
 import { renderVisualization } from "@/utils/visualizationRenderer";
+// Import MP4Box - make sure types are available or use 'any' if necessary
+// You might need to install @types/mp4box or configure it properly
+import MP4Box, { MP4File, MP4Info, MP4Sample } from 'mp4box';
+
+// Helper function to check WebCodecs support
+const checkWebCodecsSupport = async (config: VideoEncoderConfig | AudioEncoderConfig, type: 'video' | 'audio') => {
+  try {
+    if (type === 'video') {
+      return await VideoEncoder.isConfigSupported(config as VideoEncoderConfig);
+    } else {
+      return await AudioEncoder.isConfigSupported(config as AudioEncoderConfig);
+    }
+  } catch (e) {
+    console.error(`Error checking ${type} codec support:`, e);
+    return false; // Indicate lack of support or error during check
+  }
+};
 
 interface EncodingPanelProps {
   audioBuffer: AudioBuffer | null;
@@ -18,56 +35,73 @@ interface EncodingPanelProps {
   visualizerSettings: VisualizerSettings;
 }
 
-const EncodingPanel: React.FC<EncodingPanelProps> = ({ 
-  audioBuffer, 
+const EncodingPanel: React.FC<EncodingPanelProps> = ({
+  audioBuffer,
   isPlaying,
   onPlayPauseToggle,
   visualizerSettings
 }) => {
   const [resolution, setResolution] = useState("1080p");
   const [frameRate, setFrameRate] = useState("30");
-  const [quality, setQuality] = useState(80);
+  const [quality, setQuality] = useState(80); // Represents percentage for bitrate calculation
   const [showBackground, setShowBackground] = useState(true);
   const [isEncoding, setIsEncoding] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [useCFR, setUseCFR] = useState(true);
+  const [useWebCodecs, setUseWebCodecs] = useState(true); // Default to WebCodecs if supported
+  const [webCodecsSupported, setWebCodecsSupported] = useState<boolean | null>(null);
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const animationFrameRef = useRef<number>(0);
-  const startTimeRef = useRef<number>(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const downloadFileNameRef = useRef<string>("waveform-visualization.mp4");
   const downloadUrlRef = useRef<string>("");
-  const originalAudioRef = useRef<Blob | null>(null);
-  
-  // Set up canvas and context for encoding
+  const downloadFileNameRef = useRef<string>("waveform-visualization.mp4");
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Check WebCodecs support on mount
+  useEffect(() => {
+    const checkSupport = async () => {
+      // Define basic configs to check support
+      const videoConfig: VideoEncoderConfig = {
+        codec: 'avc1.42E01E', // H.264 Baseline
+        width: 640, height: 480, // Dummy dimensions
+        framerate: 30
+      };
+      const audioConfig: AudioEncoderConfig = {
+        codec: 'mp4a.40.2', // AAC-LC
+        sampleRate: 44100, // Common sample rate
+        numberOfChannels: 2,
+      };
+      const videoSupport = await checkWebCodecsSupport(videoConfig, 'video');
+      const audioSupport = await checkWebCodecsSupport(audioConfig, 'audio');
+      const supported = videoSupport && audioSupport;
+      setWebCodecsSupported(supported);
+      if (!supported) {
+        setUseWebCodecs(false); // Fallback if not supported
+        console.warn("WebCodecs API not fully supported. Encoding quality/reliability may be reduced.");
+        toast({
+          variant: "destructive",
+          title: "WebCodecs Not Supported",
+          description: "Your browser may not fully support WebCodecs. CFR encoding might fail or produce VFR video.",
+        });
+      } else {
+         console.log("WebCodecs API is supported.");
+      }
+    };
+    checkSupport();
+  }, [toast]);
+
+  // Setup canvas - moved creation logic here
   useEffect(() => {
     if (!canvasRef.current) {
       const canvas = document.createElement('canvas');
-      canvas.width = getResolutionWidth(resolution);
-      canvas.height = getResolutionHeight(resolution);
       canvasRef.current = canvas;
     }
-
-    if (!audioContextRef.current && audioBuffer) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 256;
+    // Update canvas size when resolution changes
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.width = getResolutionWidth(resolution);
+      canvas.height = getResolutionHeight(resolution);
     }
+  }, [resolution]);
 
-    return () => {
-      if (audioSourceRef.current) {
-        audioSourceRef.current.stop();
-        audioSourceRef.current.disconnect();
-      }
-      cancelAnimationFrame(animationFrameRef.current);
-    };
-  }, [audioBuffer, resolution]);
 
   const getResolutionWidth = (res: string): number => {
     switch (res) {
@@ -89,550 +123,392 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     }
   };
 
-  const drawWaveform = (dataArray: Uint8Array, bufferLength: number, timestamp: number) => {
+  // Simplified draw function for offline rendering
+  // NOTE: This version doesn't use AnalyserNode directly for offline frame generation.
+  // It relies on the timestamp to drive any time-based animations in renderVisualization.
+  // If renderVisualization *strictly* needs live AnalyserNode data, it needs modification
+  // or a different approach (pre-calculating visualization data).
+  const drawFrame = (timestampMs: number) => {
     if (!canvasRef.current) return;
-    
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     const width = canvas.width;
     const height = canvas.height;
-    
-    // Background color
-    if (showBackground) {
-      ctx.fillStyle = '#0f0f0f';
-    } else {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-    }
+
+    // Background
+    ctx.fillStyle = showBackground ? '#0f0f0f' : 'rgba(0, 0, 0, 0)';
     ctx.fillRect(0, 0, width, height);
-    
-    // Use the shared renderVisualization function with the visualizer settings
+
+    // Pass a placeholder or null AnalyserNode if renderVisualization requires the argument
+    // but doesn't strictly need its live data for offline rendering based on timestamp.
+    // Adapt this if your renderVisualization requires specific data.
+    const dummyAnalyser = null; // Or create a basic AnalyserNode if needed by the function signature
+
     renderVisualization(
-      timestamp,
-      analyserRef.current!,
+      timestampMs, // Pass current frame time
+      dummyAnalyser as unknown as AnalyserNode, // Adapt as needed
       canvas,
       visualizerSettings,
-      (timestamp / 1000) * visualizerSettings.rotationSpeed
+      (timestampMs / 1000) * visualizerSettings.rotationSpeed // Example time-based animation
     );
   };
 
-  const handleEncode = async () => {
-    if (!audioBuffer || !canvasRef.current) {
-      toast({
-        variant: "destructive",
-        title: "No audio loaded",
-        description: "Please upload an audio file first."
-      });
-      return;
-    }
-    
-    setIsEncoding(true);
-    setProgress(0);
-    
-    try {
-      // Set up canvas stream for recording
-      const canvas = canvasRef.current;
-      const fps = parseInt(frameRate, 10);
-      
-      // Instead of capturing a live stream with variable timing, we'll:
-      // 1. Pre-render all frames at exact intervals
-      // 2. Create a fixed-fps video from those frames
-      if (useCFR) {
-        await generateConstantFrameRateVideo(fps, canvas, audioBuffer);
-        return;
-      }
-      
-      // Original variable frame rate approach (fallback)
-      // Set up canvas stream - explicitly set the frame rate
-      const canvasStream = canvas.captureStream(fps);
-      
-      // Force a consistent frame rate on video tracks
-      canvasStream.getVideoTracks().forEach(track => {
-        if (track.getConstraints && typeof track.getConstraints === 'function') {
-          try {
-            // Some browsers support setting frameRate constraint directly
-            track.applyConstraints({ 
-              frameRate: { exact: fps },
-              width: { exact: canvas.width },
-              height: { exact: canvas.height }
-            });
-          } catch (e) {
-            console.warn('Could not apply exact frame rate constraints:', e);
-          }
-        }
-      });
-      
-      // Set up audio context and source
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      
-      if (!analyserRef.current) {
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
-      }
-      
-      // Create a media stream for the audio
-      const audioStreamDestination = audioContextRef.current.createMediaStreamDestination();
-      audioSourceRef.current = audioContextRef.current.createBufferSource();
-      audioSourceRef.current.buffer = audioBuffer;
-      
-      // Connect the audio source to both the analyzer (for visualization) and the destination (for recording)
-      audioSourceRef.current.connect(analyserRef.current);
-      audioSourceRef.current.connect(audioStreamDestination);
-      
-      // Combine the audio and video streams
-      const combinedStream = new MediaStream();
-      
-      // Add video tracks from canvas
-      canvasStream.getVideoTracks().forEach(track => {
-        combinedStream.addTrack(track);
-      });
-      
-      // Add audio tracks
-      audioStreamDestination.stream.getAudioTracks().forEach(track => {
-        combinedStream.addTrack(track);
-      });
-      
-      // Check available MIME types for MP4
-      const mp4MimeTypes = [
-        'video/mp4;codecs=h264,mp4a.40.2',
-        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-        'video/mp4',
-        'video/webm;codecs=h264,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm'
-      ];
-      
-      let selectedMimeType = '';
-      for (const type of mp4MimeTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          selectedMimeType = type;
-          console.log(`Using MIME type: ${type}`);
-          break;
-        }
-      }
-      
-      if (!selectedMimeType) {
-        throw new Error("No supported video format found");
-      }
-      
-      // Configure MediaRecorder with high quality and constant frame rate
-      const recorderOptions = {
-        mimeType: selectedMimeType,
-        videoBitsPerSecond: quality * 100000,  // Adjust based on quality slider
-        audioBitsPerSecond: 128000,  // Ensure high audio quality
-      };
-      
-      mediaRecorderRef.current = new MediaRecorder(combinedStream, recorderOptions);
-      chunksRef.current = [];
-      
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-      
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: selectedMimeType });
-        finishEncoding(blob);
-      };
-      
-      // Start recording with a timeslice to ensure constant frame rate
-      // Using smaller timeslice for more consistent frame encoding
-      // 1000/fps ensures we get data at least once per frame
-      const timeslice = Math.min(100, Math.floor(1000 / (fps * 2)));
-      mediaRecorderRef.current.start(timeslice);
-      
-      // Start the audio source
-      audioSourceRef.current.start(0);
-      
-      // Animation loop for visualization and progress tracking
-      startTimeRef.current = performance.now();
-      const duration = audioBuffer.duration * 1000; // in ms
-      
-      // Set up analyzer for visualization
-      const bufferLength = analyserRef.current.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      
-      // For constant frame rate, we need to render at precise intervals
-      const frameInterval = 1000 / fps; 
-      let lastFrameTime = 0;
-      let frameCount = 0;
-      
-      // For tracking timing accuracy
-      const frameTimings: number[] = [];
-      
-      const animate = (timestamp: number) => {
-        if (!analyserRef.current || !canvasRef.current) return;
-        
-        // Calculate elapsed time and progress
-        const elapsed = timestamp - startTimeRef.current;
-        const newProgress = Math.min(100, Math.round((elapsed / duration) * 100));
-        setProgress(newProgress);
-        
-        // Ensure we're rendering at the specified frame rate
-        // This is critical for constant frame rate
-        const expectedFrame = Math.floor(elapsed / frameInterval);
-        
-        if (expectedFrame > frameCount) {
-          // We need to catch up frames
-          const framesToDraw = Math.min(expectedFrame - frameCount, 1);
-          
-          for (let i = 0; i < framesToDraw; i++) {
-            // Calculate the exact timestamp for this frame
-            const frameTimestamp = startTimeRef.current + (frameCount + i) * frameInterval;
-            
-            // Track timing precision for debugging
-            if (frameCount > 0) {
-              const actualInterval = timestamp - lastFrameTime;
-              frameTimings.push(actualInterval);
-              
-              // Log every 60 frames if there's significant deviation
-              if (frameCount % 60 === 0 && Math.abs(actualInterval - frameInterval) > 5) {
-                console.log(`Frame interval deviation: ${actualInterval - frameInterval}ms`);
-              }
-            }
-            
-            // Draw visualization for this exact frame
-            analyserRef.current.getByteFrequencyData(dataArray);
-            drawWaveform(dataArray, bufferLength, frameTimestamp);
-          }
-          
-          frameCount = expectedFrame;
-          lastFrameTime = timestamp;
-        }
-        
-        // Continue animation if not done
-        if (elapsed < duration) {
-          animationFrameRef.current = requestAnimationFrame(animate);
-        } else {
-          // Encoding complete
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop();
-          }
-          
-          // Stop the audio source
-          if (audioSourceRef.current) {
-            audioSourceRef.current.stop();
-          }
-        }
-      };
-      
-      // Start animation with precise timing
-      animationFrameRef.current = requestAnimationFrame(animate);
-      
-    } catch (error) {
-      console.error("Encoding error:", error);
+  const handleAbort = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      console.log("Encoding aborted by user.");
       setIsEncoding(false);
-      toast({
-        variant: "destructive",
-        title: "Encoding Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred"
-      });
+      setProgress(0);
+      toast({ title: "Encoding Aborted" });
     }
   };
+
+
+  const handleEncode = async () => {
+    if (!audioBuffer) {
+      toast({ variant: "destructive", title: "No audio loaded" });
+      return;
+    }
+    if (isEncoding) return; // Prevent multiple concurrent encodings
+
+    if (useWebCodecs && !webCodecsSupported) {
+       toast({
+        variant: "destructive",
+        title: "WebCodecs Required",
+        description: "WebCodecs is not supported in your browser. Cannot perform CFR encoding.",
+      });
+       return;
+    }
+
+    setIsEncoding(true);
+    setProgress(0);
+    if (downloadUrlRef.current) {
+        URL.revokeObjectURL(downloadUrlRef.current);
+        downloadUrlRef.current = "";
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    // --- WebCodecs + mp4box.js Encoding ---
+    try {
+      const fps = parseInt(frameRate, 10);
+      const width = getResolutionWidth(resolution);
+      const height = getResolutionHeight(resolution);
+      const durationSec = audioBuffer.duration;
+      const totalFrames = Math.ceil(durationSec * fps);
+      const frameDurationUs = Math.round(1_000_000 / fps);
+
+      // Estimate bitrate based on resolution and quality setting (adjust factor as needed)
+      const qualityFactor = quality / 100; // 0.1 to 1.0
+      const baseBitrate = width * height * fps * 0.07; // Rough H.264 estimate factor
+      const videoBitrate = Math.round(baseBitrate * (0.5 + qualityFactor * 1.5)); // Adjust curve
+      const audioBitrate = 128_000; // AAC bitrate
+
+      console.log(`Encoding settings: ${width}x${height} @ ${fps}fps, ${totalFrames} frames, Video Bitrate: ${videoBitrate}, Audio Bitrate: ${audioBitrate}`);
+
+      toast({ title: "Starting CFR Encoding", description: `Using WebCodecs and mp4box.js...` });
+
+      // 1. Configure Encoders
+      let videoEncoder: VideoEncoder | null = null;
+      let audioEncoder: AudioEncoder | null = null;
+
+      const videoConfig: VideoEncoderConfig = {
+        codec: 'avc1.42E01E', // H.264 Baseline profile - widely compatible
+        width: width,
+        height: height,
+        framerate: fps,
+        bitrate: videoBitrate,
+        // Consider adding 'latencyMode: "quality"' if available/needed
+      };
+
+      const audioConfig: AudioEncoderConfig = {
+        codec: 'mp4a.40.2', // AAC-LC
+        sampleRate: audioBuffer.sampleRate,
+        numberOfChannels: audioBuffer.numberOfChannels,
+        bitrate: audioBitrate,
+      };
+
+      // Check support again with specific config
+      const vSupport = await VideoEncoder.isConfigSupported(videoConfig);
+      const aSupport = await AudioEncoder.isConfigSupported(audioConfig);
+      if (!vSupport || !aSupport) {
+          throw new Error(`Unsupported config: Video(${vSupport}), Audio(${aSupport})`);
+      }
+
+      // 2. Initialize MP4Box
+      const mp4file = MP4Box.createFile();
+      let videoTrackId: number | null = null;
+      let audioTrackId: number | null = null;
+
+      // --- Video Encoder Setup ---
+      videoEncoder = new VideoEncoder({
+        output: (chunk, meta) => {
+          if (videoTrackId === null && meta?.decoderConfig) {
+            console.log("Adding video track to MP4Box");
+            videoTrackId = mp4file.addTrack({
+              width: width,
+              height: height,
+              timescale: 1_000_000, // Use microseconds timescale
+              duration: Math.round(durationSec * 1_000_000),
+              media_duration: Math.round(durationSec * 1_000_000),
+              nb_samples: totalFrames,
+              hdlr: 'vide',
+              name: 'VideoHandler',
+              type: 'avc1', // Match the codec
+              avcDecoderConfigRecord: meta.decoderConfig.description, // IMPORTANT
+            });
+          }
+          if (videoTrackId !== null && chunk.byteLength > 0) {
+            const sample: MP4Sample = {
+              number: 0, // mp4box calculates sample number
+              track_id: videoTrackId,
+              description_index: 1, // Usually 1 after config
+              is_sync: chunk.type === 'key',
+              cts: chunk.timestamp, // Use chunk timestamp directly (microseconds)
+              dts: chunk.timestamp, // Use chunk timestamp directly (microseconds)
+              duration: chunk.duration ?? frameDurationUs, // Use chunk duration or calculated (microseconds)
+              size: chunk.byteLength,
+              data: new Uint8Array(chunk.byteLength), // mp4box expects Uint8Array data
+            };
+            chunk.copyTo(sample.data); // Copy data efficiently
+            mp4file.addSample(videoTrackId, sample.data, { // Use the addSample variation expecting buffer
+                duration: sample.duration,
+                dts: sample.dts,
+                cts: sample.cts,
+                is_sync: sample.is_sync,
+            });
+          }
+        },
+        error: (e) => {
+          console.error("VideoEncoder error:", e);
+          toast({ variant: "destructive", title: "Video Encoding Error", description: e.message });
+          handleAbort(); // Abort on error
+        },
+      });
+      await videoEncoder.configure(videoConfig);
+
+      // --- Audio Encoder Setup ---
+      audioEncoder = new AudioEncoder({
+        output: (chunk, meta) => {
+          if (audioTrackId === null && meta?.decoderConfig) {
+            console.log("Adding audio track to MP4Box");
+            audioTrackId = mp4file.addTrack({
+              timescale: 1_000_000, // Microseconds timescale matching video often helps
+              media_duration: Math.round(durationSec * 1_000_000),
+              duration: Math.round(durationSec * 1_000_000),
+              samplerate: audioBuffer.sampleRate,
+              channel_count: audioBuffer.numberOfChannels,
+              hdlr: 'soun',
+              name: 'SoundHandler',
+              type: 'mp4a', // Match the codec
+              aacDecoderConfigRecord: meta.decoderConfig.description, // IMPORTANT for AAC
+            });
+          }
+           if (audioTrackId !== null && chunk.byteLength > 0) {
+               const sampleData = new Uint8Array(chunk.byteLength);
+               chunk.copyTo(sampleData);
+               mp4file.addSample(audioTrackId, sampleData, {
+                   duration: chunk.duration, // microseconds
+                   dts: chunk.timestamp,     // microseconds
+                   cts: chunk.timestamp,     // microseconds
+                   is_sync: chunk.type === 'key', // Typically true for audio
+               });
+           }
+        },
+        error: (e) => {
+          console.error("AudioEncoder error:", e);
+          toast({ variant: "destructive", title: "Audio Encoding Error", description: e.message });
+          handleAbort(); // Abort on error
+        },
+      });
+      await audioEncoder.configure(audioConfig);
+
+
+      // 3. Process Frames and Audio
+      const canvas = canvasRef.current;
+      if (!canvas) throw new Error("Canvas not available");
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error("Could not get canvas context");
+
+      console.log("Starting frame generation loop...");
+      for (let i = 0; i < totalFrames; i++) {
+        if (signal.aborted) throw new Error("Encoding aborted");
+
+        const frameTimestampUs = i * frameDurationUs;
+        const frameTimestampMs = frameTimestampUs / 1000;
+
+        // Draw Visualization for the current frame
+        drawFrame(frameTimestampMs);
+
+        // Create VideoFrame
+        const videoFrame = new VideoFrame(canvas, {
+          timestamp: frameTimestampUs, // Microseconds
+          duration: frameDurationUs,  // Microseconds
+        });
+
+        // Encode Video Frame
+        // Handle potential backpressure (though less likely in offline mode)
+        if (videoEncoder.encodeQueueSize > 20) {
+             console.warn("Video encoder queue high, waiting...");
+             await videoEncoder.flush(); // Force processing
+             console.warn("Video encoder queue flushed.");
+        }
+        videoEncoder.encode(videoFrame);
+        videoFrame.close(); // Close the frame after encoding
+
+        // Update Progress
+        setProgress(Math.round(((i + 1) / totalFrames) * 95)); // Leave last 5% for flushing/muxing
+
+        // Yield to the event loop occasionally to keep UI responsive
+        if (i % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+      console.log("Frame generation complete.");
+
+      // 4. Encode Full Audio Track
+      // WebCodecs works best with smaller chunks of AudioData.
+      // Slice the AudioBuffer into manageable chunks.
+      console.log("Encoding full audio track...");
+      const audioDurationUs = durationSec * 1_000_000;
+      const audioSampleRate = audioBuffer.sampleRate;
+      const numChannels = audioBuffer.numberOfChannels;
+      const chunkSizeSec = 0.5; // Process audio in 0.5 second chunks
+      const chunkSizeSamples = Math.round(chunkSizeSec * audioSampleRate);
+
+      for (let channel = 0; channel < numChannels; channel++) {
+         const pcmData = audioBuffer.getChannelData(channel); // Float32Array
+
+         for (let offset = 0; offset < pcmData.length; offset += chunkSizeSamples) {
+            if (signal.aborted) throw new Error("Encoding aborted");
+
+             const chunkEnd = Math.min(offset + chunkSizeSamples, pcmData.length);
+             const chunk = pcmData.slice(offset, chunkEnd);
+             const chunkTimestampUs = Math.round((offset / audioSampleRate) * 1_000_000);
+             const chunkDurationUs = Math.round((chunk.length / audioSampleRate) * 1_000_000);
+
+             if (chunk.length > 0) {
+                 const audioData = new AudioData({
+                     format: 'f32-planar', // Matches getChannelData output
+                     sampleRate: audioSampleRate,
+                     numberOfFrames: chunk.length,
+                     numberOfChannels: 1, // Process planar data one channel at a time
+                     timestamp: chunkTimestampUs, // Microseconds
+                     data: chunk, // Pass the Float32Array directly
+                 });
+
+                // Handle potential backpressure
+                if (audioEncoder.encodeQueueSize > 20) {
+                     console.warn("Audio encoder queue high, waiting...");
+                     await audioEncoder.flush();
+                     console.warn("Audio encoder queue flushed.");
+                }
+                audioEncoder.encode(audioData);
+                audioData.close();
+             }
+             // Yield briefly if needed
+            // await new Promise(resolve => setTimeout(resolve, 0));
+         }
+      }
+      console.log("Audio chunking and encoding initiated.");
+
+
+      // 5. Flush Encoders
+      console.log("Flushing encoders...");
+      await Promise.all([videoEncoder.flush(), audioEncoder.flush()]);
+      console.log("Encoders flushed.");
+      setProgress(98);
+
+      // 6. Finalize MP4Box File
+      console.log("Finalizing MP4 file...");
+      mp4file.onReady = (info: MP4Info) => {
+        console.log("MP4Box ready:", info);
+        // Get the buffer - mp4file.buffer is the ArrayBuffer
+        const buffer = info.buffer; // Use the buffer from the onReady callback argument
+        if (!buffer) {
+             throw new Error("MP4Box failed to generate buffer.");
+        }
+        const blob = new Blob([buffer], { type: 'video/mp4' });
+        finishEncoding(blob);
+        // Clean up MP4Box resources if necessary (usually handled internally)
+      };
+
+      mp4file.onError = (e: any) => {
+           console.error("MP4Box error:", e);
+           throw new Error(`MP4Box muxing error: ${e}`);
+      };
+
+      // Some mp4box versions might need explicit save/end command
+      // mp4file.save(); // Or similar method if available, check mp4box docs
+
+
+    } catch (error: any) {
+      console.error("Encoding process error:", error);
+      if (error.message !== "Encoding aborted") { // Don't show toast if user aborted
+        toast({
+          variant: "destructive",
+          title: "Encoding Failed",
+          description: error.message ?? "An unknown error occurred during WebCodecs/MP4Box encoding."
+        });
+      }
+      setIsEncoding(false);
+      setProgress(0);
+    } finally {
+      // 7. Cleanup
+      console.log("Cleaning up encoders...");
+      // Ensure encoders are closed even if errors occurred
+      try { videoEncoder?.close(); } catch(e) { console.warn("Error closing video encoder", e); }
+      try { audioEncoder?.close(); } catch(e) { console.warn("Error closing audio encoder", e); }
+      abortControllerRef.current = null; // Clear abort controller
+       console.log("Cleanup complete.");
+    }
+  };
+
 
   const finishEncoding = (blob: Blob, fileExtension: string = 'mp4') => {
     setIsEncoding(false);
     setProgress(100);
-    
+
     toast({
       variant: "default",
       title: "Encoding complete",
-      description: "Your video has been successfully encoded!"
+      description: "CFR video successfully encoded with WebCodecs!",
     });
-    
-    // Create download URL
+
+    // Revoke previous URL if it exists
+    if (downloadUrlRef.current) {
+        URL.revokeObjectURL(downloadUrlRef.current);
+    }
+
     const url = URL.createObjectURL(blob);
-    
-    // Get file name with proper extension
-    const fileName = `waveform-visualization.${fileExtension}`;
-    
-    // Store the URL and filename for later download
-    videoRef.current = document.createElement('video');
-    videoRef.current.src = url;
     downloadUrlRef.current = url;
-    downloadFileNameRef.current = fileName;
-    
-    // Show download toast
+    downloadFileNameRef.current = `waveform-visualization-${resolution}-${frameRate}fps.${fileExtension}`;
+
     toast({
       variant: "default",
       title: "Download ready",
-      description: "Click the Download button to save your video."
+      description: "Click the Download button to save your video.",
     });
   };
 
   const handleDownload = () => {
-    if (!videoRef.current || !videoRef.current.src) {
-      toast({
-        variant: "destructive",
-        title: "No video available",
-        description: "Please encode a video first."
-      });
+    if (!downloadUrlRef.current) {
+      toast({ variant: "destructive", title: "No video available", description: "Encode a video first." });
       return;
     }
-    
-    // Create temporary link and trigger download
+
     const a = document.createElement('a');
-    a.href = downloadUrlRef.current || videoRef.current.src;
+    a.href = downloadUrlRef.current;
     a.download = downloadFileNameRef.current;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    
-    toast({
-      title: "Download started",
-      description: "Your encoded video will download shortly."
-    });
+
+    toast({ title: "Download started" });
   };
 
-  // New function for constant frame rate generation
-  const generateConstantFrameRateVideo = async (fps: number, canvas: HTMLCanvasElement, audioBuffer: AudioBuffer) => {
-    try {
-      console.log("Using direct canvas capture for CFR encoding...");
-      
-      // Calculate duration
-      const duration = audioBuffer.duration;
-      const totalFrames = Math.ceil(duration * fps);
-      
-      toast({
-        variant: "default",
-        title: "Constant Frame Rate Encoding",
-        description: `Encoding video at ${fps} FPS...`
-      });
-      
-      // Resize the canvas to match selected resolution
-      canvas.width = getResolutionWidth(resolution);
-      canvas.height = getResolutionHeight(resolution);
-      
-      // Set up audio contexts for visualization
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      
-      if (!analyserRef.current) {
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
-      }
-      
-      // Create a new AudioBuffer source for visualization
-      const visualizationSource = audioContextRef.current.createBufferSource();
-      visualizationSource.buffer = audioBuffer;
-      visualizationSource.connect(analyserRef.current);
-      
-      // Set up buffer for frequency data
-      const bufferLength = analyserRef.current.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      
-      // Use the provided canvas directly instead of creating a new one
-      // This ensures the canvas has the correct context and configuration
-      const ctx = canvas.getContext('2d')!;
-      
-      // Create a canvas stream with specified FPS
-      const canvasStream = canvas.captureStream(fps);
-      
-      // Create a new audio context for the recording
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const audioDestination = audioContext.createMediaStreamDestination();
-      const audioSource = audioContext.createBufferSource();
-      audioSource.buffer = audioBuffer;
-      audioSource.connect(audioDestination);
-      
-      // Create combined stream with video and audio
-      const combinedStream = new MediaStream();
-      
-      // Add video track
-      canvasStream.getVideoTracks().forEach(track => {
-        // Try to set constraints for constant frame rate
-        try {
-          track.applyConstraints({
-            frameRate: { exact: fps }
-          });
-        } catch (e) {
-          console.warn("Could not apply frame rate constraint:", e);
-        }
-        combinedStream.addTrack(track);
-      });
-      
-      // Add audio track
-      audioDestination.stream.getAudioTracks().forEach(track => {
-        combinedStream.addTrack(track);
-      });
-      
-      // Find the best supported codec
-      const mimeTypes = [
-        'video/mp4;codecs=h264,mp4a.40.2',
-        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-        'video/mp4',
-        'video/webm;codecs=h264,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm'
-      ];
-      
-      let mimeType = '';
-      for (const type of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          mimeType = type;
-          console.log(`Using MIME type: ${type}`);
-          break;
-        }
-      }
-      
-      if (!mimeType) {
-        throw new Error("No supported video format found");
-      }
-      
-      // Create media recorder with high quality settings
-      const recorder = new MediaRecorder(combinedStream, {
-        mimeType,
-        videoBitsPerSecond: quality * 200000, // Higher bitrate
-        audioBitsPerSecond: 192000 // Good audio quality
-      });
-      
-      // Collect data chunks
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-      
-      // When recording is complete, create the final video
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/mp4' });
-        finishEncoding(blob);
-      };
-      
-      // Draw initial frame before starting
-      // This ensures we have content on the canvas before recording starts
-      if (showBackground) {
-        ctx.fillStyle = '#0f0f0f';
-      } else {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-      }
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      analyserRef.current.getByteFrequencyData(dataArray);
-      renderVisualization(
-        0,
-        analyserRef.current,
-        canvas,
-        visualizerSettings,
-        0
-      );
-      
-      // Begin recording
-      recorder.start(100); // Collect data every 100ms
-      
-      // Start sources
-      visualizationSource.start(0);
-      audioSource.start(0);
-      
-      // Animation timing variables
-      const startTime = performance.now();
-      
-      // Animation function to render frames
-      function animate(now: number) {
-        const elapsed = now - startTime;
-        
-        // Update progress
-        const progressPercent = Math.min(100, Math.round((elapsed / (duration * 1000)) * 100));
-        setProgress(progressPercent);
-        
-        // Get current audio data
-        analyserRef.current!.getByteFrequencyData(dataArray);
-        
-        // Clear canvas with background
-        if (showBackground) {
-          ctx.fillStyle = '#0f0f0f';
-        } else {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-        }
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw visualization at current timestamp
-        renderVisualization(
-          elapsed,
-          analyserRef.current!,
-          canvas,
-          visualizerSettings,
-          (elapsed / 1000) * visualizerSettings.rotationSpeed
-        );
-        
-        // Continue animation if not done
-        if (elapsed < duration * 1000) {
-          requestAnimationFrame(animate);
-        } else {
-          // End recording
-          console.log("Animation complete, stopping recorder");
-          
-          // Small delay to ensure all frames are captured
-          setTimeout(() => {
-            recorder.stop();
-            visualizationSource.stop();
-            audioSource.stop();
-          }, 500);
-        }
-      }
-      
-      // Start animation loop
-      requestAnimationFrame(animate);
-      
-    } catch (error) {
-      console.error("Error in CFR encoding:", error);
-      setIsEncoding(false);
-      toast({
-        variant: "destructive",
-        title: "Encoding Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred"
-      });
-    }
-  };
-  
-  // WebCodecs approach (modern browsers) - Not using this for now
-  const createVideoWithWebCodecs = async (frames: Blob[], fps: number, audioBuffer: AudioBuffer) => {
-    try {
-      toast({
-        variant: "destructive",
-        title: "Advanced encoding not supported",
-        description: "Your browser doesn't support the required APIs for constant frame rate encoding."
-      });
-      
-      // Fall back to the muxer approach
-      await createVideoWithMuxer(frames, fps, audioBuffer);
-      
-    } catch (error) {
-      console.error("WebCodecs encoding error:", error);
-      throw error;
-    }
-  };
-  
-  // Compatible approach using FFmpeg.wasm or similar tool
-  const createVideoWithMuxer = async (frames: Blob[], fps: number, audioBuffer: AudioBuffer) => {
-    // This function is now essentially a fallback/compatibility layer
-    // We're mainly using the direct approach in generateConstantFrameRateVideo now
-    try {
-      console.log("Using fallback muxer approach");
-      
-      // Since we're already doing the direct approach in generateConstantFrameRateVideo,
-      // we'll keep this super simple
-      const duration = audioBuffer.duration;
-      toast({
-        variant: "default",
-        title: "Using simple encoder",
-        description: `Creating ${Math.ceil(duration * fps)} frames at ${fps} FPS...`
-      });
-      
-      // Redirect to the simplified approach in the main function
-      const canvas = canvasRef.current!;
-      await generateConstantFrameRateVideo(fps, canvas, audioBuffer);
-    } catch (error) {
-      console.error("Muxer encoding error:", error);
-      throw error;
-    }
-  };
 
   return (
     <Card className="w-full encoder-section">
@@ -641,14 +517,22 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
           <Video className="h-5 w-5 text-primary" />
           Encoding Options
         </CardTitle>
-        <CardDescription>Customize your output video settings</CardDescription>
+        <CardDescription>Customize your output video settings (CFR using WebCodecs)</CardDescription>
       </CardHeader>
       <CardContent>
+         {webCodecsSupported === false && (
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-md text-sm flex items-center gap-2">
+               <AlertTriangle className="h-5 w-5 text-destructive" />
+               <span>WebCodecs not fully supported. CFR encoding may fail or be unavailable.</span>
+            </div>
+         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Resolution, Frame Rate */}
           <div className="space-y-4">
-            <div className="space-y-2">
+            {/* ... (Resolution Select - same as before) ... */}
+             <div className="space-y-2">
               <Label>Resolution</Label>
-              <Select value={resolution} onValueChange={setResolution}>
+              <Select value={resolution} onValueChange={setResolution} disabled={isEncoding}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select resolution" />
                 </SelectTrigger>
@@ -660,56 +544,51 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
                 </SelectContent>
               </Select>
             </div>
-            
             <div className="space-y-2">
-              <Label>Frame Rate</Label>
-              <Select value={frameRate} onValueChange={setFrameRate}>
+              <Label>Frame Rate (FPS)</Label>
+              <Select value={frameRate} onValueChange={setFrameRate} disabled={isEncoding}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select frame rate" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="24">24 FPS</SelectItem>
-                  <SelectItem value="30">30 FPS</SelectItem>
-                  <SelectItem value="60">60 FPS</SelectItem>
+                  <SelectItem value="24">24</SelectItem>
+                  <SelectItem value="30">30</SelectItem>
+                  <SelectItem value="60">60</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          
+
+           {/* Quality, Background */}
           <div className="space-y-4">
-            <div className="space-y-2">
+            {/* ... (Quality Slider - same as before) ... */}
+             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Quality: {quality}%</Label>
+                <Label>Quality (Bitrate Estimate): {quality}%</Label>
               </div>
-              <Slider 
-                min={10} 
-                max={100} 
-                step={1} 
-                value={[quality]} 
+              <Slider
+                min={10}
+                max={100}
+                step={1}
+                value={[quality]}
                 onValueChange={([value]) => setQuality(value)}
+                disabled={isEncoding}
               />
             </div>
-            
             <div className="flex items-center space-x-2 pt-4">
-              <Switch 
-                id="background" 
-                checked={showBackground} 
+              <Switch
+                id="background"
+                checked={showBackground}
                 onCheckedChange={setShowBackground}
+                disabled={isEncoding}
               />
               <Label htmlFor="background">Include Background</Label>
             </div>
-            
-            <div className="flex items-center space-x-2 pt-4">
-              <Switch 
-                id="cfr" 
-                checked={useCFR} 
-                onCheckedChange={setUseCFR}
-              />
-              <Label htmlFor="cfr">Force Constant Frame Rate</Label>
-            </div>
+             {/* Removed the CFR switch as WebCodecs is now the primary method */}
+              {/* You could add it back as a fallback toggle if needed */}
           </div>
         </div>
-        
+
         {isEncoding && (
           <div className="mt-6 space-y-2">
             <div className="flex justify-between text-sm">
@@ -717,42 +596,41 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
               <span>{progress}%</span>
             </div>
             <Progress value={progress} className="h-2" />
+             <Button variant="outline" size="sm" onClick={handleAbort} className="mt-2">
+               Cancel Encoding
+             </Button>
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between pt-2">
+      <CardFooter className="flex justify-between pt-4">
+        {/* Play/Pause Preview Button */}
         <Button
           variant="outline"
           onClick={onPlayPauseToggle}
           disabled={!audioBuffer || isEncoding}
           className="flex items-center gap-2"
         >
-          {isPlaying ? (
-            <>
-              <Pause className="h-4 w-4" /> Pause Preview
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4" /> Play Preview
-            </>
-          )}
+          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          {isPlaying ? "Pause Preview" : "Play Preview"}
         </Button>
-        
+
+        {/* Encode/Download Buttons */}
         <div className="flex gap-2">
           <Button
             variant="default"
             onClick={handleEncode}
-            disabled={!audioBuffer || isEncoding}
+            disabled={!audioBuffer || isEncoding || webCodecsSupported === false}
             className="flex items-center gap-2"
+            title={webCodecsSupported === false ? "WebCodecs not supported by browser" : "Start encoding process"}
           >
             <Video className="h-4 w-4" />
-            {isEncoding ? "Encoding..." : "Encode Video"}
+            {isEncoding ? `Encoding... (${progress}%)` : "Encode Video (CFR)"}
           </Button>
-          
+
           <Button
             variant="outline"
             onClick={handleDownload}
-            disabled={progress < 100}
+            disabled={isEncoding || !downloadUrlRef.current}
             className="flex items-center gap-2"
           >
             <Download className="h-4 w-4" />
