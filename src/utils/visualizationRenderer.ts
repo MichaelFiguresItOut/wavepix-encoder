@@ -13,28 +13,35 @@ import { drawFireAnimation } from './visualizations/fire';
 import { drawSpiderWebAnimation } from './visualizations/spiderweb';
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 
+// *** MODIFIED Signature: Takes frequencyData directly ***
 export const renderVisualization = (
   timestamp: number,
-  analyser: AnalyserNode,
+  frequencyData: Uint8Array, // Changed from analyser: AnalyserNode
   canvas: HTMLCanvasElement,
   settings: VisualizerSettings,
   rotationAngle: number
 ): void => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-  
-  analyser.getByteFrequencyData(dataArray);
-  
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Fill background
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
+
+  // *** Use frequencyData.length instead of analyser.frequencyBinCount ***
+  const bufferLength = frequencyData.length;
+  // *** No longer need to call getByteFrequencyData here ***
+  // analyser.getByteFrequencyData(dataArray); -> REMOVED
+
+  // Use the passed-in frequencyData directly
+  const dataArray = frequencyData;
+
+  // ClearRect might be handled by the specific visualization or background fill
+  // ctx.clearRect(0, 0, canvas.width, canvas.height); // Keep if needed, or let background handle
+
+  // Fill background (Optional, might conflict with EncodingPanel background setting)
+  // Consider removing this if background is handled before calling renderVisualization
+  // ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+  // ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   // Call the appropriate visualization function based on settings
+  // Passing the dataArray and bufferLength directly
   switch(settings.type) {
     case "bars":
       drawBars(ctx, dataArray, canvas, bufferLength, settings);
@@ -76,6 +83,7 @@ export const renderVisualization = (
       drawSpiderWebAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
       break;
     default:
+      // Ensure default case also uses dataArray correctly
       drawBars(ctx, dataArray, canvas, bufferLength, settings);
   }
 };
