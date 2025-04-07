@@ -12,6 +12,73 @@ export const drawBubblesAnimation = (
   const canvasHeight = canvas.height;
   const dotCount = 128; // Number of dots to display
   
+  // If Round Effect is enabled, draw a circular base instead of bars
+  if (settings.showMirror) {
+    // Draw circular base with bubbles
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
+    const baseRadius = Math.min(canvasWidth, canvasHeight) * 0.2;
+    
+    // Draw base circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = formatColorWithOpacity(settings.color, 0.5);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Add bubbles emanating from the circle
+    const bubbleCount = 48; // Fewer bubbles for cleaner look
+    
+    for (let i = 0; i < bubbleCount; i++) {
+      // Get data for this bubble
+      const index = Math.floor(i * (bufferLength / bubbleCount));
+      const value = dataArray[index] * settings.sensitivity;
+      const normalizedValue = value / 255;
+      
+      // Calculate angle around the circle
+      const angle = (i / bubbleCount) * Math.PI * 2;
+      
+      // Calculate distance from center 
+      const oscFactor = Math.sin((timestamp / 500) + i * 0.2) * 0.5 + 0.5;
+      
+      let distance;
+      if (settings.showReversed) {
+        // If Invert Effect is enabled, bubbles move inward
+        // Higher values move bubbles closer to center
+        distance = baseRadius - (normalizedValue * 50 * oscFactor);
+        // Ensure a minimum distance to prevent bubbles from crossing center
+        distance = Math.max(10, distance);
+      } else {
+        // Default behavior - bubbles move outward
+        distance = baseRadius + (normalizedValue * 150 * oscFactor);
+      }
+      
+      // Calculate bubble position
+      const x = centerX + Math.cos(angle) * distance;
+      const y = centerY + Math.sin(angle) * distance;
+      
+      // Calculate the bubble size based on the frequency value
+      const bubbleSize = Math.max(2, normalizedValue * 15);
+      
+      // Draw the bubble
+      ctx.beginPath();
+      ctx.arc(x, y, bubbleSize, 0, Math.PI * 2);
+      ctx.fillStyle = settings.color;
+      ctx.fill();
+      
+      // Add glow effect for larger bubbles
+      if (bubbleSize > 5) {
+        ctx.shadowBlur = bubbleSize;
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+    
+    return; // Skip the rest of the rendering
+  }
+  
+  // Original bar-based bubbles visualization
   // Process each bar placement option
   settings.barPlacement.forEach(placement => {
     if (settings.horizontalOrientation) {
@@ -55,7 +122,10 @@ export const drawBubblesAnimation = (
           
           // Calculate Y position with some oscillation
           const oscillation = Math.sin((i / 10) + (timestamp / 500)) * 20;
-          const y = baseY + (oscillation * normalizedValue);
+          
+          // Apply inversion effect if enabled
+          const direction = settings.showReversed ? -1 : 1;
+          const y = baseY + (direction * oscillation * normalizedValue);
           
           // Color based on frequency value
           const hue = (normalizedValue * 120) + ((timestamp / 50) % 360);
@@ -120,7 +190,10 @@ export const drawBubblesAnimation = (
           
           // Calculate X position with some oscillation
           const oscillation = Math.sin((i / 10) + (timestamp / 500)) * 20;
-          const x = baseX + (oscillation * normalizedValue);
+          
+          // Apply inversion effect if enabled
+          const direction = settings.showReversed ? -1 : 1;
+          const x = baseX + (direction * oscillation * normalizedValue);
           
           // Color based on frequency value
           const hue = (normalizedValue * 120) + ((timestamp / 50) % 360);

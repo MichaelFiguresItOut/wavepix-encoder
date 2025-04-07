@@ -73,13 +73,26 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
   };
 
   // Check if orientation section should be shown
-  const showOrientationSection = settings.type !== "circle" && settings.type !== "formation";
+  const showOrientationSection = 
+    settings.type !== "circle" && 
+    settings.type !== "formation" && 
+    !(settings.type === "dots" && settings.showMirror) &&
+    !(settings.type === "bubbles" && settings.showMirror);
 
   // Check if bar placement section should be shown
-  const showBarPlacementSection = settings.type !== "circle" && settings.type !== "formation" && settings.type !== "multiline";
+  const showBarPlacementSection = 
+    settings.type !== "circle" && 
+    settings.type !== "formation" && 
+    settings.type !== "multiline" && 
+    !(settings.type === "dots" && settings.showMirror) &&
+    !(settings.type === "bubbles" && settings.showMirror);
 
   // Check if animation start section should be shown
-  const showAnimationStartSection = settings.type !== "circle" && settings.type !== "formation";
+  const showAnimationStartSection = 
+    settings.type !== "circle" && 
+    settings.type !== "formation" && 
+    !(settings.type === "dots" && settings.showMirror) &&
+    !(settings.type === "bubbles" && settings.showMirror);
 
   return (
     <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4 md:gap-6`}>
@@ -105,7 +118,7 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               <SelectItem value="multiline">Multiline Animation</SelectItem>
               <SelectItem value="lightning">Lightning Animation</SelectItem>
               <SelectItem value="honeycomb">Honeycomb Animation</SelectItem>
-              <SelectItem value="fire">Fire Animation</SelectItem>
+              <SelectItem value="fire">Flame Animation</SelectItem>
               <SelectItem value="spiderweb">SpiderWeb Animation</SelectItem>
             </SelectContent>
           </Select>
@@ -255,14 +268,56 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
         
-        <div className="flex items-center space-x-2 pt-2">
-          <Switch 
-            id="mirror" 
-            checked={settings.showMirror} 
-            onCheckedChange={(checked) => handleSettingChange("showMirror", checked)}
-          />
-          <Label htmlFor="mirror" className="cursor-pointer">Mirrored Effect</Label>
-        </div>
+        {/* Hide mirrored effect button for Fire animation */}
+        {settings.type !== "fire" && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="mirror" 
+              checked={settings.showMirror} 
+              onCheckedChange={(checked) => handleSettingChange("showMirror", checked)}
+            />
+            <Label htmlFor="mirror" className="cursor-pointer">
+              {(settings.type === "siri" || settings.type === "dots" || settings.type === "bubbles" || settings.type === "multiline") ? 
+                "Round Effect" : "Mirrored Effect"}
+            </Label>
+          </div>
+        )}
+
+        {/* Add Invert Effect option for Line visualization */}
+        {settings.type === "line" && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="invert" 
+              checked={settings.showInvert} 
+              onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
+            />
+            <Label htmlFor="invert" className="cursor-pointer">Invert Effect</Label>
+          </div>
+        )}
+
+        {/* Add a new Invert Effect option for Bubbles visualization */}
+        {settings.type === "bubbles" && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="bubbles-reversed" 
+              checked={settings.showReversed} 
+              onCheckedChange={(checked) => handleSettingChange("showReversed", checked)}
+            />
+            <Label htmlFor="bubbles-reversed" className="cursor-pointer">Invert Effect</Label>
+          </div>
+        )}
+
+        {/* Add a new Invert Effect option specifically for Dots visualization */}
+        {settings.type === "dots" && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="reversed" 
+              checked={settings.showReversed} 
+              onCheckedChange={(checked) => handleSettingChange("showReversed", checked)}
+            />
+            <Label htmlFor="reversed" className="cursor-pointer">Invert Effect</Label>
+          </div>
+        )}
 
         {/* Animation Start multi-select - only display for specific visualizations */}
         {showAnimationStartSection && (

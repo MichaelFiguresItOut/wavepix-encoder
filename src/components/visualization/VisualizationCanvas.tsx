@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { useAudioVisualization } from "@/hooks/useAudioVisualization";
 import { renderVisualization } from "@/utils/visualizationRenderer";

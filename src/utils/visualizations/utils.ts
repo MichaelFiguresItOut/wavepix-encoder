@@ -66,7 +66,7 @@ export const getXPositionForPlacement = (canvasWidth: number, placement: string,
     case 'top': // Right side in vertical mode
       return canvasWidth - barWidth;
     case 'middle':
-      return (canvasWidth - barWidth) / 2;
+      return (canvasWidth / 2) - (barWidth / 2); // Exactly centered (middle of canvas minus half of bar width)
     case 'bottom': // Left side in vertical mode
     default:
       return 0;
@@ -120,6 +120,8 @@ export interface VisualizationSettings {
   color: string;
   sensitivity: number;
   showMirror: boolean;
+  showReversed?: boolean;
+  showInvert?: boolean;
   horizontalOrientation: boolean;
   verticalOrientation: boolean;
   barPlacement: string[];

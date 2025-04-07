@@ -32,7 +32,16 @@ export const drawDotsAnimation = (
         const normalizedValue = value / 255;
         
         // Calculate radius with audio reactivity
-        const radius = ringRadius + normalizedValue * 30;
+        let radius;
+        if (settings.showReversed) {
+          // If Invert Effect is enabled, radiate inward (smaller radius for higher values)
+          radius = ringRadius - normalizedValue * 30;
+          // Ensure radius doesn't go below a minimum value
+          radius = Math.max(10, radius);
+        } else {
+          // Default behavior - radiate outward
+          radius = ringRadius + normalizedValue * 30;
+        }
         
         // Calculate dot position
         const x = centerX + Math.cos(angle) * radius;
@@ -62,7 +71,16 @@ export const drawDotsAnimation = (
         const normalizedValue = value / 255;
         
         // Calculate radius with audio reactivity
-        const radius = baseRadius + normalizedValue * 30;
+        let radius;
+        if (settings.showReversed) {
+          // If Invert Effect is enabled, radiate inward (smaller radius for higher values)
+          radius = baseRadius - normalizedValue * 30;
+          // Ensure radius doesn't go below a minimum value
+          radius = Math.max(10, radius);
+        } else {
+          // Default behavior - radiate outward
+          radius = baseRadius + normalizedValue * 30;
+        }
         
         // Calculate dot position
         const x = centerX + Math.cos(angle) * radius;
@@ -134,7 +152,10 @@ export const drawDotsAnimation = (
               
               // Calculate dot position with subtle wave motion
               const waveY = Math.sin(i * 0.15 + phase) * 20;
-              const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+              
+              // Apply the reversed direction if showReversed is enabled
+              const direction = settings.showReversed ? 1 : -1;
+              const y = centerY + (direction * normalizedValue * canvasHeight * 0.4) + waveY;
               
               if (i === 0) {
                 ctx.moveTo(x, y);
@@ -157,7 +178,10 @@ export const drawDotsAnimation = (
               
               // Calculate dot position with subtle wave motion
               const waveY = Math.sin(i * 0.15 + phase) * 20;
-              const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+              
+              // Apply the reversed direction if showReversed is enabled
+              const direction = settings.showReversed ? 1 : -1;
+              const y = centerY + (direction * normalizedValue * canvasHeight * 0.4) + waveY;
               
               // Dot size based on frequency data
               const dotSize = 2 + normalizedValue * 8;
@@ -187,7 +211,10 @@ export const drawDotsAnimation = (
               
               // Calculate dot position with subtle wave motion
               const waveY = Math.sin(i * 0.15 + phase) * 20;
-              const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+              
+              // Apply the reversed direction if showReversed is enabled
+              const direction = settings.showReversed ? 1 : -1;
+              const y = centerY + (direction * normalizedValue * canvasHeight * 0.4) + waveY;
               
               if (i === 0) {
                 ctx.moveTo(x, y);
@@ -210,7 +237,10 @@ export const drawDotsAnimation = (
               
               // Calculate dot position with subtle wave motion
               const waveY = Math.sin(i * 0.15 + phase) * 20;
-              const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+              
+              // Apply the reversed direction if showReversed is enabled
+              const direction = settings.showReversed ? 1 : -1;
+              const y = centerY + (direction * normalizedValue * canvasHeight * 0.4) + waveY;
               
               // Dot size based on frequency data
               const dotSize = 2 + normalizedValue * 8;
@@ -244,7 +274,10 @@ export const drawDotsAnimation = (
             
             // Calculate dot position with subtle wave motion
             const waveY = Math.sin(i * 0.15 + phase) * 20;
-            const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+            
+            // Apply the reversed direction if showReversed is enabled
+            const direction = settings.showReversed ? 1 : -1;
+            const y = centerY + (direction * normalizedValue * canvasHeight * 0.4) + waveY;
             
             if (i === 0) {
               ctx.moveTo(x, y);
@@ -267,7 +300,10 @@ export const drawDotsAnimation = (
             
             // Calculate dot position with subtle wave motion
             const waveY = Math.sin(i * 0.15 + phase) * 20;
-            const y = centerY - (normalizedValue * canvasHeight * 0.4) + waveY;
+            
+            // Apply the reversed direction if showReversed is enabled
+            const direction = settings.showReversed ? 1 : -1;
+            const y = centerY + (direction * normalizedValue * canvasHeight * 0.4) + waveY;
             
             // Dot size based on frequency data
             const dotSize = 2 + normalizedValue * 8;
@@ -333,7 +369,10 @@ export const drawDotsAnimation = (
               
               // Calculate dot position with subtle wave motion
               const waveX = Math.sin(i * 0.15 + phase) * 20;
-              const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+              
+              // Apply the reversed direction if showReversed is enabled
+              const direction = settings.showReversed ? 1 : -1;
+              const x = centerX - (direction * normalizedValue * canvasWidth * 0.4) + waveX;
               
               if (i === 0) {
                 ctx.moveTo(x, y);
@@ -356,7 +395,10 @@ export const drawDotsAnimation = (
               
               // Calculate dot position with subtle wave motion
               const waveX = Math.sin(i * 0.15 + phase) * 20;
-              const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+              
+              // Apply the reversed direction if showReversed is enabled
+              const direction = settings.showReversed ? 1 : -1;
+              const x = centerX - (direction * normalizedValue * canvasWidth * 0.4) + waveX;
               
               // Dot size based on frequency data
               const dotSize = 2 + normalizedValue * 8;
@@ -386,7 +428,10 @@ export const drawDotsAnimation = (
               
               // Calculate dot position with subtle wave motion
               const waveX = Math.sin(i * 0.15 + phase) * 20;
-              const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+              
+              // Apply the reversed direction if showReversed is enabled
+              const direction = settings.showReversed ? 1 : -1;
+              const x = centerX - (direction * normalizedValue * canvasWidth * 0.4) + waveX;
               
               if (i === 0) {
                 ctx.moveTo(x, y);
@@ -409,7 +454,10 @@ export const drawDotsAnimation = (
               
               // Calculate dot position with subtle wave motion
               const waveX = Math.sin(i * 0.15 + phase) * 20;
-              const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+              
+              // Apply the reversed direction if showReversed is enabled
+              const direction = settings.showReversed ? 1 : -1;
+              const x = centerX - (direction * normalizedValue * canvasWidth * 0.4) + waveX;
               
               // Dot size based on frequency data
               const dotSize = 2 + normalizedValue * 8;
@@ -443,7 +491,10 @@ export const drawDotsAnimation = (
             
             // Calculate dot position with subtle wave motion
             const waveX = Math.sin(i * 0.15 + phase) * 20;
-            const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+            
+            // Apply the reversed direction if showReversed is enabled
+            const direction = settings.showReversed ? 1 : -1;
+            const x = centerX - (direction * normalizedValue * canvasWidth * 0.4) + waveX;
             
             if (i === 0) {
               ctx.moveTo(x, y);
@@ -466,7 +517,10 @@ export const drawDotsAnimation = (
             
             // Calculate dot position with subtle wave motion
             const waveX = Math.sin(i * 0.15 + phase) * 20;
-            const x = centerX - (normalizedValue * canvasWidth * 0.4) + waveX;
+            
+            // Apply the reversed direction if showReversed is enabled
+            const direction = settings.showReversed ? 1 : -1;
+            const x = centerX - (direction * normalizedValue * canvasWidth * 0.4) + waveX;
             
             // Dot size based on frequency data
             const dotSize = 2 + normalizedValue * 8;

@@ -66,8 +66,10 @@ export const drawLineAnimation = (
   if (settings.verticalOrientation) {
     // Process each bar placement option
     settings.barPlacement.forEach(placement => {
+      // For vertical orientation, use a smaller bar width (20% of canvas width) for better positioning
+      const barWidth = canvasWidth * 0.2; // Smaller bar width for vertical orientation
       // For vertical orientation, "bottom" means left, "top" means right
-      const baseX = getXPositionForPlacement(canvasWidth, placement, canvasWidth * 0.5);
+      const baseX = getXPositionForPlacement(canvasWidth, placement, barWidth);
       
       // Draw vertical line animations
       settings.animationStart.forEach(animationStart => {
@@ -150,7 +152,8 @@ const drawFullLine = (
     // Calculate wave effect
     const phase = basePhase * Math.PI * 4;
     const amplitude = canvasHeight * 0.3 * normalizedValue;
-    const waveY = Math.sin(i * 0.1 + phase) * amplitude;
+    // Apply invert effect if enabled
+    const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
     
     // Calculate y position based on placement and wave
     let y;
@@ -173,7 +176,8 @@ const drawFullLine = (
       const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
       const prevNormalizedValue = prevValue / 255;
       const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-      const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+      // Apply invert effect if enabled
+      const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
       
       // Previous y based on placement
       let prevY;
@@ -210,7 +214,8 @@ const drawFullLine = (
       // Calculate wave effect
       const phase = basePhase * Math.PI * 4;
       const amplitude = canvasHeight * 0.3 * normalizedValue;
-      const waveY = Math.sin(i * 0.1 + phase) * amplitude;
+      // Apply invert effect if enabled (for mirror, we use the same direction as the main wave)
+      const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
       
       // Calculate mirrored y position
       let y;
@@ -233,7 +238,8 @@ const drawFullLine = (
         const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
         const prevNormalizedValue = prevValue / 255;
         const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-        const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+        // Apply invert effect if enabled
+        const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
         
         // Previous mirrored y
         let prevY;
@@ -289,7 +295,8 @@ const drawHalfLine = (
     // Calculate wave effect
     const phase = basePhase * Math.PI * 4;
     const amplitude = canvasHeight * 0.3 * normalizedValue;
-    const waveY = Math.sin(i * 0.1 + phase) * amplitude;
+    // Apply invert effect if enabled
+    const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
     
     // Calculate y position based on placement and wave
     let y;
@@ -312,7 +319,8 @@ const drawHalfLine = (
       const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
       const prevNormalizedValue = prevValue / 255;
       const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-      const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+      // Apply invert effect if enabled
+      const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
       
       // Previous y based on placement
       let prevY;
@@ -349,7 +357,8 @@ const drawHalfLine = (
       // Calculate wave effect
       const phase = basePhase * Math.PI * 4;
       const amplitude = canvasHeight * 0.3 * normalizedValue;
-      const waveY = Math.sin(i * 0.1 + phase) * amplitude;
+      // Apply invert effect if enabled
+      const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
       
       // Calculate mirrored y position
       let y;
@@ -372,7 +381,8 @@ const drawHalfLine = (
         const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
         const prevNormalizedValue = prevValue / 255;
         const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-        const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+        // Apply invert effect if enabled
+        const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
         
         // Previous mirrored y
         let prevY;
@@ -428,7 +438,8 @@ const drawVerticalFullLine = (
     // Calculate wave effect
     const phase = basePhase * Math.PI * 4;
     const amplitude = canvasWidth * 0.3 * normalizedValue;
-    const waveX = Math.sin(i * 0.1 + phase) * amplitude;
+    // Apply invert effect if enabled
+    const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
     
     // Calculate x position based on placement and wave
     let x;
@@ -437,7 +448,8 @@ const drawVerticalFullLine = (
     } else if (placement === 'top') { // right
       x = (canvasWidth - amplitude) + waveX;
     } else { // middle
-      x = baseX + waveX;
+      // For middle placement, use the canvas center as the base position
+      x = (canvasWidth / 2) + waveX;
     }
     
     if (i === 0) {
@@ -451,7 +463,8 @@ const drawVerticalFullLine = (
       const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
       const prevNormalizedValue = prevValue / 255;
       const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-      const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+      // Apply invert effect if enabled
+      const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
       
       // Previous x based on placement
       let prevX;
@@ -460,7 +473,8 @@ const drawVerticalFullLine = (
       } else if (placement === 'top') { // right
         prevX = (canvasWidth - prevAmplitude) + prevWaveX;
       } else { // middle
-        prevX = baseX + prevWaveX;
+        // For middle placement, use the canvas center as the base position
+        prevX = (canvasWidth / 2) + prevWaveX;
       }
       
       ctx.quadraticCurveTo(prevX, controlY, x, y);
@@ -488,7 +502,8 @@ const drawVerticalFullLine = (
       // Calculate wave effect
       const phase = basePhase * Math.PI * 4;
       const amplitude = canvasWidth * 0.3 * normalizedValue;
-      const waveX = Math.sin(i * 0.1 + phase) * amplitude;
+      // Apply invert effect if enabled
+      const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
       
       // Calculate mirrored x position
       let x;
@@ -497,7 +512,8 @@ const drawVerticalFullLine = (
       } else if (placement === 'top') { // right
         x = amplitude - waveX;
       } else { // middle
-        x = baseX - waveX;
+        // For middle placement, use the canvas center as the base position for mirroring
+        x = (canvasWidth / 2) - waveX;
       }
       
       if (i === 0) {
@@ -511,7 +527,8 @@ const drawVerticalFullLine = (
         const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
         const prevNormalizedValue = prevValue / 255;
         const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-        const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+        // Apply invert effect if enabled
+        const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
         
         // Previous mirrored x
         let prevX;
@@ -520,7 +537,8 @@ const drawVerticalFullLine = (
         } else if (placement === 'top') { // right
           prevX = prevAmplitude - prevWaveX;
         } else { // middle
-          prevX = baseX - prevWaveX;
+          // For middle placement, use the canvas center as the base position for mirroring
+          prevX = (canvasWidth / 2) - prevWaveX;
         }
         
         ctx.quadraticCurveTo(prevX, controlY, x, y);
@@ -567,7 +585,8 @@ const drawVerticalHalfLine = (
     // Calculate wave effect
     const phase = basePhase * Math.PI * 4;
     const amplitude = canvasWidth * 0.3 * normalizedValue;
-    const waveX = Math.sin(i * 0.1 + phase) * amplitude;
+    // Apply invert effect if enabled
+    const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
     
     // Calculate x position based on placement and wave
     let x;
@@ -576,7 +595,8 @@ const drawVerticalHalfLine = (
     } else if (placement === 'top') { // right
       x = (canvasWidth - amplitude) + waveX;
     } else { // middle
-      x = baseX + waveX;
+      // For middle placement, use the canvas center as the base position
+      x = (canvasWidth / 2) + waveX;
     }
     
     if (i === 0) {
@@ -590,7 +610,8 @@ const drawVerticalHalfLine = (
       const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
       const prevNormalizedValue = prevValue / 255;
       const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-      const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+      // Apply invert effect if enabled
+      const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
       
       // Previous x based on placement
       let prevX;
@@ -599,7 +620,8 @@ const drawVerticalHalfLine = (
       } else if (placement === 'top') { // right
         prevX = (canvasWidth - prevAmplitude) + prevWaveX;
       } else { // middle
-        prevX = baseX + prevWaveX;
+        // For middle placement, use the canvas center as the base position
+        prevX = (canvasWidth / 2) + prevWaveX;
       }
       
       ctx.quadraticCurveTo(prevX, controlY, x, y);
@@ -627,7 +649,8 @@ const drawVerticalHalfLine = (
       // Calculate wave effect
       const phase = basePhase * Math.PI * 4;
       const amplitude = canvasWidth * 0.3 * normalizedValue;
-      const waveX = Math.sin(i * 0.1 + phase) * amplitude;
+      // Apply invert effect if enabled
+      const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
       
       // Calculate mirrored x position
       let x;
@@ -636,7 +659,8 @@ const drawVerticalHalfLine = (
       } else if (placement === 'top') { // right
         x = amplitude - waveX;
       } else { // middle
-        x = baseX - waveX;
+        // For middle placement, use the canvas center as the base position for mirroring
+        x = (canvasWidth / 2) - waveX;
       }
       
       if (i === 0) {
@@ -650,7 +674,8 @@ const drawVerticalHalfLine = (
         const prevValue = dataArray[prevDataIndex] * settings.sensitivity;
         const prevNormalizedValue = prevValue / 255;
         const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-        const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
+        // Apply invert effect if enabled
+        const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
         
         // Previous mirrored x
         let prevX;
@@ -659,7 +684,8 @@ const drawVerticalHalfLine = (
         } else if (placement === 'top') { // right
           prevX = prevAmplitude - prevWaveX;
         } else { // middle
-          prevX = baseX - prevWaveX;
+          // For middle placement, use the canvas center as the base position for mirroring
+          prevX = (canvasWidth / 2) - prevWaveX;
         }
         
         ctx.quadraticCurveTo(prevX, controlY, x, y);

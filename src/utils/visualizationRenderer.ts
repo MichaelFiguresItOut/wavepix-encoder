@@ -28,10 +28,22 @@ export const renderVisualization = (
   
   analyser.getByteFrequencyData(dataArray);
   
+  // Clear the canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Fill background
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+  // Reset canvas context properties to ensure consistent rendering
+  ctx.globalAlpha = 1.0;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = '#000000';
+  ctx.fillStyle = '#000000';
+  ctx.lineWidth = 1;
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
+  
+  // Fill background - Restoring this layer for preview correctness
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; 
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   // Call the appropriate visualization function based on settings
@@ -43,7 +55,7 @@ export const renderVisualization = (
       drawWave(ctx, dataArray, canvas, bufferLength, settings);
       break;
     case "circle":
-      drawCircle(ctx, dataArray, canvas, bufferLength, rotationAngle, settings);
+      drawCircle(ctx, dataArray, canvas, bufferLength, timestamp, settings);
       break;
     case "line":
       drawLineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);

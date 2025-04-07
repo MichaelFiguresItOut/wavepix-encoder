@@ -93,9 +93,10 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
     const analyser = analyserRef.current;
     
     const renderFrame = (timestamp: number) => {
+      if (!canvas || !canvas.getContext('2d') || !analyser) return;
       animationRef.current = requestAnimationFrame(renderFrame);
       
-      // Update time for animations
+      // Initialize timestamp if this is the first frame
       if (timeRef.current === 0) {
         timeRef.current = timestamp;
       }

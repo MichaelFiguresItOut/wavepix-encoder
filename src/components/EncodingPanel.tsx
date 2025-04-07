@@ -11,6 +11,21 @@ import { useToast } from "@/components/ui/use-toast";
 import { VisualizerSettings } from "@/hooks/useAudioVisualization";
 import { renderVisualization } from "@/utils/visualizationRenderer";
 
+// Import individual visualization functions
+import { drawBars } from '@/utils/visualizations/bars';
+import { drawWave } from '@/utils/visualizations/wave';
+import { drawCircle } from '@/utils/visualizations/circle';
+import { drawLineAnimation } from '@/utils/visualizations/line';
+import { drawSiriAnimation } from '@/utils/visualizations/siri';
+import { drawDotsAnimation } from '@/utils/visualizations/dots';
+import { drawBubblesAnimation } from '@/utils/visualizations/bubbles';
+import { drawFormationAnimation } from '@/utils/visualizations/formation';
+import { drawMultilineAnimation } from '@/utils/visualizations/multiline';
+import { drawLightningAnimation } from '@/utils/visualizations/lightning';
+import { drawHoneycombAnimation } from '@/utils/visualizations/honeycomb';
+import { drawFireAnimation } from '@/utils/visualizations/fire';
+import { drawSpiderWebAnimation } from '@/utils/visualizations/spiderweb';
+
 interface EncodingPanelProps {
   audioBuffer: AudioBuffer | null;
   isPlaying: boolean;
@@ -57,7 +72,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     if (!audioContextRef.current && audioBuffer) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 256;
+      analyserRef.current.fftSize = 512;
     }
 
     return () => {
@@ -69,28 +84,8 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     };
   }, [audioBuffer, resolution]);
 
-  const getResolutionWidth = (res: string): number => {
-    switch (res) {
-      case "720p": return 1280;
-      case "1080p": return 1920;
-      case "1440p": return 2560;
-      case "4K": return 3840;
-      default: return 1920;
-    }
-  };
-
-  const getResolutionHeight = (res: string): number => {
-    switch (res) {
-      case "720p": return 720;
-      case "1080p": return 1080;
-      case "1440p": return 1440;
-      case "4K": return 2160;
-      default: return 1080;
-    }
-  };
-
   const drawWaveform = (dataArray: Uint8Array, bufferLength: number, timestamp: number) => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !analyserRef.current) return;
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -99,22 +94,66 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     const width = canvas.width;
     const height = canvas.height;
     
-    // Background color
+    // 1. Set the base background (matching PreviewPanel)
+    ctx.clearRect(0, 0, width, height);
     if (showBackground) {
-      ctx.fillStyle = '#0f0f0f';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
     } else {
       ctx.fillStyle = 'rgba(0, 0, 0, 0)';
     }
     ctx.fillRect(0, 0, width, height);
     
-    // Use the shared renderVisualization function with the visualizer settings
-    renderVisualization(
-      timestamp,
-      analyserRef.current!,
-      canvas,
-      visualizerSettings,
-      (timestamp / 1000) * visualizerSettings.rotationSpeed
-    );
+    // 2. Apply the overlay background (like renderVisualization used to do)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, width, height);
+    
+    // 3. Call the specific drawing function
+    const settings = visualizerSettings;
+    const analyser = analyserRef.current;
+
+    switch(settings.type) {
+      case "bars":
+        drawBars(ctx, dataArray, canvas, bufferLength, settings);
+        break;
+      case "wave":
+        drawWave(ctx, dataArray, canvas, bufferLength, settings);
+        break;
+      case "circle":
+        drawCircle(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "line":
+        drawLineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "siri":
+        drawSiriAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "dots":
+        drawDotsAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "bubbles":
+        drawBubblesAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "formation":
+        drawFormationAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "multiline":
+        drawMultilineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "lightning":
+        drawLightningAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "honeycomb":
+        drawHoneycombAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "fire":
+        drawFireAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      case "spiderweb":
+        drawSpiderWebAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+        break;
+      default:
+        drawBars(ctx, dataArray, canvas, bufferLength, settings);
+    }
   };
 
   const handleEncode = async () => {
@@ -170,7 +209,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       
       if (!analyserRef.current) {
         analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
+        analyserRef.current.fftSize = 512;
       }
       
       // Create a media stream for the audio
@@ -414,7 +453,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       
       if (!analyserRef.current) {
         analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
+        analyserRef.current.fftSize = 512;
       }
       
       // Create a new AudioBuffer source for visualization
@@ -505,23 +544,26 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         finishEncoding(blob);
       };
       
-      // Draw initial frame before starting
-      // This ensures we have content on the canvas before recording starts
+      // Draw initial frame
+      // 1. Base background
       if (showBackground) {
-        ctx.fillStyle = '#0f0f0f';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
       } else {
         ctx.fillStyle = 'rgba(0, 0, 0, 0)';
       }
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
+      // 2. Overlay background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // 3. Render initial visualization frame (timestamp 0)
       analyserRef.current.getByteFrequencyData(dataArray);
-      renderVisualization(
-        0,
-        analyserRef.current,
-        canvas,
-        visualizerSettings,
-        0
-      );
+      const settings = visualizerSettings;
+      
+      // Calculate initial rotation angle (at timestamp 0)
+      const initialRotationAngle = 0;
+      
+      // Use the shared rendering function for the initial frame for consistency
+      renderVisualization(0, analyserRef.current, canvas, settings, initialRotationAngle);
       
       // Begin recording
       recorder.start(100); // Collect data every 100ms
@@ -544,22 +586,26 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         // Get current audio data
         analyserRef.current!.getByteFrequencyData(dataArray);
         
-        // Clear canvas with background
+        // 1. Set base background
         if (showBackground) {
-          ctx.fillStyle = '#0f0f0f';
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
         } else {
           ctx.fillStyle = 'rgba(0, 0, 0, 0)';
         }
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Draw visualization at current timestamp
-        renderVisualization(
-          elapsed,
-          analyserRef.current!,
-          canvas,
-          visualizerSettings,
-          (elapsed / 1000) * visualizerSettings.rotationSpeed
-        );
+        // 2. Apply overlay background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 3. Draw visualization for the current frame using the shared renderVisualization function
+        const settings = visualizerSettings;
+        
+        // Calculate rotation angle based on elapsed time for circle visualization
+        const rotationAngle = (elapsed / 1000) * settings.rotationSpeed * Math.PI;
+        
+        // Use the shared rendering function for consistency with preview
+        renderVisualization(elapsed, analyserRef.current!, canvas, settings, rotationAngle);
         
         // Continue animation if not done
         if (elapsed < duration * 1000) {
@@ -633,6 +679,35 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       throw error;
     }
   };
+
+  // Helper functions to get dimensions (assuming they might be needed locally)
+  const getResolutionWidth = (res: string): number => {
+    switch (res) {
+      case "720p": return 1280;
+      case "1080p": return 1920;
+      case "1440p": return 2560;
+      case "4K": return 3840;
+      default: return 1920;
+    }
+  };
+
+  const getResolutionHeight = (res: string): number => {
+    switch (res) {
+      case "720p": return 720;
+      case "1080p": return 1080;
+      case "1440p": return 1440;
+      case "4K": return 2160;
+      default: return 1080;
+    }
+  };
+
+  // Update canvas size when resolution changes
+  useEffect(() => {
+    if (canvasRef.current) {
+      canvasRef.current.width = getResolutionWidth(resolution);
+      canvasRef.current.height = getResolutionHeight(resolution);
+    }
+  }, [resolution]);
 
   return (
     <Card className="w-full encoder-section">

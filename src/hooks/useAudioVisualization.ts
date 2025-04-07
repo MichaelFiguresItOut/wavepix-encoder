@@ -11,6 +11,8 @@ export interface VisualizerSettings {
   sensitivity: number;
   smoothing: number;
   showMirror: boolean;
+  showReversed: boolean;
+  showInvert: boolean;
   rotationSpeed: number;
   horizontalOrientation: boolean;
   verticalOrientation: boolean;
@@ -44,6 +46,8 @@ export const useAudioVisualization = ({
     sensitivity: 1.5,
     smoothing: 0.5,
     showMirror: false,
+    showReversed: false,
+    showInvert: false,
     rotationSpeed: 0.2,
     horizontalOrientation: true,
     verticalOrientation: false,
@@ -117,7 +121,7 @@ export const useAudioVisualization = ({
       analyserRef.current.smoothingTimeConstant = settings.smoothing;
     }
   }, [settings.smoothing]);
-
+  
   // This function will be used to start the visualization process
   const startVisualization = (renderFunction: (
     timestamp: number,
@@ -141,8 +145,18 @@ export const useAudioVisualization = ({
       const deltaTime = timestamp - timeRef.current;
       timeRef.current = timestamp;
       
-      // Update rotation angle for circle visualization
-      rotationAngleRef.current += settings.rotationSpeed * (deltaTime / 1000);
+      // Update rotation angle based on rotation speed setting
+      // Maps 0-1 range to 0-2 radians per second
+      if (settings.rotationSpeed > 0) {
+        // Normalize to a good rotation range (0-2 radians per second)
+        const rotationRate = settings.rotationSpeed * 2.0 * (deltaTime / 1000);
+        rotationAngleRef.current += rotationRate;
+        
+        // Ensure the angle doesn't grow indefinitely
+        if (rotationAngleRef.current > Math.PI * 2) {
+          rotationAngleRef.current -= Math.PI * 2;
+        }
+      }
       
       renderFunction(timestamp, analyser, canvas, settings, rotationAngleRef.current);
     };

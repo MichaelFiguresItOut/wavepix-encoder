@@ -11,6 +11,72 @@ export const drawSiriAnimation = (
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
   
+  // Apple Siri-inspired animation (colorful waveform that moves)
+  const waveCount = 3; // Number of waves
+  const waveColors = [
+    `${settings.color}`, 
+    settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
+    settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
+  ];
+  
+  // Take a subset of the data for a cleaner look
+  const usableLength = Math.min(bufferLength, 64);
+  
+  // Time-based phase shift
+  const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
+  
+  // If Round Effect is enabled, show circles instead of lines
+  if (settings.showMirror) {
+    // Circular mode with centered display
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
+    
+    // Draw multiple waves in different colors
+    for (let wave = 0; wave < waveCount; wave++) {
+      // Use wavePhase for animation
+      const wavePhase = basePhase + (wave * Math.PI * 0.5);
+      ctx.fillStyle = waveColors[wave] + "88"; // Semi-transparent
+      
+      // Create a pattern of circles around the center
+      const circleCount = 24; // Number of circles per wave
+      const baseRadius = 50 + wave * 40; // Different radius for each wave
+      
+      for (let i = 0; i < circleCount; i++) {
+        // Calculate position around a circle
+        const angle = (i / circleCount) * Math.PI * 2 + wavePhase;
+        
+        // Get audio data for this position
+        const dataIndex = Math.floor(i * (bufferLength / circleCount));
+        const value = dataArray[dataIndex] * settings.sensitivity;
+        const normalizedValue = value / 255;
+        
+        // Calculate radius with audio reactivity
+        const circleRadius = baseRadius + normalizedValue * 50;
+        
+        // Calculate position
+        const x = centerX + Math.cos(angle) * circleRadius;
+        const y = centerY + Math.sin(angle) * circleRadius;
+        
+        // Draw pulsing circle - size based on audio and wave
+        const pulseSize = 3 + normalizedValue * 12 * (1 - wave * 0.3);
+        ctx.beginPath();
+        ctx.arc(x, y, pulseSize, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add glow for larger circles
+        if (pulseSize > 7) {
+          ctx.shadowBlur = pulseSize;
+          ctx.shadowColor = waveColors[wave];
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      }
+    }
+    
+    return; // Skip the standard animation when in round mode
+  }
+  
+  // Standard Siri line animation
   if (settings.horizontalOrientation) {
     // Process each bar placement option
     settings.barPlacement.forEach(placement => {
@@ -24,20 +90,7 @@ export const drawSiriAnimation = (
         baseY = canvasHeight * 0.8; // Near the bottom
       }
       
-      // Apple Siri-inspired animation (colorful waveform that moves)
-      const waveCount = 3; // Number of waves
-      const waveColors = [
-        `${settings.color}`, 
-        settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
-        settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
-      ];
-      
-      // Take a subset of the data for a cleaner look
-      const usableLength = Math.min(bufferLength, 64);
-      
-      // Time-based phase shift
-      const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
-      
+      // Process each animation start option
       settings.animationStart.forEach(animationStart => {
         // Draw multiple waves with phase offset
         for (let wave = 0; wave < waveCount; wave++) {
@@ -169,20 +222,7 @@ export const drawSiriAnimation = (
         baseX = canvasWidth * 0.8; // Near the right
       }
       
-      // Vertical Siri-inspired waves
-      const waveCount = 3;
-      const waveColors = [
-        `${settings.color}`, 
-        settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
-        settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
-      ];
-      
-      // Time-based phase shift
-      const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
-      
-      // Take a subset of the data for a cleaner look
-      const usableLength = Math.min(bufferLength, 64);
-      
+      // Process each animation start option
       settings.animationStart.forEach(animationStart => {
         // Draw multiple waves with phase offset
         for (let wave = 0; wave < waveCount; wave++) {
@@ -299,65 +339,6 @@ export const drawSiriAnimation = (
         }
       });
     });
-  }
-  
-  // Mirror mode for both orientations is handled through the circular animation
-  if (settings.showMirror) {
-    // Mirror mode: concentric circles that emanate from center
-    const centerX = canvasWidth / 2;
-    const centerY = canvasHeight / 2;
-    
-    // Circular siri-inspired waves
-    const waveCount = 3;
-    const waveColors = [
-      `${settings.color}`, 
-      settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
-      settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
-    ];
-    
-    // Time-based animation
-    const basePhase = (timestamp % 5000) / 5000 * Math.PI * 2;
-    
-    // Sample data from different frequency ranges for each wave
-    const bassValue = getAverageFrequency(dataArray, 0, bufferLength * 0.1) * settings.sensitivity;
-    const midValue = getAverageFrequency(dataArray, bufferLength * 0.1, bufferLength * 0.5) * settings.sensitivity;
-    const highValue = getAverageFrequency(dataArray, bufferLength * 0.5, bufferLength) * settings.sensitivity;
-    const freqValues = [bassValue, midValue, highValue];
-    
-    // Draw waves from inside out
-    for (let wave = 0; wave < waveCount; wave++) {
-      const wavePhase = basePhase - (wave * Math.PI * 0.5);
-      const baseRadius = 50 + wave * 50;
-      const maxDistortion = 40 * freqValues[wave];
-      
-      ctx.strokeStyle = waveColors[wave];
-      ctx.lineWidth = 4 - wave;
-      ctx.beginPath();
-      
-      // Draw circular wave
-      for (let angle = 0; angle <= Math.PI * 2; angle += 0.05) {
-        // Distort radius based on frequency data
-        const radiusDistortion = Math.sin(angle * 6 + wavePhase) * maxDistortion;
-        const radius = baseRadius + radiusDistortion;
-        
-        const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
-        
-        if (angle === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-      
-      ctx.closePath();
-      
-      // Add glow effect
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = waveColors[wave];
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
   }
   
   // Add subtle background glow
