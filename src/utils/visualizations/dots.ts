@@ -33,9 +33,9 @@ export const drawDotsAnimation = (
     // Determine connecting line color (use speed, slowed down)
     let connectingLineHue = null;
     if (settings.showRainbow) {
+        // Slow down the speed factor by 10x
         connectingLineHue = (timestamp / 20 * (currentRainbowSpeed / 10)) % 360;
         if (isNaN(connectingLineHue)) connectingLineHue = 0;
-        console.log("[Dots Mirrored] Speed:", currentRainbowSpeed, "Timestamp:", timestamp, "Hue:", connectingLineHue);
     }
     const connectingLineColor = connectingLineHue !== null 
       ? `hsla(${connectingLineHue}, 80%, 50%, 0.8)`
@@ -125,9 +125,9 @@ export const drawDotsAnimation = (
     // Determine connecting line color (use speed, slowed down)
     let connectingLineHue = null;
     if (settings.showRainbow) {
+        // Slow down the speed factor by 10x
         connectingLineHue = (timestamp / 20 * (currentRainbowSpeed / 10)) % 360;
         if (isNaN(connectingLineHue)) connectingLineHue = 0;
-        console.log("[Dots Non-Mirrored] Speed:", currentRainbowSpeed, "Timestamp:", timestamp, "Hue:", connectingLineHue);
     }
     const connectingLineColor = connectingLineHue !== null 
       ? `hsla(${connectingLineHue}, 80%, 50%, 0.8)`

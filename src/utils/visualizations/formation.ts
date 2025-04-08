@@ -1,4 +1,5 @@
-import { VisualizationSettings, getAverageFrequency, formatColorWithOpacity } from './utils';
+import { VisualizerSettings } from '@/hooks/useAudioVisualization';
+import { getAverageFrequency, formatColorWithOpacity } from './utils';
 
 export const drawFormationAnimation = (
   ctx: CanvasRenderingContext2D,
@@ -6,20 +7,20 @@ export const drawFormationAnimation = (
   canvas: HTMLCanvasElement,
   bufferLength: number,
   timestamp: number,
-  settings: VisualizationSettings
+  settings: VisualizerSettings
 ) => {
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
   const centerX = canvasWidth / 2;
   const centerY = canvasHeight / 2;
-  
-  // Helper to get random hue if Rainbow is ON
-  const getCurrentHue = () => {
-    if (settings.showRainbow) { 
-      return Math.random() * 360;
-    }
-    return null; 
-  };
+  const currentRainbowSpeed = settings.rainbowSpeed || 1.0;
+
+  // Base hue for the frame if rainbow is ON
+  let baseHue = null;
+  if (settings.showRainbow) {
+      baseHue = (timestamp / 15 * currentRainbowSpeed) % 360; // Adjust speed as needed
+      if (isNaN(baseHue)) baseHue = 0;
+  }
 
   // Form a geometric pattern that transforms with music
   const time = (timestamp % 10000) / 10000;
@@ -34,8 +35,8 @@ export const drawFormationAnimation = (
     const particles = 12;
     const radius = Math.min(canvasWidth, canvasHeight) * 0.35;
     
-    // Get Hue for this frame if rainbow is ON
-    const frameHue = getCurrentHue();
+    // Use baseHue directly (if available) instead of frameHue/getCurrentHue
+    const frameHue = baseHue; // Use the calculated base hue
     const strokeColor = frameHue !== null ? `hsla(${frameHue}, 90%, 60%, 1.0)` : settings.color;
     const shadowColor = frameHue !== null ? strokeColor : settings.color;
     const innerFillColorStart = frameHue !== null ? `hsla(${frameHue}, 90%, 60%, 0.6)` : `${settings.color}99`; // ~99 hex alpha
@@ -148,14 +149,21 @@ export const drawFormationAnimation = (
     
     // Draw multiple rings emanating from center
     for (let ring = 0; ring < rings; ring++) {
-      // Get hue for EACH ring if rainbow is on
-      const ringHue = getCurrentHue();
+      // Calculate hue for EACH ring based on baseHue and ring index
+      const ringHue = baseHue !== null 
+          ? (baseHue + ring * (360 / (rings * 1.5))) % 360 // Offset hue per ring
+          : null;
+          
+      const ringStrokeOpacity = 0.7 - (ring / (rings - 1) * 0.5);
+      const ringFillStartOpacity = 0.1;
+      const ringFillEndOpacity = 0.01;
+
       const ringStrokeColor = ringHue !== null 
-          ? `hsla(${ringHue}, 90%, 60%, ${0.7 - (ring / (rings - 1) * 0.5)})` // Use calculated opacity
-          : formatColorWithOpacity(settings.color, 0.7 - (ring / (rings - 1) * 0.5));
+          ? `hsla(${ringHue}, 90%, 60%, ${ringStrokeOpacity})`
+          : formatColorWithOpacity(settings.color, ringStrokeOpacity);
       const ringShadowColor = ringHue !== null ? `hsla(${ringHue}, 90%, 60%, 1.0)` : settings.color;
-      const ringFillStart = ringHue !== null ? `hsla(${ringHue}, 90%, 60%, 0.1)` : formatColorWithOpacity(settings.color, 0.1);
-      const ringFillEnd = ringHue !== null ? `hsla(${ringHue}, 90%, 60%, 0.01)`: formatColorWithOpacity(settings.color, 0.01);
+      const ringFillStart = ringHue !== null ? `hsla(${ringHue}, 90%, 60%, ${ringFillStartOpacity})` : formatColorWithOpacity(settings.color, ringFillStartOpacity);
+      const ringFillEnd = ringHue !== null ? `hsla(${ringHue}, 90%, 60%, ${ringFillEndOpacity})`: formatColorWithOpacity(settings.color, ringFillEndOpacity);
 
       const ringProgress = ring / (rings - 1);
       const baseRadius = 30 + (ring * 60);

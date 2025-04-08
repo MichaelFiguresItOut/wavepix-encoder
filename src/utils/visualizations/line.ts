@@ -1,4 +1,5 @@
-import { VisualizationSettings, getYPositionForPlacement, getXPositionForPlacement } from './utils';
+import { VisualizerSettings } from '@/hooks/useAudioVisualization';
+import { getYPositionForPlacement, getXPositionForPlacement } from './utils';
 
 export const drawLineAnimation = (
   ctx: CanvasRenderingContext2D,
@@ -6,10 +7,18 @@ export const drawLineAnimation = (
   canvas: HTMLCanvasElement,
   bufferLength: number,
   timestamp: number,
-  settings: VisualizationSettings
+  settings: VisualizerSettings
 ) => {
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
+  const currentRainbowSpeed = settings.rainbowSpeed || 1.0;
+
+  // Base hue for the frame if rainbow is ON
+  let baseHue = null;
+  if (settings.showRainbow) {
+      baseHue = (timestamp / 15 * currentRainbowSpeed) % 360; // Adjust speed as needed
+      if (isNaN(baseHue)) baseHue = 0;
+  }
   
   // Calculate phase for animation
   const basePhase = (timestamp % 10000) / 10000;
@@ -39,14 +48,14 @@ export const drawLineAnimation = (
           drawHalfLine(
             ctx, dataArray, bufferLength, basePhase, 
             canvasWidth / 2, canvasWidth, 
-            canvasHeight, baseY, placement, settings, 1
+            canvasHeight, baseY, placement, settings, 1, baseHue
           );
           
           // Second half (center to left)
           drawHalfLine(
             ctx, dataArray, bufferLength, basePhase, 
             canvasWidth / 2, 0, 
-            canvasHeight, baseY, placement, settings, -1
+            canvasHeight, baseY, placement, settings, -1, baseHue
           );
           
           // Skip the rest of the code for middle animation
@@ -57,7 +66,7 @@ export const drawLineAnimation = (
         drawFullLine(
           ctx, dataArray, bufferLength, basePhase,
           startPoint, endPoint,
-          canvasHeight, baseY, placement, settings, direction
+          canvasHeight, baseY, placement, settings, direction, baseHue
         );
       });
     });
@@ -91,14 +100,14 @@ export const drawLineAnimation = (
           drawVerticalHalfLine(
             ctx, dataArray, bufferLength, basePhase, 
             canvasHeight / 2, canvasHeight, 
-            canvasWidth, baseX, placement, settings, 1
+            canvasWidth, baseX, placement, settings, 1, baseHue
           );
           
           // Second half (center to top)
           drawVerticalHalfLine(
             ctx, dataArray, bufferLength, basePhase, 
             canvasHeight / 2, 0, 
-            canvasWidth, baseX, placement, settings, -1
+            canvasWidth, baseX, placement, settings, -1, baseHue
           );
           
           // Skip the rest of the code for middle animation
@@ -109,7 +118,7 @@ export const drawLineAnimation = (
         drawVerticalFullLine(
           ctx, dataArray, bufferLength, basePhase,
           startPoint, endPoint,
-          canvasWidth, baseX, placement, settings, direction
+          canvasWidth, baseX, placement, settings, direction, baseHue
         );
       });
     });
@@ -127,18 +136,15 @@ const drawFullLine = (
   canvasHeight: number,
   baseY: number,
   placement: string,
-  settings: VisualizationSettings,
-  direction: number
+  settings: VisualizerSettings,
+  direction: number,
+  baseHue: number | null
 ) => {
   const length = Math.abs(endX - startX);
   const segmentCount = 100; // Number of line segments
   const segmentWidth = length / segmentCount;
   
-  ctx.strokeStyle = settings.color;
   ctx.lineWidth = 3;
-  ctx.shadowBlur = 10;
-  ctx.shadowColor = settings.color;
-  
   ctx.beginPath();
   
   for (let i = 0; i <= segmentCount; i++) {
@@ -163,6 +169,24 @@ const drawFullLine = (
       y = amplitude + waveY;
     } else { // middle
       y = (canvasHeight / 2) + waveY;
+    }
+    
+    if (i > 0) {
+        // Determine segment color for main line
+        let mainStrokeColor: string;
+        let mainShadowColor: string;
+        if (baseHue !== null) {
+            const offsetHue = (baseHue + i * 2) % 360; // Offset hue along the line
+            mainStrokeColor = `hsla(${offsetHue}, 90%, 65%, 1.0)`;
+            mainShadowColor = mainStrokeColor;
+        } else {
+            mainStrokeColor = settings.color;
+            mainShadowColor = settings.color;
+        }
+        // Set stroke and shadow just before drawing the segment
+        ctx.strokeStyle = mainStrokeColor;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = mainShadowColor;
     }
     
     if (i === 0) {
@@ -190,17 +214,22 @@ const drawFullLine = (
       }
       
       ctx.quadraticCurveTo(controlX, prevY, x, y);
+      // Stroke each segment individually for color change
+      ctx.stroke(); 
+      // Begin new path segment for next color
+      ctx.beginPath(); 
+      ctx.moveTo(x, y); 
     }
   }
-  
-  ctx.stroke();
+  // Stroke the last segment if any points were added
+  if (segmentCount > 0) {
+      ctx.stroke();
+  }
   ctx.shadowBlur = 0;
   
   // Draw mirror if enabled
   if (settings.showMirror) {
-    ctx.strokeStyle = `${settings.color}44`;
     ctx.lineWidth = 2;
-    
     ctx.beginPath();
     
     for (let i = 0; i <= segmentCount; i++) {
@@ -214,7 +243,7 @@ const drawFullLine = (
       // Calculate wave effect
       const phase = basePhase * Math.PI * 4;
       const amplitude = canvasHeight * 0.3 * normalizedValue;
-      // Apply invert effect if enabled (for mirror, we use the same direction as the main wave)
+      // Apply invert effect if enabled
       const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
       
       // Calculate mirrored y position
@@ -227,6 +256,19 @@ const drawFullLine = (
         y = (canvasHeight / 2) - waveY;
       }
       
+      if (i > 0) {
+          // Determine segment color for mirror line
+          let mirrorStrokeColor: string;
+          if (baseHue !== null) {
+              const offsetHue = (baseHue + i * 2) % 360;
+              mirrorStrokeColor = `hsla(${offsetHue}, 90%, 65%, 0.27)`; // Rainbow with low alpha
+          } else {
+              mirrorStrokeColor = `${settings.color}44`; // Original low alpha
+          }
+          // Set stroke style just before drawing segment
+          ctx.strokeStyle = mirrorStrokeColor;
+      }
+
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -252,10 +294,16 @@ const drawFullLine = (
         }
         
         ctx.quadraticCurveTo(controlX, prevY, x, y);
+        // Stroke each mirror segment individually
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x,y);
       }
     }
-    
-    ctx.stroke();
+    // Stroke last mirror segment
+    if (segmentCount > 0) {
+        ctx.stroke();
+    }
   }
 };
 
@@ -270,18 +318,15 @@ const drawHalfLine = (
   canvasHeight: number,
   baseY: number,
   placement: string,
-  settings: VisualizationSettings,
-  direction: number
+  settings: VisualizerSettings,
+  direction: number,
+  baseHue: number | null
 ) => {
   const length = Math.abs(endX - startX);
   const segmentCount = 50; // Number of line segments for half line
   const segmentWidth = length / segmentCount;
   
-  ctx.strokeStyle = settings.color;
   ctx.lineWidth = 3;
-  ctx.shadowBlur = 10;
-  ctx.shadowColor = settings.color;
-  
   ctx.beginPath();
   
   for (let i = 0; i <= segmentCount; i++) {
@@ -306,6 +351,24 @@ const drawHalfLine = (
       y = amplitude + waveY;
     } else { // middle
       y = (canvasHeight / 2) + waveY;
+    }
+    
+    if (i > 0) {
+        // Determine segment color for main line
+        let mainStrokeColor: string;
+        let mainShadowColor: string;
+        if (baseHue !== null) {
+            const offsetHue = (baseHue + i * 2) % 360; // Offset hue along the line
+            mainStrokeColor = `hsla(${offsetHue}, 90%, 65%, 1.0)`;
+            mainShadowColor = mainStrokeColor;
+        } else {
+            mainStrokeColor = settings.color;
+            mainShadowColor = settings.color;
+        }
+        // Set stroke and shadow just before drawing the segment
+        ctx.strokeStyle = mainStrokeColor;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = mainShadowColor;
     }
     
     if (i === 0) {
@@ -333,17 +396,22 @@ const drawHalfLine = (
       }
       
       ctx.quadraticCurveTo(controlX, prevY, x, y);
+      // Stroke each segment individually for color change
+      ctx.stroke(); 
+      // Begin new path segment for next color
+      ctx.beginPath(); 
+      ctx.moveTo(x, y); 
     }
   }
-  
-  ctx.stroke();
+  // Stroke the last segment if any points were added
+  if (segmentCount > 0) {
+      ctx.stroke();
+  }
   ctx.shadowBlur = 0;
   
   // Draw mirror if enabled
   if (settings.showMirror) {
-    ctx.strokeStyle = `${settings.color}44`;
     ctx.lineWidth = 2;
-    
     ctx.beginPath();
     
     for (let i = 0; i <= segmentCount; i++) {
@@ -370,6 +438,19 @@ const drawHalfLine = (
         y = (canvasHeight / 2) - waveY;
       }
       
+      if (i > 0) {
+          // Determine segment color for mirror line
+          let mirrorStrokeColor: string;
+          if (baseHue !== null) {
+              const offsetHue = (baseHue + i * 2) % 360;
+              mirrorStrokeColor = `hsla(${offsetHue}, 90%, 65%, 0.27)`; // Rainbow with low alpha
+          } else {
+              mirrorStrokeColor = `${settings.color}44`; // Original low alpha
+          }
+          // Set stroke style just before drawing segment
+          ctx.strokeStyle = mirrorStrokeColor;
+      }
+
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -395,10 +476,16 @@ const drawHalfLine = (
         }
         
         ctx.quadraticCurveTo(controlX, prevY, x, y);
+        // Stroke each mirror segment individually
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x,y);
       }
     }
-    
-    ctx.stroke();
+    // Stroke last mirror segment
+    if (segmentCount > 0) {
+        ctx.stroke();
+    }
   }
 };
 
@@ -413,18 +500,15 @@ const drawVerticalFullLine = (
   canvasWidth: number,
   baseX: number,
   placement: string,
-  settings: VisualizationSettings,
-  direction: number
+  settings: VisualizerSettings,
+  direction: number,
+  baseHue: number | null
 ) => {
   const length = Math.abs(endY - startY);
   const segmentCount = 100; // Number of line segments
   const segmentHeight = length / segmentCount;
   
-  ctx.strokeStyle = settings.color;
   ctx.lineWidth = 3;
-  ctx.shadowBlur = 10;
-  ctx.shadowColor = settings.color;
-  
   ctx.beginPath();
   
   for (let i = 0; i <= segmentCount; i++) {
@@ -450,6 +534,24 @@ const drawVerticalFullLine = (
     } else { // middle
       // For middle placement, use the canvas center as the base position
       x = (canvasWidth / 2) + waveX;
+    }
+    
+    if (i > 0) {
+        // Determine segment color for main line
+        let mainStrokeColor: string;
+        let mainShadowColor: string;
+        if (baseHue !== null) {
+            const offsetHue = (baseHue + i * 2) % 360; // Offset hue along the line
+            mainStrokeColor = `hsla(${offsetHue}, 90%, 65%, 1.0)`;
+            mainShadowColor = mainStrokeColor;
+        } else {
+            mainStrokeColor = settings.color;
+            mainShadowColor = settings.color;
+        }
+        // Set stroke and shadow just before drawing the segment
+        ctx.strokeStyle = mainStrokeColor;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = mainShadowColor;
     }
     
     if (i === 0) {
@@ -478,17 +580,22 @@ const drawVerticalFullLine = (
       }
       
       ctx.quadraticCurveTo(prevX, controlY, x, y);
+      // Stroke each segment individually for color change
+      ctx.stroke(); 
+      // Begin new path segment for next color
+      ctx.beginPath(); 
+      ctx.moveTo(x, y); 
     }
   }
-  
-  ctx.stroke();
+  // Stroke the last segment if any points were added
+  if (segmentCount > 0) {
+      ctx.stroke();
+  }
   ctx.shadowBlur = 0;
   
   // Draw mirror if enabled
   if (settings.showMirror) {
-    ctx.strokeStyle = `${settings.color}44`;
     ctx.lineWidth = 2;
-    
     ctx.beginPath();
     
     for (let i = 0; i <= segmentCount; i++) {
@@ -516,6 +623,19 @@ const drawVerticalFullLine = (
         x = (canvasWidth / 2) - waveX;
       }
       
+      if (i > 0) {
+          // Determine segment color for mirror line
+          let mirrorStrokeColor: string;
+          if (baseHue !== null) {
+              const offsetHue = (baseHue + i * 2) % 360;
+              mirrorStrokeColor = `hsla(${offsetHue}, 90%, 65%, 0.27)`; // Rainbow with low alpha
+          } else {
+              mirrorStrokeColor = `${settings.color}44`; // Original low alpha
+          }
+          // Set stroke style just before drawing segment
+          ctx.strokeStyle = mirrorStrokeColor;
+      }
+
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -542,10 +662,16 @@ const drawVerticalFullLine = (
         }
         
         ctx.quadraticCurveTo(prevX, controlY, x, y);
+        // Stroke each mirror segment individually
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x,y);
       }
     }
-    
-    ctx.stroke();
+    // Stroke last mirror segment
+    if (segmentCount > 0) {
+        ctx.stroke();
+    }
   }
 };
 
@@ -560,18 +686,15 @@ const drawVerticalHalfLine = (
   canvasWidth: number,
   baseX: number,
   placement: string,
-  settings: VisualizationSettings,
-  direction: number
+  settings: VisualizerSettings,
+  direction: number,
+  baseHue: number | null
 ) => {
   const length = Math.abs(endY - startY);
   const segmentCount = 50; // Number of line segments for half line
   const segmentHeight = length / segmentCount;
   
-  ctx.strokeStyle = settings.color;
   ctx.lineWidth = 3;
-  ctx.shadowBlur = 10;
-  ctx.shadowColor = settings.color;
-  
   ctx.beginPath();
   
   for (let i = 0; i <= segmentCount; i++) {
@@ -597,6 +720,24 @@ const drawVerticalHalfLine = (
     } else { // middle
       // For middle placement, use the canvas center as the base position
       x = (canvasWidth / 2) + waveX;
+    }
+    
+    if (i > 0) {
+        // Determine segment color for main line
+        let mainStrokeColor: string;
+        let mainShadowColor: string;
+        if (baseHue !== null) {
+            const offsetHue = (baseHue + i * 2) % 360; // Offset hue along the line
+            mainStrokeColor = `hsla(${offsetHue}, 90%, 65%, 1.0)`;
+            mainShadowColor = mainStrokeColor;
+        } else {
+            mainStrokeColor = settings.color;
+            mainShadowColor = settings.color;
+        }
+        // Set stroke and shadow just before drawing the segment
+        ctx.strokeStyle = mainStrokeColor;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = mainShadowColor;
     }
     
     if (i === 0) {
@@ -625,17 +766,22 @@ const drawVerticalHalfLine = (
       }
       
       ctx.quadraticCurveTo(prevX, controlY, x, y);
+      // Stroke each segment individually for color change
+      ctx.stroke(); 
+      // Begin new path segment for next color
+      ctx.beginPath(); 
+      ctx.moveTo(x, y); 
     }
   }
-  
-  ctx.stroke();
+  // Stroke the last segment if any points were added
+  if (segmentCount > 0) {
+      ctx.stroke();
+  }
   ctx.shadowBlur = 0;
   
   // Draw mirror if enabled
   if (settings.showMirror) {
-    ctx.strokeStyle = `${settings.color}44`;
     ctx.lineWidth = 2;
-    
     ctx.beginPath();
     
     for (let i = 0; i <= segmentCount; i++) {
@@ -663,6 +809,19 @@ const drawVerticalHalfLine = (
         x = (canvasWidth / 2) - waveX;
       }
       
+      if (i > 0) {
+          // Determine segment color for mirror line
+          let mirrorStrokeColor: string;
+          if (baseHue !== null) {
+              const offsetHue = (baseHue + i * 2) % 360;
+              mirrorStrokeColor = `hsla(${offsetHue}, 90%, 65%, 0.27)`; // Rainbow with low alpha
+          } else {
+              mirrorStrokeColor = `${settings.color}44`; // Original low alpha
+          }
+          // Set stroke style just before drawing segment
+          ctx.strokeStyle = mirrorStrokeColor;
+      }
+
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -689,9 +848,15 @@ const drawVerticalHalfLine = (
         }
         
         ctx.quadraticCurveTo(prevX, controlY, x, y);
+        // Stroke each mirror segment individually
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x,y);
       }
     }
-    
-    ctx.stroke();
+    // Stroke last mirror segment
+    if (segmentCount > 0) {
+        ctx.stroke();
+    }
   }
 };

@@ -164,7 +164,11 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
            settings.type === "circle" ||
            settings.type === "dots" ||
            settings.type === "honeycomb" ||
-           settings.type === "spiderweb") && (
+           settings.type === "spiderweb" ||
+           settings.type === "bubbles" ||
+           settings.type === "formation" ||
+           settings.type === "siri" ||
+           settings.type === "line") && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Rainbow Speed: {settings.rainbowSpeed?.toFixed(1) || "1.0"}</Label>

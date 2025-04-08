@@ -1,4 +1,5 @@
-import { VisualizationSettings, formatColorWithOpacity } from './utils';
+import { VisualizerSettings } from '@/hooks/useAudioVisualization';
+import { formatColorWithOpacity } from './utils';
 
 export const drawBubblesAnimation = (
   ctx: CanvasRenderingContext2D,
@@ -6,10 +7,11 @@ export const drawBubblesAnimation = (
   canvas: HTMLCanvasElement,
   bufferLength: number,
   timestamp: number,
-  settings: VisualizationSettings
+  settings: VisualizerSettings
 ) => {
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
+  const currentRainbowSpeed = settings.rainbowSpeed || 1.0;
   const dotCount = 128; // Number of dots to display
   
   // If Round Effect is enabled, draw a circular base instead of bars
@@ -19,10 +21,19 @@ export const drawBubblesAnimation = (
     const centerY = canvasHeight / 2;
     const baseRadius = Math.min(canvasWidth, canvasHeight) * 0.2;
     
-    // Draw base circle
+    // Draw base circle (respect rainbow setting)
+    let baseCircleHue = null;
+    let baseCircleStyle: string;
+    if (settings.showRainbow) {
+        baseCircleHue = (timestamp / 40 * currentRainbowSpeed) % 360; // Slightly different speed for base
+        if (isNaN(baseCircleHue)) baseCircleHue = 0;
+        baseCircleStyle = `hsla(${baseCircleHue}, 80%, 50%, 0.5)`;
+    } else {
+        baseCircleStyle = formatColorWithOpacity(settings.color, 0.5);
+    }
     ctx.beginPath();
     ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
-    ctx.strokeStyle = formatColorWithOpacity(settings.color, 0.5);
+    ctx.strokeStyle = baseCircleStyle;
     ctx.lineWidth = 2;
     ctx.stroke();
     
@@ -60,16 +71,25 @@ export const drawBubblesAnimation = (
       // Calculate the bubble size based on the frequency value
       const bubbleSize = Math.max(2, normalizedValue * 15);
       
+      // Determine bubble color
+      let bubbleFillStyle: string;
+      if (settings.showRainbow) {
+          const hue = (normalizedValue * 120) + ((timestamp / 50 * currentRainbowSpeed) % 360);
+          bubbleFillStyle = `hsl(${hue}, 80%, 60%)`;
+      } else {
+          bubbleFillStyle = settings.color;
+      }
+
       // Draw the bubble
       ctx.beginPath();
       ctx.arc(x, y, bubbleSize, 0, Math.PI * 2);
-      ctx.fillStyle = settings.color;
+      ctx.fillStyle = bubbleFillStyle;
       ctx.fill();
       
-      // Add glow effect for larger bubbles
+      // Add glow effect for larger bubbles (using the determined fill style)
       if (bubbleSize > 5) {
         ctx.shadowBlur = bubbleSize;
-        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowColor = bubbleFillStyle; // Use calculated color
         ctx.fill();
         ctx.shadowBlur = 0;
       }
@@ -127,21 +147,25 @@ export const drawBubblesAnimation = (
           const direction = settings.showReversed ? -1 : 1;
           const y = baseY + (direction * oscillation * normalizedValue);
           
-          // Color based on frequency value
-          const hue = (normalizedValue * 120) + ((timestamp / 50) % 360);
-          ctx.fillStyle = settings.color !== '#3B82F6' 
-            ? settings.color 
-            : `hsl(${hue}, 80%, 60%)`;
+          // Determine bubble color
+          let bubbleFillStyle: string;
+          if (settings.showRainbow) {
+              const hue = (normalizedValue * 120) + ((timestamp / 50 * currentRainbowSpeed) % 360);
+              bubbleFillStyle = `hsl(${hue}, 80%, 60%)`;
+          } else {
+              bubbleFillStyle = settings.color;
+          }
           
           // Draw the dot
           ctx.beginPath();
           ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+          ctx.fillStyle = bubbleFillStyle;
           ctx.fill();
           
-          // Add glow effect for larger dots
+          // Add glow effect for larger dots (using determined fill style)
           if (dotSize > 5) {
             ctx.shadowBlur = dotSize;
-            ctx.shadowColor = ctx.fillStyle;
+            ctx.shadowColor = bubbleFillStyle; // Use calculated color
             ctx.fill();
             ctx.shadowBlur = 0;
           }
@@ -195,21 +219,25 @@ export const drawBubblesAnimation = (
           const direction = settings.showReversed ? -1 : 1;
           const x = baseX + (direction * oscillation * normalizedValue);
           
-          // Color based on frequency value
-          const hue = (normalizedValue * 120) + ((timestamp / 50) % 360);
-          ctx.fillStyle = settings.color !== '#3B82F6' 
-            ? settings.color 
-            : `hsl(${hue}, 80%, 60%)`;
+          // Determine bubble color
+          let bubbleFillStyle: string;
+          if (settings.showRainbow) {
+              const hue = (normalizedValue * 120) + ((timestamp / 50 * currentRainbowSpeed) % 360);
+              bubbleFillStyle = `hsl(${hue}, 80%, 60%)`;
+          } else {
+              bubbleFillStyle = settings.color;
+          }
           
           // Draw the dot
           ctx.beginPath();
           ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+          ctx.fillStyle = bubbleFillStyle;
           ctx.fill();
           
-          // Add glow effect for larger dots
+          // Add glow effect for larger dots (using determined fill style)
           if (dotSize > 5) {
             ctx.shadowBlur = dotSize;
-            ctx.shadowColor = ctx.fillStyle;
+            ctx.shadowColor = bubbleFillStyle; // Use calculated color
             ctx.fill();
             ctx.shadowBlur = 0;
           }

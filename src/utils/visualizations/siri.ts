@@ -1,4 +1,5 @@
-import { VisualizationSettings, getAverageFrequency } from './utils';
+import { VisualizerSettings } from '@/hooks/useAudioVisualization';
+import { getAverageFrequency } from './utils';
 
 export const drawSiriAnimation = (
   ctx: CanvasRenderingContext2D,
@@ -6,16 +7,26 @@ export const drawSiriAnimation = (
   canvas: HTMLCanvasElement,
   bufferLength: number,
   timestamp: number,
-  settings: VisualizationSettings
+  settings: VisualizerSettings
 ) => {
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
+  const currentRainbowSpeed = settings.rainbowSpeed || 1.0;
+
+  // Base hue for the frame if rainbow is ON
+  let baseHue = null;
+  if (settings.showRainbow) {
+      baseHue = (timestamp / 15 * currentRainbowSpeed) % 360; // Adjust speed as needed
+      if (isNaN(baseHue)) baseHue = 0;
+  }
   
   // Apple Siri-inspired animation (colorful waveform that moves)
   const waveCount = 3; // Number of waves
-  const waveColors = [
-    `${settings.color}`, 
-    settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6', 
+  
+  // Define original wave colors for non-rainbow mode
+  const originalWaveColors = [
+    `${settings.color}`,
+    settings.color === '#3B82F6' ? '#9333EA' : '#3B82F6',
     settings.color === '#3B82F6' ? '#EC4899' : '#10B981'
   ];
   
@@ -33,9 +44,23 @@ export const drawSiriAnimation = (
     
     // Draw multiple waves in different colors
     for (let wave = 0; wave < waveCount; wave++) {
-      // Use wavePhase for animation
       const wavePhase = basePhase + (wave * Math.PI * 0.5);
-      ctx.fillStyle = waveColors[wave] + "88"; // Semi-transparent
+      
+      // Determine color: Rainbow or Original
+      let currentFillColor: string;
+      let currentShadowColor: string;
+      if (baseHue !== null) {
+          // Rainbow ON
+          const offsetHue = (baseHue + wave * 40) % 360; // Offset hue per wave
+          currentFillColor = `hsla(${offsetHue}, 85%, 65%, 0.54)`; // ~88 hex alpha
+          currentShadowColor = `hsla(${offsetHue}, 85%, 65%, 1.0)`;
+      } else {
+          // Rainbow OFF - use original predefined colors
+          currentFillColor = originalWaveColors[wave] + "88"; // Add original alpha
+          currentShadowColor = originalWaveColors[wave];
+      }
+      
+      ctx.fillStyle = currentFillColor;
       
       // Create a pattern of circles around the center
       const circleCount = 24; // Number of circles per wave
@@ -66,7 +91,7 @@ export const drawSiriAnimation = (
         // Add glow for larger circles
         if (pulseSize > 7) {
           ctx.shadowBlur = pulseSize;
-          ctx.shadowColor = waveColors[wave];
+          ctx.shadowColor = currentShadowColor; // Use calculated shadow color
           ctx.fill();
           ctx.shadowBlur = 0;
         }
@@ -97,7 +122,18 @@ export const drawSiriAnimation = (
           const wavePhase = basePhase + (wave * Math.PI * 0.5);
           const waveAmplitude = canvasHeight * 0.15 * (1 - wave * 0.2);
           
-          ctx.strokeStyle = waveColors[wave];
+          // Determine color: Rainbow or Original
+          let currentStrokeColor: string;
+          if (baseHue !== null) {
+              // Rainbow ON
+              const offsetHue = (baseHue + wave * 40) % 360; // Offset hue per wave
+              currentStrokeColor = `hsla(${offsetHue}, 85%, 65%, 1.0)`;
+          } else {
+              // Rainbow OFF - use original predefined colors
+              currentStrokeColor = originalWaveColors[wave];
+          }
+
+          ctx.strokeStyle = currentStrokeColor;
           ctx.lineWidth = 5 - wave;
           ctx.beginPath();
           
@@ -201,7 +237,7 @@ export const drawSiriAnimation = (
           
           // Add glow effect
           ctx.shadowBlur = 10;
-          ctx.shadowColor = waveColors[wave];
+          ctx.shadowColor = currentStrokeColor; // Use calculated color for shadow
           ctx.stroke();
           ctx.shadowBlur = 0;
         }
@@ -229,7 +265,18 @@ export const drawSiriAnimation = (
           const wavePhase = basePhase + (wave * Math.PI * 0.5);
           const waveAmplitude = canvasWidth * 0.15 * (1 - wave * 0.2);
           
-          ctx.strokeStyle = waveColors[wave];
+          // Determine color: Rainbow or Original
+          let currentStrokeColor: string;
+          if (baseHue !== null) {
+              // Rainbow ON
+              const offsetHue = (baseHue + wave * 40) % 360; // Offset hue per wave
+              currentStrokeColor = `hsla(${offsetHue}, 85%, 65%, 1.0)`;
+          } else {
+              // Rainbow OFF - use original predefined colors
+              currentStrokeColor = originalWaveColors[wave];
+          }
+
+          ctx.strokeStyle = currentStrokeColor;
           ctx.lineWidth = 5 - wave;
           ctx.beginPath();
           
@@ -333,7 +380,7 @@ export const drawSiriAnimation = (
           
           // Add glow effect
           ctx.shadowBlur = 10;
-          ctx.shadowColor = waveColors[wave];
+          ctx.shadowColor = currentStrokeColor; // Use calculated color for shadow
           ctx.stroke();
           ctx.shadowBlur = 0;
         }
@@ -347,7 +394,18 @@ export const drawSiriAnimation = (
     canvasWidth/2, canvasHeight/2, 0,
     canvasWidth/2, canvasHeight/2, gradientRadius
   );
-  glow.addColorStop(0, `${settings.color}22`);
+  
+  // Determine glow start color based on rainbow setting
+  let glowStartColor: string;
+  if (baseHue !== null) {
+      // Rainbow ON: Use base hue with low alpha
+      glowStartColor = `hsla(${baseHue}, 85%, 65%, 0.13)`; // ~22 hex alpha
+  } else {
+      // Rainbow OFF: Use selected color with low alpha
+      glowStartColor = `${settings.color}22`;
+  }
+
+  glow.addColorStop(0, glowStartColor);
   glow.addColorStop(1, 'transparent');
   
   ctx.fillStyle = glow;
