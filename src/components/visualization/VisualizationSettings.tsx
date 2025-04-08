@@ -340,6 +340,18 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
 
+        {/* Add Invert Effect option for Wave visualization - RE-ADDING */}
+        {settings.type === "wave" && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="wave-invert" 
+              checked={settings.showInvert} 
+              onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
+            />
+            <Label htmlFor="wave-invert" className="cursor-pointer">Invert Effect</Label>
+          </div>
+        )}
+
         {/* Add a new Invert Effect option for Bubbles visualization */}
         {settings.type === "bubbles" && (
           <div className="flex items-center space-x-2 pt-2">
