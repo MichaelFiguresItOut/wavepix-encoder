@@ -377,32 +377,34 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     setIsEncoding(false);
     setProgress(100);
     
-    toast({
-      variant: "default",
-      title: "Encoding complete",
-      description: "Your video has been successfully encoded!"
-    });
-    
     // Create download URL
     const url = URL.createObjectURL(blob);
     
     // Get file name with proper extension
     const fileName = `waveform-visualization.${fileExtension}`;
     
-    // Store the URL and filename for later download
+    // Store the URL and filename for reference
     videoRef.current = document.createElement('video');
     videoRef.current.src = url;
     downloadUrlRef.current = url;
     downloadFileNameRef.current = fileName;
     
-    // Show download toast
+    // Automatically trigger download without requiring a button click
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
     toast({
       variant: "default",
-      title: "Download ready",
-      description: "Click the Download button to save your video."
+      title: "Encoding complete",
+      description: "Your video has been encoded and the download has started automatically."
     });
   };
 
+  // Keep this as a backup for manual download if needed
   const handleDownload = () => {
     if (!videoRef.current || !videoRef.current.src) {
       toast({
@@ -780,7 +782,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
                 checked={useCFR} 
                 onCheckedChange={setUseCFR}
               />
-              <Label htmlFor="cfr">Force Constant Frame Rate</Label>
+              <Label htmlFor="cfr">Use Enhanced Encoder</Label>
             </div>
           </div>
         </div>
@@ -813,27 +815,15 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
           )}
         </Button>
         
-        <div className="flex gap-2">
-          <Button
-            variant="default"
-            onClick={handleEncode}
-            disabled={!audioBuffer || isEncoding}
-            className="flex items-center gap-2"
-          >
-            <Video className="h-4 w-4" />
-            {isEncoding ? "Encoding..." : "Encode Video"}
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={handleDownload}
-            disabled={progress < 100}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download
-          </Button>
-        </div>
+        <Button
+          variant="default"
+          onClick={handleEncode}
+          disabled={!audioBuffer || isEncoding}
+          className="flex items-center gap-2"
+        >
+          <Video className="h-4 w-4" />
+          {isEncoding ? "Encoding..." : "Encode Video"}
+        </Button>
       </CardFooter>
     </Card>
   );

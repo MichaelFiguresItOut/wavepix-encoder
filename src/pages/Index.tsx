@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -11,6 +10,8 @@ const Index = () => {
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Add state for looping - it's controlled via the hooks now
+  const [isLooping, setIsLooping] = useState(true); // Default to true for better user experience
   
   // Add visualization settings state at the top level with the new properties
   const [visualizerSettings, setVisualizerSettings] = useState<VisualizerSettings>({
@@ -20,6 +21,8 @@ const Index = () => {
     sensitivity: 1.5,
     smoothing: 0.5,
     showMirror: false,
+    showReversed: false,
+    showInvert: false,
     rotationSpeed: 0.2,
     horizontalOrientation: true,
     verticalOrientation: false,
