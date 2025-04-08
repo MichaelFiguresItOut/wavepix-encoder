@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
@@ -125,23 +125,60 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
         </div>
         
         <div className="space-y-2">
-          <Label>Color</Label>
-          <div className="flex items-center gap-2">
+          <Label htmlFor="color">Color</Label>
+          <div className="flex items-center space-x-2">
             <Input 
               type="color" 
-              value={settings.color} 
-              onChange={(e) => handleSettingChange("color", e.target.value)}
-              className="w-12 h-10 p-1"
+              id="color" 
+              value={settings.color}
+              onChange={(e) => handleSettingChange('color', e.target.value)}
+              className="w-10 h-10 p-1"
             />
-            <Input 
-              type="text" 
-              value={settings.color} 
-              onChange={(e) => handleSettingChange("color", e.target.value)}
-              className="flex-1"
+            <Input
+              type="text"
+              value={settings.color}
+              onChange={(e) => handleSettingChange('color', e.target.value)}
+              placeholder="#3B82F6"
+              className="flex-grow"
             />
           </div>
         </div>
+
+        {/* Rainbow Effect Switch */}
+        { (settings.type !== 'fire') && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="rainbow" 
+              checked={settings.showRainbow} 
+              onCheckedChange={(checked) => handleSettingChange("showRainbow", checked)}
+            />
+            <Label htmlFor="rainbow" className="cursor-pointer">Rainbow Effect</Label>
+          </div>
+        )}
         
+        {/* Rainbow effect speed slider - only relevant if rainbow is ON */}
+        {settings.showRainbow && 
+          (settings.type === "multiline" || 
+           settings.type === "bars" || 
+           settings.type === "wave" ||
+           settings.type === "circle" ||
+           settings.type === "dots" ||
+           settings.type === "honeycomb" ||
+           settings.type === "spiderweb") && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Rainbow Speed: {settings.rainbowSpeed?.toFixed(1) || "1.0"}</Label>
+            </div>
+            <Slider 
+              min={0.1} 
+              max={5} 
+              step={0.1} 
+              value={[settings.rainbowSpeed || 1.0]} 
+              onValueChange={([value]) => handleSettingChange("rainbowSpeed", value)}
+            />
+          </div>
+        )}
+
         {settings.type === "circle" && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -268,8 +305,10 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
         
-        {/* Hide mirrored effect button for Fire animation */}
-        {settings.type !== "fire" && (
+        {/* Hide mirrored effect button for Fire, Honeycomb, and Spiderweb animations */}
+        {settings.type !== "fire" && 
+         settings.type !== "honeycomb" && 
+         settings.type !== "spiderweb" && (
           <div className="flex items-center space-x-2 pt-2">
             <Switch 
               id="mirror" 
@@ -277,7 +316,9 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               onCheckedChange={(checked) => handleSettingChange("showMirror", checked)}
             />
             <Label htmlFor="mirror" className="cursor-pointer">
-              {(settings.type === "siri" || settings.type === "dots" || settings.type === "bubbles" || settings.type === "multiline") ? 
+              {/* Change label specifically for circle */}
+              {settings.type === "circle" ? "Invert Effect" : 
+               (settings.type === "siri" || settings.type === "dots" || settings.type === "bubbles" || settings.type === "multiline") ? 
                 "Round Effect" : "Mirrored Effect"}
             </Label>
           </div>

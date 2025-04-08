@@ -115,6 +115,20 @@ export const getVerticalDirection = (animationStart: string) => {
   }
 };
 
+// Generate a random vibrant color for rainbow effect
+export const generateRainbowColor = (): string => {
+  // Use golden ratio to get a pleasing color sequence
+  const goldenRatio = 0.618033988749895;
+  const hue = (lastHue + goldenRatio) % 1;
+  lastHue = hue;
+  
+  // Convert to HSL color string with full saturation and 50% lightness
+  return `hsl(${Math.floor(hue * 360)}, 100%, 50%)`;
+};
+
+// Track the last hue to create a smooth color sequence
+let lastHue = Math.random(); // Initialize with random hue
+
 // Common visualization settings interface
 export interface VisualizationSettings {
   color: string;
@@ -126,6 +140,7 @@ export interface VisualizationSettings {
   verticalOrientation: boolean;
   barPlacement: string[];
   animationStart: string[];
+  showRainbow?: boolean; // Add rainbow effect option
 }
 
 // Bar-specific settings

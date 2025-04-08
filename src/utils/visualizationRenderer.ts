@@ -66,10 +66,10 @@ export const renderVisualization = (
     try {
       switch(settings.type) {
         case "bars":
-          drawBars(ctx, dataArray, canvas, bufferLength, settings);
+          drawBars(ctx, dataArray, canvas, bufferLength, settings, timestamp);
           break;
         case "wave":
-          drawWave(ctx, dataArray, canvas, bufferLength, settings);
+          drawWave(ctx, dataArray, canvas, bufferLength, settings, timestamp);
           break;
         case "circle":
           drawCircle(ctx, dataArray, canvas, bufferLength, timestamp, settings);
@@ -105,7 +105,7 @@ export const renderVisualization = (
           drawSpiderWebAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
           break;
         default:
-          drawBars(ctx, dataArray, canvas, bufferLength, settings);
+          drawBars(ctx, dataArray, canvas, bufferLength, settings, timestamp);
       }
     } catch (error) {
       console.error(`Error rendering ${settings.type} visualization:`, error);

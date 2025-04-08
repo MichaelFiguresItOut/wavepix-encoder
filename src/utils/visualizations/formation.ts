@@ -1,4 +1,3 @@
-
 import { VisualizationSettings, getAverageFrequency, formatColorWithOpacity } from './utils';
 
 export const drawFormationAnimation = (
@@ -14,10 +13,18 @@ export const drawFormationAnimation = (
   const centerX = canvasWidth / 2;
   const centerY = canvasHeight / 2;
   
+  // Helper to get random hue if Rainbow is ON
+  const getCurrentHue = () => {
+    if (settings.showRainbow) { 
+      return Math.random() * 360;
+    }
+    return null; 
+  };
+
   // Form a geometric pattern that transforms with music
   const time = (timestamp % 10000) / 10000;
   
-  // Split the frequency data into ranges for different effects
+  // Split the frequency data into ranges for different effects (Keep in 0-255 range)
   const bassLevel = getAverageFrequency(dataArray, 0, bufferLength * 0.1);
   const midLevel = getAverageFrequency(dataArray, bufferLength * 0.1, bufferLength * 0.5);
   const highLevel = getAverageFrequency(dataArray, bufferLength * 0.5, bufferLength);
@@ -27,12 +34,20 @@ export const drawFormationAnimation = (
     const particles = 12;
     const radius = Math.min(canvasWidth, canvasHeight) * 0.35;
     
+    // Get Hue for this frame if rainbow is ON
+    const frameHue = getCurrentHue();
+    const strokeColor = frameHue !== null ? `hsla(${frameHue}, 90%, 60%, 1.0)` : settings.color;
+    const shadowColor = frameHue !== null ? strokeColor : settings.color;
+    const innerFillColorStart = frameHue !== null ? `hsla(${frameHue}, 90%, 60%, 0.6)` : `${settings.color}99`; // ~99 hex alpha
+    const innerFillColorEnd = frameHue !== null ? `hsla(${frameHue}, 90%, 60%, 0.07)` : `${settings.color}11`; // ~11 hex alpha
+    const connectingLineColor = frameHue !== null ? `hsla(${frameHue}, 90%, 60%, 0.27)` : `${settings.color}44`; // ~44 hex alpha
+
     // Morph between shapes based on frequency ranges
     const morphValue = 0.5 + bassLevel * 0.5; // 0.5-1.0 range
     
     // Draw the shape
     ctx.lineWidth = 2;
-    ctx.strokeStyle = settings.color;
+    ctx.strokeStyle = strokeColor;
     
     // Dynamic inner radius based on mid frequencies
     const innerRadius = radius * 0.3 * (1 + midLevel * 0.7);
@@ -71,7 +86,7 @@ export const drawFormationAnimation = (
     
     // Add glow based on high frequencies
     ctx.shadowBlur = 15 * highLevel;
-    ctx.shadowColor = settings.color;
+    ctx.shadowColor = shadowColor;
     ctx.stroke();
     ctx.shadowBlur = 0;
     
@@ -98,14 +113,14 @@ export const drawFormationAnimation = (
       centerX, centerY, 0,
       centerX, centerY, innerRadius
     );
-    gradient.addColorStop(0, `${settings.color}99`);
-    gradient.addColorStop(1, `${settings.color}11`);
+    gradient.addColorStop(0, innerFillColorStart);
+    gradient.addColorStop(1, innerFillColorEnd);
     
     ctx.fillStyle = gradient;
     ctx.fill();
     
     // Add connecting lines between inner and outer shapes
-    ctx.strokeStyle = `${settings.color}44`;
+    ctx.strokeStyle = connectingLineColor;
     ctx.lineWidth = 1;
     
     for (let i = 0; i < particles; i++) {
@@ -133,6 +148,15 @@ export const drawFormationAnimation = (
     
     // Draw multiple rings emanating from center
     for (let ring = 0; ring < rings; ring++) {
+      // Get hue for EACH ring if rainbow is on
+      const ringHue = getCurrentHue();
+      const ringStrokeColor = ringHue !== null 
+          ? `hsla(${ringHue}, 90%, 60%, ${0.7 - (ring / (rings - 1) * 0.5)})` // Use calculated opacity
+          : formatColorWithOpacity(settings.color, 0.7 - (ring / (rings - 1) * 0.5));
+      const ringShadowColor = ringHue !== null ? `hsla(${ringHue}, 90%, 60%, 1.0)` : settings.color;
+      const ringFillStart = ringHue !== null ? `hsla(${ringHue}, 90%, 60%, 0.1)` : formatColorWithOpacity(settings.color, 0.1);
+      const ringFillEnd = ringHue !== null ? `hsla(${ringHue}, 90%, 60%, 0.01)`: formatColorWithOpacity(settings.color, 0.01);
+
       const ringProgress = ring / (rings - 1);
       const baseRadius = 30 + (ring * 60);
       
@@ -174,14 +198,14 @@ export const drawFormationAnimation = (
       }
       ctx.closePath();
       
-      // Different opacity for each ring
-      const opacity = 0.7 - (ringProgress * 0.5);
-      ctx.strokeStyle = formatColorWithOpacity(settings.color, opacity);
+      // Different opacity for each ring (handled in color definitions now)
+      // const opacity = 0.7 - (ringProgress * 0.5);
+      ctx.strokeStyle = ringStrokeColor;
       ctx.lineWidth = 2;
       
       // Glow increases with audio intensity
       ctx.shadowBlur = 10 * distortionFactor;
-      ctx.shadowColor = settings.color;
+      ctx.shadowColor = ringShadowColor;
       ctx.stroke();
       ctx.shadowBlur = 0;
       
@@ -190,8 +214,8 @@ export const drawFormationAnimation = (
         centerX, centerY, 0,
         centerX, centerY, baseRadius
       );
-      gradient.addColorStop(0, formatColorWithOpacity(settings.color, 0.1));
-      gradient.addColorStop(1, formatColorWithOpacity(settings.color, 0.01));
+      gradient.addColorStop(0, ringFillStart);
+      gradient.addColorStop(1, ringFillEnd);
       
       ctx.fillStyle = gradient;
       ctx.fill();

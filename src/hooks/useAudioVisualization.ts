@@ -13,11 +13,13 @@ export interface VisualizerSettings {
   showMirror: boolean;
   showReversed: boolean;
   showInvert: boolean;
+  showRainbow: boolean;
   rotationSpeed: number;
   horizontalOrientation: boolean;
   verticalOrientation: boolean;
   barPlacement: BarPlacement[];
   animationStart: AnimationStart[];
+  rainbowSpeed?: number;
 }
 
 interface UseAudioVisualizationProps {
@@ -62,11 +64,13 @@ export const useAudioVisualization = ({
     showMirror: false,
     showReversed: false,
     showInvert: false,
+    showRainbow: false,
     rotationSpeed: 0.2,
     horizontalOrientation: true,
     verticalOrientation: false,
     barPlacement: ["bottom"],
     animationStart: ["beginning"],
+    rainbowSpeed: 1.0,
     ...initialSettings
   });
 

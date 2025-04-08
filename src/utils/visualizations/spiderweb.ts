@@ -1,4 +1,5 @@
-import { VisualizationSettings, formatColorWithOpacity } from './utils';
+import { VisualizerSettings } from '@/hooks/useAudioVisualization';
+import { formatColorWithOpacity } from './utils';
 
 export const drawSpiderWebAnimation = (
   ctx: CanvasRenderingContext2D,
@@ -6,11 +7,19 @@ export const drawSpiderWebAnimation = (
   canvas: HTMLCanvasElement,
   bufferLength: number,
   timestamp: number,
-  settings: VisualizationSettings
+  settings: VisualizerSettings
 ) => {
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
-  
+  const currentRainbowSpeed = settings.rainbowSpeed || 1.0;
+
+  // Base hue for the frame if rainbow is ON
+  let baseHue = null;
+  if (settings.showRainbow) {
+      baseHue = (timestamp / 15 * currentRainbowSpeed) % 360; // Keep base cycle speed
+      if (isNaN(baseHue)) baseHue = 0;
+  }
+
   // Process each bar placement option
   settings.barPlacement.forEach(placement => {
     // Calculate the center position based on placement
@@ -77,6 +86,16 @@ export const drawSpiderWebAnimation = (
           ringSize = webSize * ringProgress * pulseFactor * (1 + trebleNormalized * 0.3);
         }
         
+        // Determine ring color
+        let ringStrokeStyle: string;
+        if (baseHue !== null) {
+            const ringHue = (baseHue + ring * 20) % 360;
+            const ringOpacity = 0.3 - (ring * 0.03);
+            ringStrokeStyle = `hsla(${ringHue}, 85%, 65%, ${ringOpacity})`;
+        } else {
+            ringStrokeStyle = formatColorWithOpacity(settings.color, 0.3 - (ring * 0.03));
+        }
+
         // Draw the ring
         ctx.beginPath();
         for (let i = 0; i <= sides; i++) {
@@ -96,8 +115,7 @@ export const drawSpiderWebAnimation = (
         }
         ctx.closePath();
         
-        // Style the ring
-        ctx.strokeStyle = formatColorWithOpacity(settings.color, 0.3 - (ring * 0.03));
+        ctx.strokeStyle = ringStrokeStyle;
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -118,8 +136,17 @@ export const drawSpiderWebAnimation = (
         
         ctx.lineTo(endX, endY);
         
-        // Style the spoke
-        ctx.strokeStyle = formatColorWithOpacity(settings.color, 0.6);
+        // Determine spoke color
+        let spokeStrokeStyle: string;
+        if (baseHue !== null) {
+            const spokeHue = (baseHue + i * (360 / sides)) % 360;
+            spokeStrokeStyle = `hsla(${spokeHue}, 85%, 70%, 0.6)`;
+        } else {
+            spokeStrokeStyle = formatColorWithOpacity(settings.color, 0.6);
+        }
+
+        // Draw spoke
+        ctx.strokeStyle = spokeStrokeStyle;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -152,15 +179,26 @@ export const drawSpiderWebAnimation = (
           const audioFactor = getFrequencyValue(dataArray, i, sides, bufferLength) / 255 * settings.sensitivity;
           const nodeSize = 1 + audioFactor * 5;
           
+          // Determine node colors
+          let nodeFillStyle: string;
+          let nodeShadowColor: string;
+          if (baseHue !== null) {
+              const nodeHue = (baseHue + ring * 15 + i * (360 / sides)) % 360;
+              const nodeLightness = 60 + audioFactor * 20;
+              nodeFillStyle = `hsla(${nodeHue}, 90%, ${nodeLightness}%, 1.0)`;
+              nodeShadowColor = `hsla(${nodeHue}, 90%, 70%, 0.7)`;
+          } else {
+              nodeFillStyle = settings.color;
+              nodeShadowColor = settings.color;
+          }
+
           // Draw the node with glow effect
           ctx.shadowBlur = 10;
-          ctx.shadowColor = settings.color;
-          
+          ctx.shadowColor = nodeShadowColor;
           ctx.beginPath();
           ctx.arc(nodeX, nodeY, nodeSize, 0, Math.PI * 2);
-          ctx.fillStyle = settings.color;
+          ctx.fillStyle = nodeFillStyle;
           ctx.fill();
-          
           ctx.shadowBlur = 0;
         }
       }
@@ -180,9 +218,22 @@ export const drawSpiderWebAnimation = (
         // Draw the spider body
         const spiderSize = 3 + overallIntensity * 5;
         
+        // Determine spider colors
+        let spiderFillStyle: string;
+        let spiderStrokeStyle: string;
+        if (baseHue !== null) {
+            const spiderHue = (baseHue + timestamp / 5) % 360; // Slowly changing hue for spider
+            spiderFillStyle = `hsla(${spiderHue}, 80%, 40%, 1.0)`; // Darker body
+            spiderStrokeStyle = `hsla(${spiderHue}, 80%, 60%, 1.0)`; // Lighter legs
+        } else {
+            spiderFillStyle = settings.color; 
+            spiderStrokeStyle = settings.color;
+        }
+        
+        // Draw the spider body
         ctx.beginPath();
         ctx.arc(spiderX, spiderY, spiderSize, 0, Math.PI * 2);
-        ctx.fillStyle = settings.color;
+        ctx.fillStyle = spiderFillStyle;
         ctx.fill();
         
         // Draw spider legs
@@ -207,7 +258,7 @@ export const drawSpiderWebAnimation = (
           
           ctx.quadraticCurveTo(cpX, cpY, legX, legY);
           
-          ctx.strokeStyle = settings.color;
+          ctx.strokeStyle = spiderStrokeStyle;
           ctx.lineWidth = 1;
           ctx.stroke();
         }

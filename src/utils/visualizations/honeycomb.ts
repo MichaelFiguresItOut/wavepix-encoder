@@ -1,5 +1,29 @@
-
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
+
+// Helper function to adjust color brightness (example)
+function adjustColor(color: string, amount: number): string {
+  // Convert hex to RGB
+  let r = parseInt(color.substring(1, 3), 16);
+  let g = parseInt(color.substring(3, 5), 16);
+  let b = parseInt(color.substring(5, 7), 16);
+  
+  // Adjust the color
+  r = Math.min(255, Math.max(0, r + amount));
+  g = Math.min(255, Math.max(0, g + amount));
+  b = Math.min(255, Math.max(0, b + amount));
+  
+  // Convert back to hex
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// Helper function to calculate average frequency (example)
+function getAverageFrequency(dataArray: Uint8Array, bufferLength: number): number {
+  let sum = 0;
+  for (let i = 0; i < bufferLength; i++) {
+    sum += dataArray[i];
+  }
+  return sum / bufferLength;
+}
 
 export const drawHoneycombAnimation = (
   ctx: CanvasRenderingContext2D,
@@ -11,7 +35,15 @@ export const drawHoneycombAnimation = (
 ) => {
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
-  
+  const currentRainbowSpeed = settings.rainbowSpeed || 1.0;
+
+  // Base hue for the frame if rainbow is ON
+  let baseHue = null;
+  if (settings.showRainbow) {
+      baseHue = (timestamp / 10 * currentRainbowSpeed) % 360; // Faster base cycle (divisor 10)
+      if (isNaN(baseHue)) baseHue = 0;
+  }
+
   // Clear canvas with a semi-transparent black
   ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -35,80 +67,75 @@ export const drawHoneycombAnimation = (
   const time = timestamp / 1000;
   const pulseSpeed = 0.5; // Controls how fast the hexagons pulse
   
-  // Create a linearGradient for the honeycomb
-  const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
-  gradient.addColorStop(0, settings.color);
-  gradient.addColorStop(1, adjustColor(settings.color, 30)); // Slightly different shade
-  
-  // Draw the honeycomb pattern
-  for (let row = -2; row < numRows; row++) {
-    for (let col = -2; col < numCols; col++) {
-      // Calculate the position of each hexagon
+  // Loop through grid to draw hexagons
+  for (let row = -1; row < numRows + 1; row++) {
+    for (let col = -1; col < numCols + 1; col++) {
+      // Calculate hexagon position
       const x = col * hexWidth * 1.5;
       const y = row * hexHeight * 0.75 + (col % 2 === 0 ? 0 : hexHeight / 2);
-      
-      // Get a data value for this hexagon
-      // Map the position to an index in the dataArray
-      const dataIndex = Math.floor(((row * numCols + col) % bufferLength + bufferLength) % bufferLength);
-      const value = dataArray[dataIndex] / 255.0;
-      
-      // Calculate distance from center
-      const distX = x - centerX;
-      const distY = y - centerY;
-      const distance = Math.sqrt(distX * distX + distY * distY);
-      
-      // Calculate a size and opacity based on the audio data and time
-      // Add a wave effect that radiates from the center
-      const waveOffset = distance / (Math.min(canvasWidth, canvasHeight) / 2);
-      const waveValue = Math.sin(time * pulseSpeed - waveOffset * 5) * 0.5 + 0.5;
-      
-      // Combine audio data with wave effect
-      const combinedValue = value * 0.7 + waveValue * 0.3;
-      
-      // Size of the hexagon (varies with the data)
-      const size = hexRadius * (0.5 + combinedValue * settings.sensitivity * 0.5);
-      
-      // Opacity also varies with the data
-      const opacity = 0.3 + combinedValue * 0.7;
-      
-      // Draw the hexagon
-      drawHexagon(ctx, x, y, size, gradient, opacity, settings);
+
+      // Calculate distance from center for effects
+      const dx = x - centerX;
+      const dy = y - centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Map audio data to this hexagon (simplified example)
+      const dataIndex = Math.floor((row * numCols + col) * (bufferLength / (numRows * numCols))) % bufferLength;
+      const value = dataArray[dataIndex] * settings.sensitivity;
+      const normalizedValue = value / 255;
+
+      // Pulse effect based on distance and time
+      const pulse = Math.sin(dist * 0.05 - time * pulseSpeed) * 0.5 + 0.5;
+      // Modify combinedValue: base is audio, pulse adds variation scaled by audio level
+      const combinedValue = normalizedValue + pulse * 0.2 * normalizedValue;
+
+      // Determine opacity based on combined value
+      const opacity = Math.max(0.1, Math.min(1.0, combinedValue * 1.2)); // Ensure opacity is within bounds
+
+      // Determine fill color
+      let fillColor: string | CanvasGradient;
+      let shadowColor = 'transparent';
+      let strokeColor = 'transparent';
+
+      if (baseHue !== null) {
+          // Rainbow ON
+          const offsetHue = (baseHue + dist * 0.5 + normalizedValue * 30) % 360;
+          fillColor = `hsla(${offsetHue}, 90%, ${60 + normalizedValue * 15}%, ${opacity * 0.8})`; // Fill with varying lightness and opacity
+          shadowColor = `hsla(${offsetHue}, 90%, 70%, ${opacity * 0.5})`; // Fainter shadow
+          strokeColor = `hsla(${offsetHue}, 90%, 80%, ${opacity * 0.6})`; // Slightly brighter stroke
+      } else {
+          // Rainbow OFF
+          fillColor = adjustColor(settings.color, normalizedValue * 50 - 20); // Adjust brightness based on audio
+          shadowColor = settings.color;
+          strokeColor = adjustColor(settings.color, 30); // Slightly lighter stroke
+      }
+
+      // Draw the hexagon using combinedValue for size calculation
+      drawHexagon(
+        ctx,
+        x,
+        y,
+        hexRadius * (0.8 + combinedValue * 0.4), // Size reacts to modified combinedValue
+        fillColor,
+        shadowColor, 
+        strokeColor, 
+        opacity, 
+        settings,
+        true 
+      );
     }
   }
-  
-  // Draw a few larger, pulsing hexagons in the center
-  const centralDataIndex = Math.floor(time * 10) % bufferLength;
-  const centralValue = dataArray[centralDataIndex] / 255.0;
-  
-  ctx.strokeStyle = settings.color;
-  ctx.lineWidth = 2;
-  
-  // Draw 3 concentric hexagons in the center
-  for (let i = 0; i < 3; i++) {
-    const pulseValue = Math.sin(time * pulseSpeed * (i + 1) * 0.5) * 0.5 + 0.5;
-    const combinedValue = centralValue * 0.7 + pulseValue * 0.3;
-    const size = (hexRadius * 2 + i * hexRadius * 2) * (0.8 + combinedValue * settings.sensitivity * 0.3);
-    
-    drawHexagon(
-      ctx, 
-      centerX, 
-      centerY, 
-      size, 
-      settings.color, 
-      0.7 - i * 0.2, 
-      settings,
-      true
-    );
-  }
-  
-  // Function to draw a hexagon
+
+  // Updated Function to draw a hexagon (accepts shadow/stroke colors)
   function drawHexagon(
     ctx: CanvasRenderingContext2D, 
     x: number, 
     y: number, 
     radius: number, 
-    color: string | CanvasGradient, 
-    opacity: number,
+    fillColor: string | CanvasGradient, 
+    shadowColor: string, // New param
+    strokeColor: string, // New param
+    opacity: number, // Use calculated opacity
     settings: VisualizerSettings,
     stroke = false
   ) {
@@ -118,11 +145,11 @@ export const drawHoneycombAnimation = (
     ctx.globalAlpha = opacity;
     
     if (stroke) {
-      ctx.strokeStyle = typeof color === 'string' ? color : settings.color;
+      ctx.strokeStyle = typeof strokeColor === 'string' ? strokeColor : settings.color;
       ctx.lineWidth = 2;
       ctx.beginPath();
     } else {
-      ctx.fillStyle = color;
+      ctx.fillStyle = fillColor;
       ctx.beginPath();
     }
     
@@ -146,36 +173,19 @@ export const drawHoneycombAnimation = (
       ctx.fill();
     }
     
-    // Add a subtle glow effect
-    if (opacity > 0.5) {
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = typeof color === 'string' ? color : settings.color;
+    // Add a subtle glow effect using the shadow color
+    if (opacity > 0.3) { // Glow threshold
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = shadowColor;
       
-      if (stroke) {
-        ctx.stroke();
-      } else {
-        ctx.fill();
-      }
+      // Re-fill to apply shadow
+      ctx.fill(); 
+      // Re-stroke to apply shadow (optional, can be noisy)
+      // if (stroke && radius > 1) { ctx.stroke(); }
       
       ctx.shadowBlur = 0;
     }
     
     ctx.globalAlpha = 1.0;
-  }
-  
-  // Function to adjust a color's brightness
-  function adjustColor(color: string, amount: number): string {
-    // Convert hex to RGB
-    let r = parseInt(color.substring(1, 3), 16);
-    let g = parseInt(color.substring(3, 5), 16);
-    let b = parseInt(color.substring(5, 7), 16);
-    
-    // Adjust the color
-    r = Math.min(255, Math.max(0, r + amount));
-    g = Math.min(255, Math.max(0, g + amount));
-    b = Math.min(255, Math.max(0, b + amount));
-    
-    // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   }
 };
