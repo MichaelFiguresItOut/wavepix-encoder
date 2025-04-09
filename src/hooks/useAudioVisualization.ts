@@ -120,7 +120,7 @@ export const useAudioVisualization = ({
       }
       isInitializedRef.current = false;
     };
-  }, [audioBuffer, settings.smoothing]);
+  }, [audioBuffer]);
   
   // Handle play/pause
   useEffect(() => {
@@ -129,9 +129,33 @@ export const useAudioVisualization = ({
     // Function to start or resume audio playback
     const startOrResumeAudio = () => {
       try {
+        // Check if audio context is closed - if so, we need to recreate it
+        if (audioContextRef.current?.state === 'closed') {
+          // Create a new audio context
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioContextRef.current = audioContext;
+          
+          // Create a new analyzer
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 512;
+          analyser.smoothingTimeConstant = settings.smoothing;
+          analyserRef.current = analyser;
+          
+          // Reset other refs as needed
+          isPausedRef.current = false;
+          currentTimeRef.current = 0;
+          timeRef.current = 0;
+          rotationAngleRef.current = 0;
+        }
+        
         // Resume audio context if it's suspended
         if (audioContextRef.current?.state === 'suspended') {
           audioContextRef.current.resume();
+        }
+        
+        // Always update smoothing value to match current settings
+        if (analyserRef.current) {
+          analyserRef.current.smoothingTimeConstant = settings.smoothing;
         }
         
         // If we already have a source, don't create a new one
@@ -209,7 +233,11 @@ export const useAudioVisualization = ({
           // Stop the current source and suspend the context
           audioSourceRef.current.stop();
           audioSourceRef.current = null;
-          audioContextRef.current.suspend();
+          
+          // Only suspend the context if it's in a suspendable state
+          if (audioContextRef.current.state === 'running') {
+            audioContextRef.current.suspend();
+          }
         }
         
         // Set the pause flag after capturing the frame data
@@ -391,7 +419,7 @@ export const useAudioVisualization = ({
     }
   };
   
-  // Effect for updating analyzer settings
+  // Update analyzer settings independently from initialization
   useEffect(() => {
     if (analyserRef.current) {
       analyserRef.current.smoothingTimeConstant = settings.smoothing;

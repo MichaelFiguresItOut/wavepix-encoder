@@ -60,7 +60,14 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
       }
       isInitializedRef.current = false;
     };
-  }, [audioBuffer, settings.smoothing]);
+  }, [audioBuffer]);
+  
+  // Separate effect to update smoothing
+  useEffect(() => {
+    if (analyserRef.current) {
+      analyserRef.current.smoothingTimeConstant = settings.smoothing;
+    }
+  }, [settings.smoothing]);
   
   // Handle play/pause
   useEffect(() => {
@@ -69,9 +76,33 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
     // Function to start or resume audio playback
     const startOrResumeAudio = () => {
       try {
+        // Check if audio context is closed - if so, we need to recreate it
+        if (audioContextRef.current?.state === 'closed') {
+          // Create a new audio context
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioContextRef.current = audioContext;
+          
+          // Create a new analyzer
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 512;
+          analyser.smoothingTimeConstant = settings.smoothing;
+          analyserRef.current = analyser;
+          
+          // Reset other refs as needed
+          isPausedRef.current = false;
+          currentPositionRef.current = 0;
+          timeRef.current = 0;
+          rotationAngleRef.current = 0;
+        }
+        
         // Resume audio context if it's suspended
         if (audioContextRef.current?.state === 'suspended') {
           audioContextRef.current.resume();
+        }
+        
+        // Always update smoothing value to match current settings
+        if (analyserRef.current) {
+          analyserRef.current.smoothingTimeConstant = settings.smoothing;
         }
         
         // If we already have a source, don't create a new one
