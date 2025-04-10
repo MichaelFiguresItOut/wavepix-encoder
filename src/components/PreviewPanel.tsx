@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
 import { renderVisualization } from "@/utils/visualizationRenderer";
 import { VisualizerSettings } from "@/hooks/useAudioVisualization";
 
@@ -29,12 +28,6 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
   // For storing last frequency data when paused
   const lastFrequencyDataRef = useRef<Uint8Array | null>(null);
   
-  // Added state for audio time progress
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
-  const [seeking, setSeeking] = useState<boolean>(false);
-  const startTimeRef = useRef<number>(0);
-
   // Initialize audio context and analyzer only once
   useEffect(() => {
     if (!audioBuffer || isInitializedRef.current) return;
@@ -53,11 +46,6 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
       lastFrequencyDataRef.current.fill(0);
       
       isInitializedRef.current = true;
-      
-      // Set duration when audio buffer is loaded
-      if (audioBuffer) {
-        setDuration(audioBuffer.duration);
-      }
     } catch (error) {
       console.error("Error initializing audio context or analyzer:", error);
     }
@@ -140,14 +128,12 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
         } else {
           // If we're starting fresh, reset position and animation time
           currentPositionRef.current = 0;
-          setCurrentTime(0);
           timeRef.current = 0; // Reset animation time only for fresh starts
           rotationAngleRef.current = 0; // Reset rotation only for fresh starts
         }
         
         // Start from the calculated position
         source.start(0, startPosition);
-        startTimeRef.current = audioContextRef.current.currentTime;
         audioSourceRef.current = source;
         
         // Start visualization
@@ -160,7 +146,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
     // Function to pause audio playback
     const pauseAudio = () => {
       try {
-        // Capture current frequency data before pausing
+        // Capture current frequency data before pausing or stopping anything
         if (analyserRef.current) {
           // Make sure we have the right size array
           const bufferLength = analyserRef.current.frequencyBinCount;
@@ -224,89 +210,22 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
     
     // Set up a timer to track current position for pause/resume
     const trackPositionInterval = setInterval(() => {
-      if (isPlaying && audioSourceRef.current && audioContextRef.current && !seeking) {
+      if (isPlaying && audioSourceRef.current && audioContextRef.current) {
         // Keep track of position for looping and pause/resume
         try {
           const elapsedSinceStart = audioContextRef.current.currentTime - (timeRef.current || 0);
           currentPositionRef.current = (currentPositionRef.current + elapsedSinceStart) % audioBuffer.duration;
           timeRef.current = audioContextRef.current.currentTime;
-          // Update the current time state for the slider
-          setCurrentTime(currentPositionRef.current);
         } catch (error) {
           console.error("Error tracking position:", error);
         }
-      } else if (!isPlaying) {
+      } else {
         clearInterval(trackPositionInterval);
       }
     }, 100);
     
     return () => clearInterval(trackPositionInterval);
-  }, [isPlaying, audioBuffer, seeking]);
-  
-  // Handle time seeking functionality
-  const handleSeek = (value: number[]) => {
-    if (!audioBuffer || !audioContextRef.current) return;
-    
-    const newTime = value[0];
-    setSeeking(true);
-    setCurrentTime(newTime);
-    
-    // If we're actively playing, stop the current source
-    if (isPlaying && audioSourceRef.current) {
-      try {
-        audioSourceRef.current.stop();
-        audioSourceRef.current = null;
-      } catch (error) {
-        console.error("Error stopping audio source during seek:", error);
-      }
-    }
-  };
-  
-  // Handle end of seeking - restart audio from new position
-  const handleSeekEnd = () => {
-    if (!audioBuffer || !audioContextRef.current) {
-      setSeeking(false);
-      return;
-    }
-    
-    // Update the current position ref
-    currentPositionRef.current = currentTime;
-    
-    // If playing, restart from new position
-    if (isPlaying) {
-      try {
-        if (audioContextRef.current.state === 'suspended') {
-          audioContextRef.current.resume();
-        }
-        
-        const source = audioContextRef.current.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(analyserRef.current!);
-        analyserRef.current!.connect(audioContextRef.current.destination);
-        source.loop = true;
-        
-        // Start from the current time
-        source.start(0, currentTime);
-        audioSourceRef.current = source;
-        startTimeRef.current = audioContextRef.current.currentTime;
-        timeRef.current = audioContextRef.current.currentTime;
-        
-        // Restart visualization
-        startVisualization();
-      } catch (error) {
-        console.error("Error restarting audio after seek:", error);
-      }
-    }
-    
-    setSeeking(false);
-  };
-
-  // Format time in MM:SS format
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [isPlaying, audioBuffer]);
 
   // Render the last visualization frame when paused
   const renderFrozenVisualization = () => {
@@ -532,32 +451,9 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
             </div>
           )}
           
-          {/* Audio playback progress slider */}
-          {audioBuffer && (
-            <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50 backdrop-blur-sm">
-              <div className="flex items-center gap-2 w-full">
-                <span className="text-xs text-white/70 min-w-[40px]">
-                  {formatTime(currentTime)}
-                </span>
-                <Slider 
-                  value={[currentTime]} 
-                  min={0} 
-                  max={duration} 
-                  step={0.01}
-                  onValueChange={handleSeek}
-                  onValueCommit={handleSeekEnd}
-                  className="flex-1"
-                />
-                <span className="text-xs text-white/70 min-w-[40px] text-right">
-                  {formatTime(duration)}
-                </span>
-              </div>
-            </div>
-          )}
-          
           {/* Subtle looping indicator */}
           {audioBuffer && (
-            <div className="absolute bottom-14 right-2 text-xs text-white/30 flex items-center">
+            <div className="absolute bottom-2 right-2 text-xs text-white/30 flex items-center">
               <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9 14L4 9L9 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M20 20V13C20 11.9391 19.5786 10.9217 18.8284 10.1716C18.0783 9.42143 17.0609 9 16 9H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
