@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
 import { renderVisualization } from "@/utils/visualizationRenderer";
 import { VisualizerSettings } from "@/hooks/useAudioVisualization";
 
@@ -517,70 +516,76 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
   }, []);
 
   return (
-    <Card className="w-full h-full glass-panel overflow-hidden">
-      <CardContent className="p-0 h-full">
-        <div className="relative w-full h-full bg-gradient-to-b from-black/80 to-black">
-          <canvas
-            ref={canvasRef}
-            className="w-full h-full"
-            width={800}
-            height={300}
-          />
-          {!audioBuffer && (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-center p-4">
-              Upload an audio file and press play to preview the visualization
-            </div>
-          )}
-          
-          {/* Audio playback progress slider */}
-          {audioBuffer && (
-            <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50 backdrop-blur-sm">
-              <div className="flex items-center gap-2 w-full">
-                <span className="text-xs text-white/70 min-w-[40px]">
-                  {formatTime(currentTime)}
-                </span>
-                <Slider 
-                  value={[currentTime]} 
-                  min={0} 
-                  max={duration} 
-                  step={0.01}
-                  onValueChange={handleSeek}
-                  onValueCommit={handleSeekEnd}
-                  className="flex-1"
-                />
-                <span className="text-xs text-white/70 min-w-[40px] text-right">
-                  {formatTime(duration)}
-                </span>
+    <div className="space-y-4">
+      <Card className="w-full glass-panel overflow-hidden">
+        <CardContent className="p-0">
+          <div className="relative w-full bg-gradient-to-b from-black/80 to-black">
+            <canvas
+              ref={canvasRef}
+              className="w-full"
+              width={800}
+              height={300}
+            />
+            {!audioBuffer && (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-center p-4">
+                Upload an audio file and press play to preview the visualization
               </div>
+            )}
+            
+            {/* Subtle looping indicator */}
+            {audioBuffer && (
+              <div className="absolute bottom-2 right-2 text-xs text-white/30 flex items-center">
+                <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 14L4 9L9 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M20 20V13C20 11.9391 19.5786 10.9217 18.8284 10.1716C18.0783 9.42143 17.0609 9 16 9H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M15 14L20 9L15 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M4 4V11C4 12.0609 4.42143 13.0783 5.17157 13.8284C5.92172 14.5786 6.93913 15 8 15H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Loop enabled
+              </div>
+            )}
+            
+            {/* Pause indicator overlay */}
+            {audioBuffer && !isPlaying && isPausedRef.current && (
+              <div className="absolute top-2 left-2 text-xs text-white/50 flex items-center bg-black/20 rounded px-2 py-1">
+                <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" />
+                </svg>
+                Paused
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Audio playback progress slider - moved outside and below the preview panel */}
+      {audioBuffer && (
+        <div className="p-2 bg-black/50 backdrop-blur-sm rounded-lg">
+          <div className="flex items-center gap-2 w-full">
+            <span className="text-xs text-white/70 min-w-[40px]">
+              {formatTime(currentTime)}
+            </span>
+            <div className="flex-1">
+              <input
+                type="range"
+                min={0}
+                max={duration}
+                step={0.01}
+                value={currentTime}
+                onChange={(e) => handleSeek([parseFloat(e.target.value)])}
+                onMouseUp={handleSeekEnd}
+                onTouchEnd={handleSeekEnd}
+                className="w-full h-2 bg-secondary rounded-full appearance-none cursor-pointer"
+              />
             </div>
-          )}
-          
-          {/* Subtle looping indicator */}
-          {audioBuffer && (
-            <div className="absolute bottom-14 right-2 text-xs text-white/30 flex items-center">
-              <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 14L4 9L9 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M20 20V13C20 11.9391 19.5786 10.9217 18.8284 10.1716C18.0783 9.42143 17.0609 9 16 9H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M15 14L20 9L15 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M4 4V11C4 12.0609 4.42143 13.0783 5.17157 13.8284C5.92172 14.5786 6.93913 15 8 15H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Loop enabled
-            </div>
-          )}
-          
-          {/* Pause indicator overlay */}
-          {audioBuffer && !isPlaying && isPausedRef.current && (
-            <div className="absolute top-2 left-2 text-xs text-white/50 flex items-center bg-black/20 rounded px-2 py-1">
-              <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" />
-                <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" />
-              </svg>
-              Paused
-            </div>
-          )}
+            <span className="text-xs text-white/70 min-w-[40px] text-right">
+              {formatTime(duration)}
+            </span>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
 
