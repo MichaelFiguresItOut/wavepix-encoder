@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -24,7 +23,6 @@ const Index = () => {
     showMirror: false,
     showReversed: false,
     showInvert: false,
-    showRainbow: false, // Add the missing property
     rotationSpeed: 0.2,
     horizontalOrientation: true,
     verticalOrientation: false,
