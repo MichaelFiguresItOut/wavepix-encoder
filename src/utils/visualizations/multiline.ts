@@ -293,6 +293,11 @@ export const drawMultilineAnimation = (
     
     if (settings.verticalOrientation) {
       const lineWidth = canvasWidth / (lineCount + 1);
+      const animStart = settings.animationStart[0] || "beginning";
+      let startY = 0, endY = canvasHeight, direction = 1;
+      if (animStart === "end") { startY = canvasHeight; endY = 0; direction = -1; }
+      else if (animStart === "middle") { startY = canvasHeight / 2; endY = canvasHeight; direction = 0; }
+      
       // Draw each vertical line
       for (let lineIndex = 0; lineIndex < lineCount; lineIndex++) {
          const baseHue = getCurrentHue(); // Gets CYCLING hue if showRainbow is true
@@ -306,29 +311,67 @@ export const drawMultilineAnimation = (
         const startFreq = Math.floor(bufferLength * rangeStart);
         const endFreq = Math.floor(bufferLength * rangeEnd);
         const pointCount = 100;
-        const pointSpacing = canvasHeight / (pointCount - 1);
         
-        // Set style based on rainbow state
-        ctx.strokeStyle = currentStrokeColor;
         ctx.lineWidth = 3;
         ctx.shadowBlur = 5;
+        // Set style BEFORE pathing for middle animation start
+        ctx.strokeStyle = currentStrokeColor;
         ctx.shadowColor = currentShadowColor;
-        
-        ctx.beginPath();
-        for (let i = 0; i < pointCount; i++) {
-           // ... (calculations for y, pointX) ...
-          const y = i * pointSpacing;
-          const dataIndex = startFreq + Math.floor((i / pointCount) * (endFreq - startFreq));
-          const value = dataArray[dataIndex] * settings.sensitivity;
-          const normalizedValue = value / 255;
-          const linePhase = phase + (lineIndex * Math.PI / 5);
-          const amplitude = lineWidth * 0.8 * normalizedValue;
-          const waveX = Math.sin(i * 0.12 + linePhase) * amplitude;
-          const pointX = x + waveX;
-          if (i === 0) { ctx.moveTo(pointX, y); } else { const prevY = (i - 1) * pointSpacing; const cpY = (prevY + y) / 2; ctx.quadraticCurveTo(pointX, cpY, pointX, y); }
+
+        if (animStart === "middle") {
+          const halfPointCount = Math.floor(pointCount / 2);
+          const pointSpacing = (canvasHeight / 2) / halfPointCount;
+          const centerY = canvasHeight / 2;
+          
+          // First half (center to bottom)
+          ctx.beginPath();
+          for (let i = 0; i <= halfPointCount; i++) {
+            const y = centerY + i * pointSpacing;
+            const dataIndex = startFreq + Math.floor((i / halfPointCount) * (endFreq - startFreq));
+            const value = dataArray[dataIndex] * settings.sensitivity;
+            const normalizedValue = value / 255;
+            const linePhase = phase + (lineIndex * Math.PI / 5);
+            const amplitude = lineWidth * 0.8 * normalizedValue;
+            const waveX = Math.sin(i * 0.12 + linePhase) * amplitude;
+            const pointX = x + waveX;
+            if (i === 0) { ctx.moveTo(pointX, y); } else { const prevY = centerY + (i - 1) * pointSpacing; const cpY = (prevY + y) / 2; ctx.quadraticCurveTo(pointX, cpY, pointX, y); }
+          }
+          ctx.stroke();
+          ctx.shadowBlur = 0; // Reset shadow after first half
+          
+          // Second half (center to top)
+          ctx.shadowBlur = 5; // Re-apply shadow for second half if needed
+          ctx.beginPath();
+          for (let i = 0; i <= halfPointCount; i++) {
+            const y = centerY - i * pointSpacing;
+            const dataIndex = startFreq + Math.floor(((halfPointCount + i) / pointCount) * (endFreq - startFreq));
+            const value = dataArray[dataIndex] * settings.sensitivity;
+            const normalizedValue = value / 255;
+            const linePhase = phase + (lineIndex * Math.PI / 5);
+            const amplitude = lineWidth * 0.8 * normalizedValue;
+            const waveX = Math.sin((halfPointCount + i) * 0.12 + linePhase) * amplitude;
+            const pointX = x + waveX;
+            if (i === 0) { ctx.moveTo(pointX, y); } else { const prevY = centerY - (i - 1) * pointSpacing; const cpY = (prevY + y) / 2; ctx.quadraticCurveTo(pointX, cpY, pointX, y); }
+          }
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        } else { // Beginning or End
+          const pointSpacing = Math.abs(endY - startY) / pointCount;
+          ctx.beginPath();
+          for (let i = 0; i < pointCount; i++) {
+            const y = startY + i * pointSpacing * direction;
+            const dataIndex = startFreq + Math.floor((i / pointCount) * (endFreq - startFreq));
+            const value = dataArray[dataIndex] * settings.sensitivity;
+            const normalizedValue = value / 255;
+            const linePhase = phase + (lineIndex * Math.PI / 5);
+            const amplitude = lineWidth * 0.8 * normalizedValue;
+            const waveX = Math.sin(i * 0.12 + linePhase) * amplitude;
+            const pointX = x + waveX;
+            if (i === 0) { ctx.moveTo(pointX, y); } else { const prevY = startY + (i - 1) * pointSpacing * direction; const cpY = (prevY + y) / 2; ctx.quadraticCurveTo(pointX, cpY, pointX, y); }
+          }
+          ctx.stroke();
+          ctx.shadowBlur = 0;
         }
-        ctx.stroke();
-        ctx.shadowBlur = 0;
       }
       
       // Add subtle horizontal connecting lines

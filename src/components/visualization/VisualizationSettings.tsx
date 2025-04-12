@@ -78,7 +78,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
     settings.type !== "formation" && 
     !(settings.type === "dots" && settings.showMirror) &&
     !(settings.type === "bubbles" && settings.showMirror) &&
-    !(settings.type === "siri" && settings.showMirror);
+    !(settings.type === "siri" && settings.showMirror) &&
+    !(settings.type === "multiline" && settings.showMirror);
 
   // Check if bar placement section should be shown
   const showBarPlacementSection = 
@@ -95,7 +96,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
     settings.type !== "formation" && 
     !(settings.type === "dots" && settings.showMirror) &&
     !(settings.type === "bubbles" && settings.showMirror) &&
-    !(settings.type === "siri" && settings.showMirror);
+    !(settings.type === "siri" && settings.showMirror) &&
+    !(settings.type === "multiline" && settings.showMirror);
 
   return (
     <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4 md:gap-6`}>
