@@ -1,7 +1,7 @@
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 import { getAverageFrequency } from './utils';
 
-export const drawSiriAnimation = (
+export const drawBraidAnimation = (
   ctx: CanvasRenderingContext2D,
   dataArray: Uint8Array,
   canvas: HTMLCanvasElement,
@@ -20,7 +20,7 @@ export const drawSiriAnimation = (
       if (isNaN(baseHue)) baseHue = 0;
   }
   
-  // Apple Siri-inspired animation (colorful waveform that moves)
+  // Braid-inspired animation (colorful waveform that moves)
   const waveCount = 3; // Number of waves
   
   // Define original wave colors for non-rainbow mode
@@ -120,7 +120,7 @@ export const drawSiriAnimation = (
     return; // Skip the standard animation when in round mode
   }
   
-  // Standard Siri line animation
+  // Standard Braid line animation
   if (settings.horizontalOrientation) {
     // Process each bar placement option
     settings.barPlacement.forEach(placement => {
@@ -254,11 +254,7 @@ export const drawSiriAnimation = (
             }
           }
           
-          // Add glow effect
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = currentStrokeColor; // Use calculated color for shadow
           ctx.stroke();
-          ctx.shadowBlur = 0;
         }
       });
     });
@@ -269,12 +265,12 @@ export const drawSiriAnimation = (
     settings.barPlacement.forEach(placement => {
       // Calculate the base X position based on placement
       let baseX;
-      if (placement === 'bottom') { // Right in vertical orientation
-        baseX = canvasWidth * 0.8; // Near the right
+      if (placement === 'top') {
+        baseX = canvasWidth * 0.2; // Left side
       } else if (placement === 'middle') {
         baseX = canvasWidth / 2; // Middle of the screen
-      } else { // top (Left in vertical orientation)
-        baseX = canvasWidth * 0.2; // Near the left
+      } else { // bottom
+        baseX = canvasWidth * 0.8; // Right side
       }
       
       // Process each animation start option
@@ -397,36 +393,9 @@ export const drawSiriAnimation = (
             }
           }
           
-          // Add glow effect
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = currentStrokeColor; // Use calculated color for shadow
           ctx.stroke();
-          ctx.shadowBlur = 0;
         }
       });
     });
   }
-  
-  // Add subtle background glow
-  const gradientRadius = Math.min(canvasWidth, canvasHeight) * 0.5;
-  const glow = ctx.createRadialGradient(
-    canvasWidth/2, canvasHeight/2, 0,
-    canvasWidth/2, canvasHeight/2, gradientRadius
-  );
-  
-  // Determine glow start color based on rainbow setting
-  let glowStartColor: string;
-  if (baseHue !== null) {
-      // Rainbow ON: Use base hue with low alpha
-      glowStartColor = `hsla(${baseHue}, 85%, 65%, 0.13)`; // ~22 hex alpha
-  } else {
-      // Rainbow OFF: Use selected color with low alpha
-      glowStartColor = `${settings.color}22`;
-  }
-
-  glow.addColorStop(0, glowStartColor);
-  glow.addColorStop(1, 'transparent');
-  
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-};
+}; 

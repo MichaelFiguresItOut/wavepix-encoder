@@ -76,9 +76,10 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
   const showOrientationSection = 
     settings.type !== "circle" && 
     settings.type !== "formation" && 
+    settings.type !== "fire" &&
     !(settings.type === "dots" && settings.showMirror) &&
     !(settings.type === "bubbles" && settings.showMirror) &&
-    !(settings.type === "siri" && settings.showMirror) &&
+    !(settings.type === "braid" && settings.showMirror) &&
     !(settings.type === "multiline" && settings.showMirror);
 
   // Check if bar placement section should be shown
@@ -86,17 +87,19 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
     settings.type !== "circle" && 
     settings.type !== "formation" && 
     settings.type !== "multiline" && 
+    settings.type !== "fire" &&
     !(settings.type === "dots" && settings.showMirror) &&
     !(settings.type === "bubbles" && settings.showMirror) &&
-    !(settings.type === "siri" && settings.showMirror);
+    !(settings.type === "braid" && settings.showMirror);
 
   // Check if animation start section should be shown
   const showAnimationStartSection = 
     settings.type !== "circle" && 
     settings.type !== "formation" && 
+    settings.type !== "fire" &&
     !(settings.type === "dots" && settings.showMirror) &&
     !(settings.type === "bubbles" && settings.showMirror) &&
-    !(settings.type === "siri" && settings.showMirror) &&
+    !(settings.type === "braid" && settings.showMirror) &&
     !(settings.type === "multiline" && settings.showMirror);
 
   return (
@@ -116,7 +119,7 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               <SelectItem value="wave">Wave</SelectItem>
               <SelectItem value="circle">Circle</SelectItem>
               <SelectItem value="line">Line Animation</SelectItem>
-              <SelectItem value="siri">Braid Animation</SelectItem>
+              <SelectItem value="braid">Braid Animation</SelectItem>
               <SelectItem value="dots">Dots Animation</SelectItem>
               <SelectItem value="bubbles">Bubbles Animation</SelectItem>
               <SelectItem value="formation">Formation Animation</SelectItem>
@@ -323,26 +326,38 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
             <Label htmlFor="mirror" className="cursor-pointer">
               {/* Change label specifically for circle */}
               {settings.type === "circle" ? "Invert Effect" : 
-               (settings.type === "siri" || settings.type === "dots" || settings.type === "bubbles" || settings.type === "multiline") ? 
+               (settings.type === "braid" || settings.type === "dots" || settings.type === "bubbles" || settings.type === "multiline") ? 
                 "Round Effect" : settings.type === "formation" ? "Alternate" : "Mirrored Effect"}
             </Label>
           </div>
         )}
 
-        {/* Add Invert Effect option for Wave visualization - RE-ADDING */}
-        {settings.type === "wave" && (
+        {/* Add Invert Effect for Braid visualization when Round Effect is enabled */}
+        {settings.type === "braid" && settings.showMirror && (
           <div className="flex items-center space-x-2 pt-2">
             <Switch 
-              id="wave-invert" 
+              id="braid-invert" 
               checked={settings.showInvert} 
               onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
             />
-            <Label htmlFor="wave-invert" className="cursor-pointer">Invert Effect</Label>
+            <Label htmlFor="braid-invert" className="cursor-pointer">Invert Effect</Label>
           </div>
         )}
 
-        {/* Add a new Invert Effect option specifically for Dots visualization */}
-        {settings.type === "dots" && (
+        {/* Add Invert Effect for Bubbles visualization when Round Effect is enabled */}
+        {settings.type === "bubbles" && settings.showMirror && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="bubbles-invert" 
+              checked={settings.showInvert} 
+              onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
+            />
+            <Label htmlFor="bubbles-invert" className="cursor-pointer">Invert Effect</Label>
+          </div>
+        )}
+
+        {/* Add Invert Effect for Dots visualization */}
+        {settings.type === "dots" && !settings.showMirror && (
           <div className="flex items-center space-x-2 pt-2">
             <Switch 
               id="reversed" 
@@ -353,27 +368,15 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
         
-        {/* Add Mirrored Effect for Dots visualization */}
-        {settings.type === "dots" && !settings.showMirror && (
+        {/* Add Invert Effect for Wave visualization - RE-ADDING */}
+        {settings.type === "wave" && (
           <div className="flex items-center space-x-2 pt-2">
             <Switch 
-              id="dots-invert" 
+              id="wave-invert" 
               checked={settings.showInvert} 
               onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
             />
-            <Label htmlFor="dots-invert" className="cursor-pointer">Mirrored Effect</Label>
-          </div>
-        )}
-        
-        {/* Add Invert Effect for Siri visualization when Round Effect is enabled */}
-        {settings.type === "siri" && settings.showMirror && (
-          <div className="flex items-center space-x-2 pt-2">
-            <Switch 
-              id="siri-invert" 
-              checked={settings.showInvert} 
-              onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
-            />
-            <Label htmlFor="siri-invert" className="cursor-pointer">Invert Effect</Label>
+            <Label htmlFor="wave-invert" className="cursor-pointer">Invert Effect</Label>
           </div>
         )}
 

@@ -16,7 +16,7 @@ import { drawBars } from '@/utils/visualizations/bars';
 import { drawWave } from '@/utils/visualizations/wave';
 import { drawCircle } from '@/utils/visualizations/circle';
 import { drawLineAnimation } from '@/utils/visualizations/line';
-import { drawSiriAnimation } from '@/utils/visualizations/siri';
+import { drawBraidAnimation } from '@/utils/visualizations/braid';
 import { drawDotsAnimation } from '@/utils/visualizations/dots';
 import { drawBubblesAnimation } from '@/utils/visualizations/bubbles';
 import { drawFormationAnimation } from '@/utils/visualizations/formation';
@@ -137,8 +137,8 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       case "line":
         drawLineAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
         break;
-      case "siri":
-        drawSiriAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+      case "braid":
+        drawBraidAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
         break;
       case "dots":
         drawDotsAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
