@@ -231,7 +231,7 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
         {/* Bar Placement multi-select - only display for specific visualizations */}
         {showBarPlacementSection && (
           <div className="space-y-3">
-            <Label>Bar Placement</Label>
+            <Label>Placement</Label>
             <div className="flex flex-col space-y-2">
               <div className="flex items-center space-x-2">
                 <Checkbox 
