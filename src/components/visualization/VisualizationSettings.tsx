@@ -355,18 +355,6 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
 
-        {/* Add a new Invert Effect option for Bubbles visualization */}
-        {settings.type === "bubbles" && (
-          <div className="flex items-center space-x-2 pt-2">
-            <Switch 
-              id="bubbles-reversed" 
-              checked={settings.showReversed} 
-              onCheckedChange={(checked) => handleSettingChange("showReversed", checked)}
-            />
-            <Label htmlFor="bubbles-reversed" className="cursor-pointer">Invert Effect</Label>
-          </div>
-        )}
-
         {/* Add a new Invert Effect option specifically for Dots visualization */}
         {settings.type === "dots" && (
           <div className="flex items-center space-x-2 pt-2">
@@ -376,6 +364,18 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               onCheckedChange={(checked) => handleSettingChange("showReversed", checked)}
             />
             <Label htmlFor="reversed" className="cursor-pointer">Invert Effect</Label>
+          </div>
+        )}
+        
+        {/* Add Mirrored Effect for Dots visualization */}
+        {settings.type === "dots" && !settings.showMirror && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="dots-invert" 
+              checked={settings.showInvert} 
+              onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
+            />
+            <Label htmlFor="dots-invert" className="cursor-pointer">Mirrored Effect</Label>
           </div>
         )}
         

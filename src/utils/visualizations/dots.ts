@@ -190,6 +190,18 @@ export const drawDotsAnimation = (
               ctx.fillStyle = dotFillColor;
               ctx.fill();
               ctx.shadowBlur = 0;
+              
+              // Draw mirrored dot if showInvert is enabled
+              if (settings.showInvert) {
+                const mirroredY = 2 * centerY - y; // Mirror across centerY
+                ctx.beginPath();
+                ctx.arc(x, mirroredY, dotSize, 0, Math.PI * 2);
+                ctx.fillStyle = dotFillColor;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = shadowColor;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+              }
             }
             
              // --- Draw second half (center to left) --- 
@@ -230,6 +242,18 @@ export const drawDotsAnimation = (
               ctx.fillStyle = dotFillColor;
               ctx.fill();
               ctx.shadowBlur = 0;
+              
+              // Draw mirrored dot if showInvert is enabled
+              if (settings.showInvert) {
+                const mirroredY = 2 * centerY - y; // Mirror across centerY
+                ctx.beginPath();
+                ctx.arc(x, mirroredY, dotSize, 0, Math.PI * 2);
+                ctx.fillStyle = dotFillColor;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = shadowColor;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+              }
             }
             
             return; // Skip the rest for middle animation
@@ -275,6 +299,18 @@ export const drawDotsAnimation = (
             ctx.fillStyle = dotFillColor;
             ctx.fill();
             ctx.shadowBlur = 0;
+            
+            // Draw mirrored dot if showInvert is enabled
+            if (settings.showInvert) {
+              const mirroredY = 2 * centerY - y; // Mirror across centerY
+              ctx.beginPath();
+              ctx.arc(x, mirroredY, dotSize, 0, Math.PI * 2);
+              ctx.fillStyle = dotFillColor;
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = shadowColor;
+              ctx.fill();
+              ctx.shadowBlur = 0;
+            }
           }
         });
       }
@@ -335,6 +371,18 @@ export const drawDotsAnimation = (
               ctx.fillStyle = dotFillColor;
               ctx.fill();
               ctx.shadowBlur = 0;
+              
+              // Draw mirrored dot if showInvert is enabled
+              if (settings.showInvert) {
+                const mirroredX = 2 * centerX - x; // Mirror across centerX
+                ctx.beginPath();
+                ctx.arc(mirroredX, y, dotSize, 0, Math.PI * 2);
+                ctx.fillStyle = dotFillColor;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = shadowColor;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+              }
             }
 
             // --- Draw second half (center to top) --- 
@@ -375,6 +423,18 @@ export const drawDotsAnimation = (
               ctx.fillStyle = dotFillColor;
               ctx.fill();
               ctx.shadowBlur = 0;
+              
+              // Draw mirrored dot if showInvert is enabled
+              if (settings.showInvert) {
+                const mirroredX = 2 * centerX - x; // Mirror across centerX
+                ctx.beginPath();
+                ctx.arc(mirroredX, y, dotSize, 0, Math.PI * 2);
+                ctx.fillStyle = dotFillColor;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = shadowColor;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+              }
             }
             
             return; // Skip the rest for middle animation
@@ -420,6 +480,18 @@ export const drawDotsAnimation = (
             ctx.fillStyle = dotFillColor;
             ctx.fill();
             ctx.shadowBlur = 0;
+            
+            // Draw mirrored dot if showInvert is enabled
+            if (settings.showInvert) {
+              const mirroredX = 2 * centerX - x; // Mirror across centerX
+              ctx.beginPath();
+              ctx.arc(mirroredX, y, dotSize, 0, Math.PI * 2);
+              ctx.fillStyle = dotFillColor;
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = shadowColor;
+              ctx.fill();
+              ctx.shadowBlur = 0;
+            }
           }
         });
       }
