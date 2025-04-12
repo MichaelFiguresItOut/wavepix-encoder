@@ -121,8 +121,6 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               <SelectItem value="bubbles">Bubbles Animation</SelectItem>
               <SelectItem value="formation">Formation Animation</SelectItem>
               <SelectItem value="multiline">Multiline Animation</SelectItem>
-              <SelectItem value="lightning">Lightning Animation</SelectItem>
-              <SelectItem value="honeycomb">Honeycomb Animation</SelectItem>
               <SelectItem value="fire">Flame Animation</SelectItem>
               <SelectItem value="spiderweb">SpiderWeb Animation</SelectItem>
             </SelectContent>
@@ -168,7 +166,6 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
            settings.type === "wave" ||
            settings.type === "circle" ||
            settings.type === "dots" ||
-           settings.type === "honeycomb" ||
            settings.type === "spiderweb" ||
            settings.type === "bubbles" ||
            settings.type === "formation" ||
@@ -324,9 +321,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
         
-        {/* Hide mirrored effect button for Fire, Honeycomb, Spiderweb animations AND bars */}
+        {/* Hide mirrored effect button for Fire, Spiderweb animations AND bars */}
         {settings.type !== "fire" && 
-         settings.type !== "honeycomb" && 
          settings.type !== "spiderweb" &&
          settings.type !== "bars" &&
          settings.type !== "line" && (

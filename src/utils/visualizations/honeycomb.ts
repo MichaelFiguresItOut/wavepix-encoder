@@ -65,7 +65,18 @@ export const drawHoneycombAnimation = (
   
   // Animation parameters
   const time = timestamp / 1000;
-  const pulseSpeed = 0.5; // Controls how fast the hexagons pulse
+  const pulseSpeed = 0.5;
+  
+  // Determine which areas of the canvas to draw hexagons
+  // based on orientation and bar placement settings
+  const drawHorizontal = settings.horizontalOrientation;
+  const drawVertical = settings.verticalOrientation;
+  
+  // Get placement settings (top, middle, bottom)
+  const placements = settings.barPlacement;
+  
+  // Get animation start settings (beginning, middle, end)
+  const animationStarts = settings.animationStart;
   
   // Loop through grid to draw hexagons
   for (let row = -1; row < numRows + 1; row++) {
@@ -78,6 +89,102 @@ export const drawHoneycombAnimation = (
       const dx = x - centerX;
       const dy = y - centerY;
       const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      // Apply orientation filter
+      let shouldDraw = false;
+      
+      // Calculate normalized position relative to center
+      const normalizedX = x / canvasWidth;
+      const normalizedY = y / canvasHeight;
+      
+      // Check if we should draw based on orientation
+      const isHorizontalPoint = Math.abs(dx) > Math.abs(dy);
+      const isVerticalPoint = Math.abs(dy) >= Math.abs(dx);
+      
+      if ((drawHorizontal && isHorizontalPoint) || 
+          (drawVertical && isVerticalPoint) || 
+          (!drawHorizontal && !drawVertical)) {
+        
+        // Apply placement filters (top/left, middle, bottom/right)
+        let placementMatch = false;
+        
+        // Check top/left placement
+        if (placements.includes("top")) {
+          if ((drawHorizontal && !drawVertical && y < centerY) || 
+              (drawVertical && !drawHorizontal && x < centerX) ||
+              (drawHorizontal && drawVertical && ((isHorizontalPoint && y < centerY) || (isVerticalPoint && x < centerX)))) {
+            placementMatch = true;
+          }
+        }
+        
+        // Check middle placement
+        if (placements.includes("middle")) {
+          if ((drawHorizontal && !drawVertical && y >= centerY * 0.4 && y <= centerY * 1.6) || 
+              (drawVertical && !drawHorizontal && x >= centerX * 0.4 && x <= centerX * 1.6) ||
+              (drawHorizontal && drawVertical && 
+                ((isHorizontalPoint && y >= centerY * 0.4 && y <= centerY * 1.6) || 
+                (isVerticalPoint && x >= centerX * 0.4 && x <= centerX * 1.6)))) {
+            placementMatch = true;
+          }
+        }
+        
+        // Check bottom/right placement
+        if (placements.includes("bottom")) {
+          if ((drawHorizontal && !drawVertical && y > centerY) || 
+              (drawVertical && !drawHorizontal && x > centerX) ||
+              (drawHorizontal && drawVertical && ((isHorizontalPoint && y > centerY) || (isVerticalPoint && x > centerX)))) {
+            placementMatch = true;
+          }
+        }
+        
+        if (placementMatch) {
+          shouldDraw = true;
+        }
+        
+        // Apply animation start filter
+        if (shouldDraw) {
+          let animationOrigin = false;
+          
+          // Check beginning animation start
+          if (animationStarts.includes("beginning")) {
+            if ((isHorizontalPoint && drawHorizontal && x < centerX) || 
+                (isVerticalPoint && drawVertical && y < centerY) ||
+                (drawHorizontal && drawVertical && 
+                 ((isHorizontalPoint && x < centerX) || (isVerticalPoint && y < centerY)))) {
+              animationOrigin = true;
+            }
+          }
+          
+          // Check middle animation start
+          if (animationStarts.includes("middle")) {
+            if ((isHorizontalPoint && drawHorizontal && x >= centerX * 0.4 && x <= centerX * 1.6) || 
+                (isVerticalPoint && drawVertical && y >= centerY * 0.4 && y <= centerY * 1.6) ||
+                (drawHorizontal && drawVertical && 
+                 ((isHorizontalPoint && x >= centerX * 0.4 && x <= centerX * 1.6) || 
+                  (isVerticalPoint && y >= centerY * 0.4 && y <= centerY * 1.6)))) {
+              animationOrigin = true;
+            }
+          }
+          
+          // Check end animation start
+          if (animationStarts.includes("end")) {
+            if ((isHorizontalPoint && drawHorizontal && x > centerX) || 
+                (isVerticalPoint && drawVertical && y > centerY) ||
+                (drawHorizontal && drawVertical && 
+                 ((isHorizontalPoint && x > centerX) || (isVerticalPoint && y > centerY)))) {
+              animationOrigin = true;
+            }
+          }
+          
+          if (!animationOrigin) {
+            shouldDraw = false;
+          }
+        }
+      }
+      
+      if (!shouldDraw) {
+        continue;
+      }
 
       // Map audio data to this hexagon (simplified example)
       const dataIndex = Math.floor((row * numCols + col) * (bufferLength / (numRows * numCols))) % bufferLength;
