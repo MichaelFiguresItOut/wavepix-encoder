@@ -32,6 +32,10 @@ export const drawBars = (
   // Base hue for this frame (if rainbow is on)
   const baseHue = getCurrentHue();
 
+  // Track which position/placement combinations have been rendered
+  // to avoid duplicate rendering when both orientations are enabled
+  const renderedPositions = new Set();
+
   if (settings.horizontalOrientation) {
     // Horizontal bars visualization
     const totalBars = Math.min(Math.floor(canvasWidth / (barWidth + 1)), bufferLength);
@@ -62,11 +66,22 @@ export const drawBars = (
           settings.barPlacement.forEach(placement => {
             const y = getYPositionForPlacement(canvasHeight, placement, barHeight);
             
+            // Skip only if we've already rendered this exact position
+            // but keep bottom bars rendered even with rainbow effect
+            const positionKey = `${animationStart}-${placement}-${i}`;
+            if (settings.horizontalOrientation && settings.verticalOrientation) {
+              // Remove conditions that skip bottom placement with rainbow
+              if (renderedPositions.has(positionKey)) {
+                return;
+              }
+              renderedPositions.add(positionKey);
+            }
+            
             // Create gradient for each bar
             const gradient = ctx.createLinearGradient(x, canvasHeight, x, y);
             
             // CORRECT Gradient color logic for HSL/Hex
-            if (offsetHue !== null) {
+            if (settings.showRainbow) {
               // Rainbow ON: Use HSLA
               gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`); 
               gradient.addColorStop(1, `hsla(${offsetHue}, 90%, 60%, 0.13)`); // ~22 hex alpha
@@ -109,7 +124,7 @@ export const drawBars = (
             // Draw mirrored bars if enabled
             if (settings.showMirror && placement === 'bottom') {
               // CORRECT Mirror color logic for HSL/Hex
-              if (offsetHue !== null) {
+              if (settings.showRainbow) {
                   ctx.fillStyle = `hsla(${offsetHue}, 90%, 60%, 0.4)`; // HSLA for mirror (~66 hex alpha)
               } else {
                   ctx.fillStyle = `${baseColor}66`; // Hex + Hex Alpha for mirror
@@ -144,11 +159,22 @@ export const drawBars = (
           settings.barPlacement.forEach(placement => {
             const y = getYPositionForPlacement(canvasHeight, placement, barHeight);
             
+            // Skip only if we've already rendered this exact position
+            // but keep bottom bars rendered even with rainbow effect
+            const positionKey = `${animationStart}-${placement}-${i}`;
+            if (settings.horizontalOrientation && settings.verticalOrientation) {
+              // Remove conditions that skip bottom placement with rainbow
+              if (renderedPositions.has(positionKey)) {
+                return;
+              }
+              renderedPositions.add(positionKey);
+            }
+            
             // Create gradient for each bar
             const gradient = ctx.createLinearGradient(x, canvasHeight, x, y);
             
             // CORRECT Gradient color logic for HSL/Hex
-            if (offsetHue !== null) {
+            if (settings.showRainbow) {
               // Rainbow ON: Use HSLA
               gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`); 
               gradient.addColorStop(1, `hsla(${offsetHue}, 90%, 60%, 0.13)`); // ~22 hex alpha
@@ -191,7 +217,7 @@ export const drawBars = (
             // Draw mirrored bars if enabled
             if (settings.showMirror && placement === 'bottom') {
               // CORRECT Mirror color logic for HSL/Hex
-              if (offsetHue !== null) {
+              if (settings.showRainbow) {
                   ctx.fillStyle = `hsla(${offsetHue}, 90%, 60%, 0.4)`; // HSLA for mirror (~66 hex alpha)
               } else {
                   ctx.fillStyle = `${baseColor}66`; // Hex + Hex Alpha for mirror
@@ -229,11 +255,22 @@ export const drawBars = (
           settings.barPlacement.forEach(placement => {
             const y = getYPositionForPlacement(canvasHeight, placement, barHeight);
             
+            // Skip only if we've already rendered this exact position
+            // but keep bottom bars rendered even with rainbow effect
+            const positionKey = `${animationStart}-${placement}-${i}-right`;
+            if (settings.horizontalOrientation && settings.verticalOrientation) {
+              // Remove conditions that skip bottom placement with rainbow
+              if (renderedPositions.has(positionKey)) {
+                return;
+              }
+              renderedPositions.add(positionKey);
+            }
+            
             // Create gradient for each bar
             const gradient = ctx.createLinearGradient(x, canvasHeight, x, y);
             
             // CORRECT Gradient color logic for HSL/Hex
-            if (offsetHue !== null) {
+            if (settings.showRainbow) {
               // Rainbow ON: Use HSLA
               gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`); 
               gradient.addColorStop(1, `hsla(${offsetHue}, 90%, 60%, 0.13)`); // ~22 hex alpha
@@ -291,11 +328,22 @@ export const drawBars = (
           settings.barPlacement.forEach(placement => {
             const y = getYPositionForPlacement(canvasHeight, placement, barHeight);
             
+            // Skip only if we've already rendered this exact position
+            // but keep bottom bars rendered even with rainbow effect
+            const positionKey = `${animationStart}-${placement}-${i}-left`;
+            if (settings.horizontalOrientation && settings.verticalOrientation) {
+              // Remove conditions that skip bottom placement with rainbow
+              if (renderedPositions.has(positionKey)) {
+                return;
+              }
+              renderedPositions.add(positionKey);
+            }
+            
             // Create gradient for each bar
             const gradient = ctx.createLinearGradient(x, canvasHeight, x, y);
             
             // CORRECT Gradient color logic for HSL/Hex
-            if (offsetHue !== null) {
+            if (settings.showRainbow) {
               // Rainbow ON: Use HSLA
               gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`); 
               gradient.addColorStop(1, `hsla(${offsetHue}, 90%, 60%, 0.13)`); // ~22 hex alpha
@@ -364,30 +412,39 @@ export const drawBars = (
           
           // Determine bar hue/color based on rainbow state
           const offsetHue = baseHue !== null ? (baseHue + i * 15) % 360 : null;
-          const baseColor = settings.color; // Used if rainbow is OFF
           
           // Draw bars for each selected placement
           settings.barPlacement.forEach(placement => {
+            // Skip only if we've already rendered this exact position,
+            // but add a unique identifier for vertical mode
+            const positionKey = `vertical-${animationStart}-${placement}-${i}`;
+            if (settings.horizontalOrientation && settings.verticalOrientation) {
+              if (renderedPositions.has(positionKey)) {
+                return;
+              }
+              renderedPositions.add(positionKey);
+            }
+            
             // For vertical mode, we map placement differently
             const x = getXPositionForPlacement(canvasWidth, placement, barWidth);
             
-            // Create gradient for each bar
-            const gradient = ctx.createLinearGradient(x, y, x + barWidth, y);
+            // Create gradient for each bar (horizontal gradient for vertical bars)
+            const gradient = ctx.createLinearGradient(0, y, canvasWidth, y);
             
-            // CORRECT Gradient color logic for HSL/Hex
-            if (offsetHue !== null) {
-              // Rainbow ON: Use HSLA
-              gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`); 
+            // Ensure Rainbow ON/OFF logic is consistently applied
+            if (settings.showRainbow) {
+              // Rainbow ON: Always use HSLA with the offset
+              gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`);
               gradient.addColorStop(1, `hsla(${offsetHue}, 90%, 60%, 0.13)`);
             } else {
               // Rainbow OFF: Use Hex + Hex Alpha
-              gradient.addColorStop(0, `${baseColor}FF`); 
-              gradient.addColorStop(1, `${baseColor}22`);
+              gradient.addColorStop(0, `${settings.color}FF`);
+              gradient.addColorStop(1, `${settings.color}22`);
             }
             
             ctx.fillStyle = gradient;
             
-            // Rounded end for bars
+            // Rounded ends for bars
             const radius = settings.barWidth / 2;
             ctx.beginPath();
             
@@ -425,35 +482,43 @@ export const drawBars = (
           const value = dataArray[index] * settings.sensitivity;
           const barWidth = (value / 255) * maxBarWidth;
           
-          // Start from the bottom
           const y = canvasHeight - (i * (settings.barWidth + barSpacing)) - settings.barWidth;
           
           // Determine bar hue/color based on rainbow state
           const offsetHue = baseHue !== null ? (baseHue + i * 15) % 360 : null;
-          const baseColor = settings.color; // Used if rainbow is OFF
           
           // Draw bars for each selected placement
           settings.barPlacement.forEach(placement => {
+            // Skip only if we've already rendered this exact position,
+            // but add a unique identifier for vertical mode
+            const positionKey = `vertical-${animationStart}-${placement}-${i}`;
+            if (settings.horizontalOrientation && settings.verticalOrientation) {
+              if (renderedPositions.has(positionKey)) {
+                return;
+              }
+              renderedPositions.add(positionKey);
+            }
+            
             // For vertical mode, we map placement differently
             const x = getXPositionForPlacement(canvasWidth, placement, barWidth);
             
-            // Create gradient for each bar
-            const gradient = ctx.createLinearGradient(x, y, x + barWidth, y);
+            // Create gradient for each bar (horizontal gradient for vertical bars)
+            const gradient = ctx.createLinearGradient(0, y, canvasWidth, y);
             
-            // CORRECT Gradient color logic for HSL/Hex
-            if (offsetHue !== null) {
-              // Rainbow ON: Use HSLA
-              gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`); 
+            // Ensure Rainbow ON/OFF logic is consistently applied
+            if (settings.showRainbow) {
+              // Rainbow ON: Always use HSLA with the offset
+              gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`);
               gradient.addColorStop(1, `hsla(${offsetHue}, 90%, 60%, 0.13)`);
             } else {
               // Rainbow OFF: Use Hex + Hex Alpha
-              gradient.addColorStop(0, `${baseColor}FF`); 
-              gradient.addColorStop(1, `${baseColor}22`);
+              gradient.addColorStop(0, `${settings.color}FF`);
+              gradient.addColorStop(1, `${settings.color}22`);
             }
             
             ctx.fillStyle = gradient;
             
-            // Rounded end for bars
+            // Rounded ends for bars
             const radius = settings.barWidth / 2;
             ctx.beginPath();
             
@@ -499,30 +564,39 @@ export const drawBars = (
           
           // Determine bar hue/color based on rainbow state
           const offsetHue = baseHue !== null ? (baseHue + i * 15) % 360 : null;
-          const baseColor = settings.color; // Used if rainbow is OFF
           
           // Draw bars for each selected placement
           settings.barPlacement.forEach(placement => {
+            // Skip only if we've already rendered this exact position,
+            // but add a unique identifier for vertical mode
+            const positionKey = `vertical-${animationStart}-${placement}-${i}-down`;
+            if (settings.horizontalOrientation && settings.verticalOrientation) {
+              if (renderedPositions.has(positionKey)) {
+                return;
+              }
+              renderedPositions.add(positionKey);
+            }
+            
             // For vertical mode, we map placement differently
             const x = getXPositionForPlacement(canvasWidth, placement, barWidth);
             
-            // Create gradient for each bar
-            const gradient = ctx.createLinearGradient(x, y, x + barWidth, y);
+            // Create gradient for each bar (horizontal gradient for vertical bars)
+            const gradient = ctx.createLinearGradient(0, y, canvasWidth, y);
             
-            // CORRECT Gradient color logic for HSL/Hex
-            if (offsetHue !== null) {
-              // Rainbow ON: Use HSLA
-              gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`); 
+            // Ensure Rainbow ON/OFF logic is consistently applied
+            if (settings.showRainbow) {
+              // Rainbow ON: Always use HSLA with the offset
+              gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`);
               gradient.addColorStop(1, `hsla(${offsetHue}, 90%, 60%, 0.13)`);
             } else {
               // Rainbow OFF: Use Hex + Hex Alpha
-              gradient.addColorStop(0, `${baseColor}FF`); 
-              gradient.addColorStop(1, `${baseColor}22`);
+              gradient.addColorStop(0, `${settings.color}FF`);
+              gradient.addColorStop(1, `${settings.color}22`);
             }
             
             ctx.fillStyle = gradient;
             
-            // Rounded end for bars
+            // Rounded ends for bars
             const radius = settings.barWidth / 2;
             ctx.beginPath();
             
@@ -561,32 +635,41 @@ export const drawBars = (
           
           const y = centerY - (i + 1) * (settings.barWidth + barSpacing);
           
-          // Determine bar color
-          let barColor;
-          if (baseHue !== null) {
-            // Rainbow ON: Use cycling hue with offset per bar
-            const offsetHue = (baseHue + i * 15) % 360; // Add offset based on bar index 'i'
-            barColor = `hsl(${offsetHue}, 90%, 60%)`;
-          } else {
-            // Rainbow OFF: Use the setting color
-            barColor = settings.color;
-          }
+          // Determine bar hue/color based on rainbow state
+          const offsetHue = baseHue !== null ? (baseHue + i * 15) % 360 : null;
           
           // Draw bars for each selected placement
           settings.barPlacement.forEach(placement => {
+            // Skip only if we've already rendered this exact position,
+            // but add a unique identifier for vertical mode
+            const positionKey = `vertical-${animationStart}-${placement}-${i}-up`;
+            if (settings.horizontalOrientation && settings.verticalOrientation) {
+              if (renderedPositions.has(positionKey)) {
+                return;
+              }
+              renderedPositions.add(positionKey);
+            }
+            
             // For vertical mode, we map placement differently
             const x = getXPositionForPlacement(canvasWidth, placement, barWidth);
             
-            // Create gradient for each bar
-            const gradient = ctx.createLinearGradient(x, y, x + barWidth, y);
+            // Create gradient for each bar (horizontal gradient for vertical bars)
+            const gradient = ctx.createLinearGradient(0, y, canvasWidth, y);
             
-            // Apply gradient colors based on barColor (which handles rainbow state)
-            gradient.addColorStop(0, `${barColor}FF`); 
-            gradient.addColorStop(1, `${barColor}22`); // Note: This hex alpha append might fail for HSL. Needs correction.
+            // Ensure Rainbow ON/OFF logic is consistently applied
+            if (settings.showRainbow) {
+              // Rainbow ON: Always use HSLA with the offset
+              gradient.addColorStop(0, `hsla(${offsetHue}, 90%, 60%, 1.0)`);
+              gradient.addColorStop(1, `hsla(${offsetHue}, 90%, 60%, 0.13)`);
+            } else {
+              // Rainbow OFF: Use Hex + Hex Alpha
+              gradient.addColorStop(0, `${settings.color}FF`);
+              gradient.addColorStop(1, `${settings.color}22`);
+            }
             
             ctx.fillStyle = gradient;
             
-            // Rounded end for bars
+            // Rounded ends for bars
             const radius = settings.barWidth / 2;
             ctx.beginPath();
             
