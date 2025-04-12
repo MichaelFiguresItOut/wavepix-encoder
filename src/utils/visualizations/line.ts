@@ -19,7 +19,7 @@ export const drawLineAnimation = (
     const isEncoding = canvas.width >= 1280; // Most common encoding resolution starts at 720p (1280×720)
     
     // Create a settings signature to detect changes
-    const currentSettings = `${settings.horizontalOrientation}|${settings.verticalOrientation}|${settings.animationStart.join(',')}|${settings.barPlacement.join(',')}|${settings.sensitivity}|${settings.showRainbow}|${settings.showInvert}|${settings.showMirror}`;
+    const currentSettings = `${settings.horizontalOrientation}|${settings.verticalOrientation}|${settings.animationStart.join(',')}|${settings.barPlacement.join(',')}|${settings.sensitivity}|${settings.showRainbow}`;
     
     // Reset animation on settings change to avoid visual glitches
     if (currentSettings !== lastSettings) {
@@ -251,8 +251,8 @@ const drawFullLine = (
     // Calculate wave effect
     const phase = basePhase * Math.PI * 4;
     const amplitude = canvasHeight * 0.3 * normalizedValue;
-    // Apply invert effect if enabled
-    const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
+    // Calculate wave effect
+    const waveY = Math.sin(i * 0.1 + phase) * amplitude;
     
     // Calculate y position based on placement and wave
     let y;
@@ -292,17 +292,15 @@ const drawFullLine = (
       // Use pre-calculated data for previous point
       const prevNormalizedValue = dataPoints[i-1];
       const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-      // Apply invert effect if enabled
-      const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
       
       // Previous y based on placement
       let prevY;
       if (placement === 'bottom') {
-        prevY = (canvasHeight - prevAmplitude) + prevWaveY;
+        prevY = (canvasHeight - prevAmplitude) + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       } else if (placement === 'top') {
-        prevY = prevAmplitude + prevWaveY;
+        prevY = prevAmplitude + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       } else { // middle
-        prevY = (canvasHeight / 2) + prevWaveY;
+        prevY = (canvasHeight / 2) + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       }
       
       ctx.quadraticCurveTo(controlX, prevY, x, y);
@@ -322,153 +320,6 @@ const drawFullLine = (
       ctx.stroke();
   }
   ctx.shadowBlur = 0;
-  
-  // Draw mirror if enabled - skip in encoding mode if too resource intensive
-  if (settings.showMirror) {
-    // For encoding, use simpler mirror rendering
-    const isEncoding = canvasHeight >= 720;
-    
-    // Simpler mirror in encoding mode - draw a single path with no per-segment colors
-    if (isEncoding) {
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      
-      for (let i = 0; i <= segmentCount; i++) {
-        const x = startX + (i * segmentWidth * direction);
-        
-        // Use the pre-calculated normalized values
-        const normalizedValue = dataPoints[i];
-        
-        // Calculate wave effect
-        const phase = basePhase * Math.PI * 4;
-        const amplitude = canvasHeight * 0.3 * normalizedValue;
-        // Apply invert effect if enabled - mirror effect means opposite direction
-        const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? 1 : -1);
-        
-        // Calculate mirrored y position
-        let y;
-        if (placement === 'bottom') {
-          // Mirror by reflecting over the canvasHeight - amplitude line
-          y = (canvasHeight - amplitude) - waveY;
-        } else if (placement === 'top') {
-          // Mirror by reflecting over the amplitude line
-          y = amplitude - waveY;
-        } else { // middle
-          // Mirror by reflecting over the canvas/2 line
-          y = (canvasHeight / 2) - waveY;
-        }
-        
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          // Use curves for smoother mirror
-          const prevX = startX + ((i - 1) * segmentWidth * direction);
-          const controlX = (prevX + x) / 2;
-          
-          // Use pre-calculated data for previous point
-          const prevNormalizedValue = dataPoints[i-1];
-          const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-          // Apply invert effect if enabled - mirror effect means opposite direction
-          const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? 1 : -1);
-          
-          // Previous mirrored y based on placement
-          let prevY;
-          if (placement === 'bottom') {
-            prevY = (canvasHeight - prevAmplitude) - prevWaveY;
-          } else if (placement === 'top') {
-            prevY = amplitude - prevWaveY;
-          } else { // middle
-            prevY = (canvasHeight / 2) - prevWaveY;
-          }
-          
-          ctx.quadraticCurveTo(controlX, prevY, x, y);
-        }
-      }
-      
-      // Stroke the mirror path
-      ctx.strokeStyle = settings.color;
-      if (baseHue !== null) {
-        // Use a more transparent version of the rainbow color
-        ctx.strokeStyle = `hsla(${baseHue}, 90%, 65%, 0.5)`;
-      }
-      ctx.shadowBlur = 0; // No shadow for the mirror
-      ctx.stroke();
-    } else {
-      // Original detailed mirror rendering for preview mode
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      
-      for (let i = 0; i <= segmentCount; i++) {
-        const x = startX + (i * segmentWidth * direction);
-        
-        // Use the pre-calculated normalized values
-        const normalizedValue = dataPoints[i];
-        
-        // Calculate wave effect
-        const phase = basePhase * Math.PI * 4;
-        const amplitude = canvasHeight * 0.3 * normalizedValue;
-        // Apply invert effect if enabled - mirror effect means opposite direction
-        const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? 1 : -1);
-        
-        // Calculate mirrored y position
-        let y;
-        if (placement === 'bottom') {
-          y = (canvasHeight - amplitude) - waveY;
-        } else if (placement === 'top') {
-          y = amplitude - waveY;
-        } else { // middle
-          y = (canvasHeight / 2) - waveY;
-        }
-        
-        if (i > 0) {
-            // Determine segment color for mirror line
-            let mirrorStrokeColor: string;
-            if (baseHue !== null) {
-                const offsetHue = (baseHue + i * 2) % 360;
-                mirrorStrokeColor = `hsla(${offsetHue}, 90%, 65%, 0.27)`; // Rainbow with low alpha
-            } else {
-                mirrorStrokeColor = `${settings.color}44`; // Original low alpha
-            }
-            // Set stroke style just before drawing segment
-            ctx.strokeStyle = mirrorStrokeColor;
-        }
-
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          // Use curves for smoother animation
-          const prevX = startX + ((i - 1) * segmentWidth * direction);
-          const controlX = (prevX + x) / 2;
-          
-          // Use pre-calculated data for previous point
-          const prevNormalizedValue = dataPoints[i-1];
-          const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-          // Apply invert effect if enabled
-          const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? 1 : -1);
-          
-          // Previous mirrored y
-          let prevY;
-          if (placement === 'bottom') {
-            prevY = (canvasHeight - prevAmplitude) - prevWaveY;
-          } else if (placement === 'top') {
-            prevY = amplitude - prevWaveY;
-          } else { // middle
-            prevY = (canvasHeight / 2) - prevWaveY;
-          }
-          
-          ctx.quadraticCurveTo(controlX, prevY, x, y);
-          // Stroke each mirror segment individually
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(x,y);
-        }
-      }
-      // Stroke last mirror segment
-      if (segmentCount > 0) {
-          ctx.stroke();
-      }
-    }
-  }
 };
 
 // Helper function to draw half of a horizontal line (for middle animation start)
@@ -514,8 +365,8 @@ const drawHalfLine = (
     // Calculate wave effect
     const phase = basePhase * Math.PI * 4;
     const amplitude = canvasHeight * 0.3 * normalizedValue;
-    // Apply invert effect if enabled
-    const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
+    // Calculate wave effect
+    const waveY = Math.sin(i * 0.1 + phase) * amplitude;
     
     // Calculate y position based on placement and wave
     let y;
@@ -555,17 +406,15 @@ const drawHalfLine = (
       // Use pre-calculated data for previous point
       const prevNormalizedValue = dataPoints[i-1];
       const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-      // Apply invert effect if enabled
-      const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
       
       // Previous y based on placement
       let prevY;
       if (placement === 'bottom') {
-        prevY = (canvasHeight - prevAmplitude) + prevWaveY;
+        prevY = (canvasHeight - prevAmplitude) + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       } else if (placement === 'top') {
-        prevY = prevAmplitude + prevWaveY;
+        prevY = prevAmplitude + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       } else { // middle
-        prevY = (canvasHeight / 2) + prevWaveY;
+        prevY = (canvasHeight / 2) + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       }
       
       ctx.quadraticCurveTo(controlX, prevY, x, y);
@@ -581,75 +430,6 @@ const drawHalfLine = (
       ctx.stroke();
   }
   ctx.shadowBlur = 0;
-  
-  // Draw mirror if enabled - skip in encoding mode if too resource intensive
-  if (settings.showMirror) {
-    // For encoding, use simpler mirror rendering
-    const isEncoding = canvasHeight >= 720;
-    
-    ctx.lineWidth = isEncoding ? 1 : 2;
-    ctx.beginPath();
-    
-    for (let i = 0; i <= segmentCount; i++) {
-      const x = startX + (i * segmentWidth * direction);
-      
-      // Use the pre-calculated normalized values
-      const normalizedValue = dataPoints[i];
-      
-      // Calculate wave effect
-      const phase = basePhase * Math.PI * 4;
-      const amplitude = canvasHeight * 0.3 * normalizedValue;
-      // Apply invert effect if enabled - mirror effect means opposite direction
-      const waveY = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? 1 : -1);
-      
-      // Calculate mirrored y position
-      let y;
-      if (placement === 'bottom') {
-        // Mirror by reflecting over the canvasHeight - amplitude line
-        y = (canvasHeight - amplitude) - waveY;
-      } else if (placement === 'top') {
-        // Mirror by reflecting over the amplitude line
-        y = amplitude - waveY;
-      } else { // middle
-        // Mirror by reflecting over the canvas/2 line
-        y = (canvasHeight / 2) - waveY;
-      }
-      
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        // Use curves for smoother mirror
-        const prevX = startX + ((i - 1) * segmentWidth * direction);
-        const controlX = (prevX + x) / 2;
-        
-        // Use pre-calculated data for previous point
-        const prevNormalizedValue = dataPoints[i-1];
-        const prevAmplitude = canvasHeight * 0.3 * prevNormalizedValue;
-        // Apply invert effect if enabled - mirror effect means opposite direction
-        const prevWaveY = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? 1 : -1);
-        
-        // Previous mirrored y based on placement
-        let prevY;
-        if (placement === 'bottom') {
-          prevY = (canvasHeight - prevAmplitude) - prevWaveY;
-        } else if (placement === 'top') {
-          prevY = prevAmplitude - prevWaveY;
-        } else { // middle
-          prevY = (canvasHeight / 2) - prevWaveY;
-        }
-        
-        ctx.quadraticCurveTo(controlX, prevY, x, y);
-      }
-    }
-    // Stroke the mirror path
-    ctx.strokeStyle = settings.color;
-    if (baseHue !== null) {
-      // Use a more transparent version of the rainbow color
-      ctx.strokeStyle = `hsla(${baseHue}, 90%, 65%, 0.5)`;
-    }
-    ctx.shadowBlur = 0; // No shadow for the mirror
-    ctx.stroke();
-  }
 };
 
 // Helper function to draw a full vertical line
@@ -696,8 +476,8 @@ const drawVerticalFullLine = (
     // Calculate wave effect
     const phase = basePhase * Math.PI * 4;
     const amplitude = canvasWidth * 0.3 * normalizedValue;
-    // Apply invert effect if enabled
-    const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
+    // Calculate wave effect
+    const waveX = Math.sin(i * 0.1 + phase) * amplitude;
     
     // Calculate x position based on placement and wave
     let x;
@@ -738,18 +518,16 @@ const drawVerticalFullLine = (
       // Use pre-calculated data for previous point
       const prevNormalizedValue = dataPoints[i-1];
       const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-      // Apply invert effect if enabled
-      const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
       
       // Previous x based on placement
       let prevX;
       if (placement === 'bottom') { // right
-        prevX = (canvasWidth - prevAmplitude) + prevWaveX;
+        prevX = (canvasWidth - prevAmplitude) + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       } else if (placement === 'top') { // left
-        prevX = prevAmplitude + prevWaveX;
+        prevX = prevAmplitude + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       } else { // middle
         // For middle placement, use the canvas center as the base position
-        prevX = (canvasWidth / 2) + prevWaveX;
+        prevX = (canvasWidth / 2) + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       }
       
       ctx.quadraticCurveTo(prevX, controlY, x, y);
@@ -769,150 +547,6 @@ const drawVerticalFullLine = (
       ctx.stroke();
   }
   ctx.shadowBlur = 0;
-  
-  // Draw mirror if enabled
-  if (settings.showMirror) {
-    // Determine if we're in encoding mode
-    const isEncoding = canvasWidth >= 1280;
-    
-    // Simpler mirror rendering for encoding
-    if (isEncoding) {
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      
-      for (let i = 0; i <= segmentCount; i++) {
-        const y = startY + (i * segmentHeight * direction);
-        
-        // Use the pre-calculated normalized values
-        const normalizedValue = dataPoints[i];
-        
-        // Calculate wave effect
-        const phase = basePhase * Math.PI * 4;
-        const amplitude = canvasWidth * 0.3 * normalizedValue;
-        // Apply invert effect if enabled - mirror effect means opposite direction
-        const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? 1 : -1);
-        
-        // Calculate mirrored x position
-        let x;
-        if (placement === 'bottom') { // right
-          x = (canvasWidth - amplitude) - waveX;
-        } else if (placement === 'top') { // left
-          x = amplitude - waveX;
-        } else { // middle
-          x = (canvasWidth / 2) - waveX;
-        }
-        
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          // Use curves for smoother mirror
-          const prevY = startY + ((i - 1) * segmentHeight * direction);
-          const controlY = (prevY + y) / 2;
-          
-          // Use pre-calculated data for previous point
-          const prevNormalizedValue = dataPoints[i-1];
-          const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-          // Apply invert effect if enabled - mirror effect means opposite direction
-          const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? 1 : -1);
-          
-          // Previous mirrored x position
-          let prevX;
-          if (placement === 'bottom') { // right
-            prevX = (canvasWidth - prevAmplitude) - prevWaveX;
-          } else if (placement === 'top') { // left
-            prevX = prevAmplitude - prevWaveX;
-          } else { // middle
-            prevX = (canvasWidth / 2) - prevWaveX;
-          }
-          
-          ctx.quadraticCurveTo(prevX, controlY, x, y);
-        }
-      }
-      
-      // Stroke the mirror path
-      ctx.strokeStyle = settings.color;
-      if (baseHue !== null) {
-        // Use a more transparent version of the rainbow color
-        ctx.strokeStyle = `hsla(${baseHue}, 90%, 65%, 0.5)`;
-      }
-      ctx.shadowBlur = 0; // No shadow for the mirror
-      ctx.stroke();
-    } else {
-      // Original detailed mirror rendering for preview mode
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      
-      for (let i = 0; i <= segmentCount; i++) {
-        const y = startY + (i * segmentHeight * direction);
-        
-        // Use the pre-calculated normalized values
-        const normalizedValue = dataPoints[i];
-        
-        // Calculate wave effect
-        const phase = basePhase * Math.PI * 4;
-        const amplitude = canvasWidth * 0.3 * normalizedValue;
-        // Apply invert effect if enabled - mirror effect means opposite direction
-        const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? 1 : -1);
-        
-        // Calculate mirrored x position
-        let x;
-        if (placement === 'bottom') { // right
-          x = (canvasWidth - amplitude) - waveX;
-        } else if (placement === 'top') { // left
-          x = amplitude - waveX;
-        } else { // middle
-          x = (canvasWidth / 2) - waveX;
-        }
-        
-        if (i > 0) {
-            // Determine segment color for mirror line
-            let mirrorStrokeColor: string;
-            if (baseHue !== null) {
-                const offsetHue = (baseHue + i * 2) % 360;
-                mirrorStrokeColor = `hsla(${offsetHue}, 90%, 65%, 0.27)`; // Rainbow with low alpha
-            } else {
-                mirrorStrokeColor = `${settings.color}44`; // Original low alpha
-            }
-            // Set stroke style just before drawing segment
-            ctx.strokeStyle = mirrorStrokeColor;
-        }
-        
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          // Use curves for smoother animation
-          const prevY = startY + ((i - 1) * segmentHeight * direction);
-          const controlY = (prevY + y) / 2;
-          
-          // Use pre-calculated data for previous point
-          const prevNormalizedValue = dataPoints[i-1];
-          const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-          // Apply invert effect if enabled - mirror effect means opposite direction
-          const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? 1 : -1);
-          
-          // Previous mirrored x position
-          let prevX;
-          if (placement === 'bottom') { // right
-            prevX = (canvasWidth - prevAmplitude) - prevWaveX;
-          } else if (placement === 'top') { // left
-            prevX = prevAmplitude - prevWaveX;
-          } else { // middle
-            prevX = (canvasWidth / 2) - prevWaveX;
-          }
-          
-          ctx.quadraticCurveTo(prevX, controlY, x, y);
-          // Stroke each mirror segment individually
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(x,y);
-        }
-      }
-      // Stroke last mirror segment
-      if (segmentCount > 0) {
-          ctx.stroke();
-      }
-    }
-  }
 };
 
 // Helper function to draw half of a vertical line (for middle animation start)
@@ -958,8 +592,8 @@ const drawVerticalHalfLine = (
     // Calculate wave effect
     const phase = basePhase * Math.PI * 4;
     const amplitude = canvasWidth * 0.3 * normalizedValue;
-    // Apply invert effect if enabled
-    const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? -1 : 1);
+    // Calculate wave effect
+    const waveX = Math.sin(i * 0.1 + phase) * amplitude;
     
     // Calculate x position based on placement and wave
     let x;
@@ -1000,18 +634,16 @@ const drawVerticalHalfLine = (
       // Use pre-calculated data for previous point
       const prevNormalizedValue = dataPoints[i-1];
       const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-      // Apply invert effect if enabled
-      const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? -1 : 1);
       
       // Previous x based on placement
       let prevX;
       if (placement === 'bottom') { // right
-        prevX = (canvasWidth - prevAmplitude) + prevWaveX;
+        prevX = (canvasWidth - prevAmplitude) + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       } else if (placement === 'top') { // left
-        prevX = prevAmplitude + prevWaveX;
+        prevX = prevAmplitude + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       } else { // middle
         // For middle placement, use the canvas center as the base position
-        prevX = (canvasWidth / 2) + prevWaveX;
+        prevX = (canvasWidth / 2) + Math.sin((i - 1) * 0.1 + phase) * prevAmplitude;
       }
       
       ctx.quadraticCurveTo(prevX, controlY, x, y);
@@ -1027,72 +659,6 @@ const drawVerticalHalfLine = (
       ctx.stroke();
   }
   ctx.shadowBlur = 0;
-  
-  // Draw mirror if enabled
-  if (settings.showMirror) {
-    // For encoding, use simpler mirror rendering
-    const isEncoding = canvasWidth >= 1280;
-    
-    ctx.lineWidth = isEncoding ? 1 : 2;
-    ctx.beginPath();
-    
-    for (let i = 0; i <= segmentCount; i++) {
-      const y = startY + (i * segmentHeight * direction);
-      
-      // Use the pre-calculated normalized values
-      const normalizedValue = dataPoints[i];
-      
-      // Calculate wave effect
-      const phase = basePhase * Math.PI * 4;
-      const amplitude = canvasWidth * 0.3 * normalizedValue;
-      // Apply invert effect if enabled - mirror effect means opposite direction
-      const waveX = Math.sin(i * 0.1 + phase) * amplitude * (settings.showInvert ? 1 : -1);
-      
-      // Calculate mirrored x position
-      let x;
-      if (placement === 'bottom') { // right
-        x = (canvasWidth - amplitude) - waveX;
-      } else if (placement === 'top') { // left
-        x = amplitude - waveX;
-      } else { // middle
-        x = (canvasWidth / 2) - waveX;
-      }
-      
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        // Use curves for smoother mirror
-        const prevY = startY + ((i - 1) * segmentHeight * direction);
-        const controlY = (prevY + y) / 2;
-        
-        // Use pre-calculated data for previous point
-        const prevNormalizedValue = dataPoints[i-1];
-        const prevAmplitude = canvasWidth * 0.3 * prevNormalizedValue;
-        // Apply invert effect if enabled - mirror effect means opposite direction
-        const prevWaveX = Math.sin((i - 1) * 0.1 + phase) * prevAmplitude * (settings.showInvert ? 1 : -1);
-        
-        // Previous mirrored x position
-        let prevX;
-        if (placement === 'bottom') { // right
-          prevX = (canvasWidth - prevAmplitude) - prevWaveX;
-        } else if (placement === 'top') { // left
-          prevX = prevAmplitude - prevWaveX;
-        } else { // middle
-          prevX = (canvasWidth / 2) - prevWaveX;
-        }
-        
-        ctx.quadraticCurveTo(prevX, controlY, x, y);
-      }
-    }
-    // Stroke the mirror path
-    ctx.strokeStyle = settings.color;
-    if (baseHue !== null) {
-      // Use a more transparent version of the rainbow color
-      ctx.strokeStyle = `hsla(${baseHue}, 90%, 65%, 0.5)`;
-    }
-    ctx.shadowBlur = 0; // No shadow for the mirror
-    ctx.stroke();
-  }
 };
 
 

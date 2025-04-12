@@ -114,7 +114,7 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               <SelectItem value="wave">Wave</SelectItem>
               <SelectItem value="circle">Circle</SelectItem>
               <SelectItem value="line">Line Animation</SelectItem>
-              <SelectItem value="siri">Siri Animation</SelectItem>
+              <SelectItem value="siri">Braid Animation</SelectItem>
               <SelectItem value="dots">Dots Animation</SelectItem>
               <SelectItem value="bubbles">Bubbles Animation</SelectItem>
               <SelectItem value="formation">Formation Animation</SelectItem>
@@ -326,7 +326,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
         {settings.type !== "fire" && 
          settings.type !== "honeycomb" && 
          settings.type !== "spiderweb" &&
-         settings.type !== "bars" && (
+         settings.type !== "bars" &&
+         settings.type !== "line" && (
           <div className="flex items-center space-x-2 pt-2">
             <Switch 
               id="mirror" 
@@ -337,20 +338,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               {/* Change label specifically for circle */}
               {settings.type === "circle" ? "Invert Effect" : 
                (settings.type === "siri" || settings.type === "dots" || settings.type === "bubbles" || settings.type === "multiline") ? 
-                "Round Effect" : "Mirrored Effect"}
+                "Round Effect" : settings.type === "formation" ? "Alternate" : "Mirrored Effect"}
             </Label>
-          </div>
-        )}
-
-        {/* Add Invert Effect option for Line visualization */}
-        {settings.type === "line" && (
-          <div className="flex items-center space-x-2 pt-2">
-            <Switch 
-              id="invert" 
-              checked={settings.showInvert} 
-              onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
-            />
-            <Label htmlFor="invert" className="cursor-pointer">Invert Effect</Label>
           </div>
         )}
 
