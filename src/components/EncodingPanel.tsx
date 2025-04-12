@@ -23,7 +23,7 @@ import { drawFormationAnimation } from '@/utils/visualizations/formation';
 import { drawMultilineAnimation } from '@/utils/visualizations/multiline';
 import { drawLightningAnimation } from '@/utils/visualizations/lightning';
 import { drawHoneycombAnimation } from '@/utils/visualizations/honeycomb';
-import { drawFireAnimation } from '@/utils/visualizations/fire';
+import { drawFireAnimation } from '@/utils/visualizations/flame';
 import { drawSpiderWebAnimation } from '@/utils/visualizations/spiderweb';
 
 interface EncodingPanelProps {

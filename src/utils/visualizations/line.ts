@@ -1,7 +1,7 @@
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 import { getYPositionForPlacement, getXPositionForPlacement } from './utils';
 
-// Consistent animation timing variables - similar to fire.ts
+// Consistent animation timing variables - similar to flame.ts
 let startTime = 0;
 let hasInitialized = false;
 let lastSettings: string = ''; // Track settings changes

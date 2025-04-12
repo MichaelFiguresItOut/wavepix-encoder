@@ -9,7 +9,7 @@ import { drawFormationAnimation } from './visualizations/formation';
 import { drawMultilineAnimation } from './visualizations/multiline';
 import { drawLightningAnimation } from './visualizations/lightning';
 import { drawHoneycombAnimation } from './visualizations/honeycomb';
-import { drawFireAnimation } from './visualizations/fire';
+import { drawFireAnimation } from './visualizations/flame';
 import { drawSpiderWebAnimation } from './visualizations/spiderweb';
 import { VisualizerSettings } from '@/hooks/useAudioVisualization';
 
