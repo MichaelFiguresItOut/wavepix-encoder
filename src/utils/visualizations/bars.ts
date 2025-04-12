@@ -120,24 +120,6 @@ export const drawBars = (
             }
             
             ctx.fill();
-            
-            // Draw mirrored bars if enabled
-            if (settings.showMirror && placement === 'bottom') {
-              // CORRECT Mirror color logic for HSL/Hex
-              if (settings.showRainbow) {
-                  ctx.fillStyle = `hsla(${offsetHue}, 90%, 60%, 0.4)`; // HSLA for mirror (~66 hex alpha)
-              } else {
-                  ctx.fillStyle = `${baseColor}66`; // Hex + Hex Alpha for mirror
-              }
-              ctx.beginPath();
-              ctx.moveTo(x, 0);
-              ctx.lineTo(x, barHeight - radius);
-              ctx.quadraticCurveTo(x, barHeight, x + radius, barHeight);
-              ctx.lineTo(x + barWidth - radius, barHeight);
-              ctx.quadraticCurveTo(x + barWidth, barHeight, x + barWidth, barHeight - radius);
-              ctx.lineTo(x + barWidth, 0);
-              ctx.fill();
-            }
           });
         }
       } 
@@ -213,24 +195,6 @@ export const drawBars = (
             }
             
             ctx.fill();
-            
-            // Draw mirrored bars if enabled
-            if (settings.showMirror && placement === 'bottom') {
-              // CORRECT Mirror color logic for HSL/Hex
-              if (settings.showRainbow) {
-                  ctx.fillStyle = `hsla(${offsetHue}, 90%, 60%, 0.4)`; // HSLA for mirror (~66 hex alpha)
-              } else {
-                  ctx.fillStyle = `${baseColor}66`; // Hex + Hex Alpha for mirror
-              }
-              ctx.beginPath();
-              ctx.moveTo(x, 0);
-              ctx.lineTo(x, barHeight - radius);
-              ctx.quadraticCurveTo(x, barHeight, x + radius, barHeight);
-              ctx.lineTo(x + barWidth - radius, barHeight);
-              ctx.quadraticCurveTo(x + barWidth, barHeight, x + barWidth, barHeight - radius);
-              ctx.lineTo(x + barWidth, 0);
-              ctx.fill();
-            }
           });
         }
       }

@@ -322,10 +322,11 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
           </div>
         )}
         
-        {/* Hide mirrored effect button for Fire, Honeycomb, and Spiderweb animations */}
+        {/* Hide mirrored effect button for Fire, Honeycomb, Spiderweb animations AND bars */}
         {settings.type !== "fire" && 
          settings.type !== "honeycomb" && 
-         settings.type !== "spiderweb" && (
+         settings.type !== "spiderweb" &&
+         settings.type !== "bars" && (
           <div className="flex items-center space-x-2 pt-2">
             <Switch 
               id="mirror" 
