@@ -148,29 +148,17 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
         </div>
 
         {/* Rainbow Effect Switch */}
-        { (settings.type !== 'fire') && (
-          <div className="flex items-center space-x-2 pt-2">
-            <Switch 
-              id="rainbow" 
-              checked={settings.showRainbow} 
-              onCheckedChange={(checked) => handleSettingChange("showRainbow", checked)}
-            />
-            <Label htmlFor="rainbow" className="cursor-pointer">Rainbow Effect</Label>
-          </div>
-        )}
+        <div className="flex items-center space-x-2 pt-2">
+          <Switch 
+            id="rainbow" 
+            checked={settings.showRainbow} 
+            onCheckedChange={(checked) => handleSettingChange("showRainbow", checked)}
+          />
+          <Label htmlFor="rainbow" className="cursor-pointer">Rainbow Effect</Label>
+        </div>
         
         {/* Rainbow effect speed slider - only relevant if rainbow is ON */}
-        {settings.showRainbow && 
-          (settings.type === "multiline" || 
-           settings.type === "bars" || 
-           settings.type === "wave" ||
-           settings.type === "circle" ||
-           settings.type === "dots" ||
-           settings.type === "spiderweb" ||
-           settings.type === "bubbles" ||
-           settings.type === "formation" ||
-           settings.type === "siri" ||
-           settings.type === "line") && (
+        {settings.showRainbow && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Rainbow Speed: {settings.rainbowSpeed?.toFixed(1) || "1.0"}</Label>

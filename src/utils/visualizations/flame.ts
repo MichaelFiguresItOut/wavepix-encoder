@@ -14,6 +14,7 @@ interface Particle {
   maxLife: number;
   turbulence: number; // Added for flame wobble effect
   audio: number; // Added to store audio influence
+  hue?: number; // Added for rainbow effect
 }
 
 // Pool of particles for reuse - Reset this when settings change
@@ -54,7 +55,7 @@ export const drawFireAnimation = (
   const animTime = timestamp - startTime;
   
   // Create a settings signature to detect changes
-  const currentSettings = `${settings.sensitivity}|${settings.smoothing}|${settings.color}|${canvasWidth}`;
+  const currentSettings = `${settings.sensitivity}|${settings.smoothing}|${settings.color}|${canvasWidth}|${settings.showRainbow}|${settings.rainbowSpeed}`;
   
   // Reset particle system on settings change or canvas size change to avoid speed issues
   if (currentSettings !== lastSettings) {
@@ -102,6 +103,10 @@ export const drawFireAnimation = (
   // More reliable way to detect if we're in encoding mode
   const isEncoding = canvas.width >= 1280;
   
+  // Calculate base hue for rainbow effect
+  const rainbowSpeed = settings.rainbowSpeed || 1.0;
+  const baseHue = settings.showRainbow ? (animTime / 15 * rainbowSpeed) % 360 : null;
+  
   // Use consistent background clearing for both preview and encoding
   // Adjust opacity based on encoding vs preview
   const clearOpacity = isEncoding ? 0.18 : 0.15; 
@@ -111,7 +116,7 @@ export const drawFireAnimation = (
   // ** KEY CHANGE: Draw both the base and particles in the same pass for the encoded version **
   if (isEncoding) {
     drawIntegratedFire(ctx, canvasWidth, canvasHeight, dataArray, bufferLength, animTime, 
-                       intensity, midReactivity, settings, isPeak);
+                       intensity, midReactivity, settings, isPeak, baseHue);
   } else {
     // For preview, use the original approach which works well
     
@@ -120,25 +125,25 @@ export const drawFireAnimation = (
     const particlesToCreate = Math.floor(baseParticles + intensity * 15);
     
     // Draw flame base first
-    drawFlameBase(ctx, canvasWidth, canvasHeight, intensity, midReactivity, animTime, settings, false);
+    drawFlameBase(ctx, canvasWidth, canvasHeight, intensity, midReactivity, animTime, settings, false, baseHue);
     
     // Set blend mode for particles
     ctx.globalCompositeOperation = 'lighter';
     
     for (let i = 0; i < particlesToCreate; i++) {
-      createFireParticle(canvasWidth, canvasHeight, intensity, midReactivity, settings, false);
+      createFireParticle(canvasWidth, canvasHeight, intensity, midReactivity, settings, false, baseHue);
     }
     
     // Add a burst on audio peaks
     if (isPeak) {
       const burstAmount = Math.floor(12 + 18 * intensity);
       for (let i = 0; i < burstAmount; i++) {
-        createFireBurst(canvasWidth, canvasHeight, intensity, settings, false);
+        createFireBurst(canvasWidth, canvasHeight, intensity, settings, false, baseHue);
       }
     }
     
     // Update and draw particles with fixed timestep for consistency
-    updateAndDrawParticles(ctx, canvasWidth, canvasHeight, intensity, animTime);
+    updateAndDrawParticles(ctx, canvasWidth, canvasHeight, intensity, animTime, baseHue);
     
     // Reset blend mode
     ctx.globalCompositeOperation = 'source-over';
@@ -159,7 +164,8 @@ function drawIntegratedFire(
   intensity: number,
   midReactivity: number,
   settings: VisualizerSettings,
-  isPeak: boolean
+  isPeak: boolean,
+  baseHue: number | null
 ) {
   const baseColor = hexToRgb(settings.color) || { r: 255, g: 120, b: 50 };
   
@@ -167,26 +173,26 @@ function drawIntegratedFire(
   ctx.globalCompositeOperation = 'lighter';
   
   // Draw flame base using same function as preview for consistency
-  drawFlameBase(ctx, canvasWidth, canvasHeight, intensity, midReactivity, timestamp, settings, true);
+  drawFlameBase(ctx, canvasWidth, canvasHeight, intensity, midReactivity, timestamp, settings, true, baseHue);
   
   // Create more particles in encoding mode to ensure good coverage at higher rise
   const baseParticles = 10; 
   const particlesToCreate = Math.floor(baseParticles + intensity * 18);
   
   for (let i = 0; i < particlesToCreate; i++) {
-    createFireParticle(canvasWidth, canvasHeight, intensity, midReactivity, settings, true);
+    createFireParticle(canvasWidth, canvasHeight, intensity, midReactivity, settings, true, baseHue);
   }
   
   // Add more bursts on audio peaks for encoding
   if (isPeak) {
     const burstAmount = Math.floor(20 + 25 * intensity);
     for (let i = 0; i < burstAmount; i++) {
-      createFireBurst(canvasWidth, canvasHeight, intensity, settings, true);
+      createFireBurst(canvasWidth, canvasHeight, intensity, settings, true, baseHue);
     }
   }
   
   // Update and draw particles
-  updateAndDrawParticles(ctx, canvasWidth, canvasHeight, intensity, timestamp);
+  updateAndDrawParticles(ctx, canvasWidth, canvasHeight, intensity, timestamp, baseHue);
   
   // Match preview by not adding the embers to encoded output
 }
@@ -199,7 +205,8 @@ function drawMainFlame(
   baseColor: { r: number, g: number, b: number },
   timestamp: number,
   intensity: number,
-  midReactivity: number
+  midReactivity: number,
+  baseHue: number | null
 ) {
   // Flame dimensions
   const flameWidth = canvasWidth * 0.65 * (0.6 + midReactivity * 0.6);
@@ -215,9 +222,18 @@ function drawMainFlame(
     flameHeight
   );
   
-  gradient.addColorStop(0, `rgba(${baseColor.r}, ${baseColor.g}, ${baseColor.b}, 0.95)`);
-  gradient.addColorStop(0.5, `rgba(${baseColor.r * 0.8}, ${baseColor.g * 0.4}, ${baseColor.b * 0.1}, 0.6)`);
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  // Apply rainbow effect or use base color
+  if (baseHue !== null) {
+    // Rainbow effect for the flame
+    gradient.addColorStop(0, `hsla(${baseHue}, 90%, 65%, 0.95)`);
+    gradient.addColorStop(0.5, `hsla(${(baseHue + 30) % 360}, 90%, 45%, 0.6)`);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  } else {
+    // Original gradient
+    gradient.addColorStop(0, `rgba(${baseColor.r}, ${baseColor.g}, ${baseColor.b}, 0.95)`);
+    gradient.addColorStop(0.5, `rgba(${baseColor.r * 0.8}, ${baseColor.g * 0.4}, ${baseColor.b * 0.1}, 0.6)`);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  }
   
   // Flame wobble
   const wobble = Math.sin(timestamp / 300) * 20 * midReactivity;
@@ -253,7 +269,8 @@ function drawInnerFlame(
   baseColor: { r: number, g: number, b: number },
   timestamp: number,
   intensity: number,
-  midReactivity: number
+  midReactivity: number,
+  baseHue: number | null
 ) {
   // Inner flame is narrower and taller
   const flameWidth = canvasWidth * 0.3 * (0.6 + midReactivity * 0.5);
@@ -269,9 +286,19 @@ function drawInnerFlame(
     flameHeight * 0.7
   );
   
-  gradient.addColorStop(0, `rgba(255, 255, ${baseColor.b * 0.7}, 0.95)`);
-  gradient.addColorStop(0.5, `rgba(${baseColor.r}, ${baseColor.g * 0.7}, ${baseColor.b * 0.2}, 0.7)`);
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  // Apply rainbow effect or use base color
+  if (baseHue !== null) {
+    // Brighter core with shifted hue
+    const innerHue = (baseHue + 60) % 360; // Shift hue for contrast
+    gradient.addColorStop(0, `hsla(${innerHue}, 90%, 85%, 0.95)`);
+    gradient.addColorStop(0.5, `hsla(${(innerHue + 20) % 360}, 90%, 65%, 0.7)`);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  } else {
+    // Original gradient
+    gradient.addColorStop(0, `rgba(255, 255, ${baseColor.b * 0.7}, 0.95)`);
+    gradient.addColorStop(0.5, `rgba(${baseColor.r}, ${baseColor.g * 0.7}, ${baseColor.b * 0.2}, 0.7)`);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  }
   
   // Opposing wobble for interesting movement
   const wobble = Math.sin(timestamp / 200 + 1) * 15 * midReactivity;
@@ -305,7 +332,8 @@ function drawCentralGlow(
   canvasWidth: number,
   canvasHeight: number,
   baseColor: { r: number, g: number, b: number },
-  intensity: number
+  intensity: number,
+  baseHue: number | null
 ) {
   // Create a radial gradient for the central glow
   const gradient = ctx.createRadialGradient(
@@ -317,10 +345,18 @@ function drawCentralGlow(
     canvasWidth * 0.3 * (0.6 + intensity * 0.7)
   );
   
-  // Brighter center with color adjustments
-  gradient.addColorStop(0, `rgba(255, 255, ${Math.min(200, baseColor.b * 2)}, 0.7)`);
-  gradient.addColorStop(0.3, `rgba(${baseColor.r}, ${baseColor.g * 0.6}, ${baseColor.b * 0.2}, 0.3)`);
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  // Apply rainbow effect or use base color
+  if (baseHue !== null) {
+    // Bright center glow with rainbow effect
+    gradient.addColorStop(0, `hsla(${(baseHue + 30) % 360}, 90%, 85%, 0.7)`);
+    gradient.addColorStop(0.3, `hsla(${baseHue}, 90%, 60%, 0.3)`);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  } else {
+    // Original gradient
+    gradient.addColorStop(0, `rgba(255, 255, ${Math.min(200, baseColor.b * 2)}, 0.7)`);
+    gradient.addColorStop(0.3, `rgba(${baseColor.r}, ${baseColor.g * 0.6}, ${baseColor.b * 0.2}, 0.3)`);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  }
   
   // Draw the glow circle
   ctx.fillStyle = gradient;
@@ -343,7 +379,8 @@ function drawEmbers(
   baseColor: { r: number, g: number, b: number },
   timestamp: number,
   intensity: number,
-  midReactivity: number
+  midReactivity: number,
+  baseHue: number | null
 ) {
   // Ember settings
   const emberCount = Math.floor(5 + intensity * 30);
@@ -367,7 +404,21 @@ function drawEmbers(
     if (emberY > 0 && emberY < canvasHeight) {
       // Ember color and opacity based on position
       const emberOpacity = 0.3 + Math.random() * 0.7;
-      const emberHue = Math.random() > 0.7 ? 'rgb(255, 255, 180)' : `rgba(${baseColor.r}, ${baseColor.g * 0.5}, 0, ${emberOpacity})`;
+      
+      // Apply rainbow effect or use base color
+      let emberHue;
+      if (baseHue !== null) {
+        // Rainbow ember with variation
+        const hueOffset = Math.floor(Math.random() * 60);
+        emberHue = Math.random() > 0.7 
+          ? `hsla(60, 100%, 80%, ${emberOpacity})` // Bright yellow
+          : `hsla(${(baseHue + hueOffset) % 360}, 90%, 65%, ${emberOpacity})`;
+      } else {
+        // Original ember coloring
+        emberHue = Math.random() > 0.7 
+          ? 'rgb(255, 255, 180)' 
+          : `rgba(${baseColor.r}, ${baseColor.g * 0.5}, 0, ${emberOpacity})`;
+      }
       
       // Draw ember
       ctx.fillStyle = emberHue;
@@ -384,7 +435,8 @@ function updateAndDrawParticles(
   canvasWidth: number,
   canvasHeight: number,
   intensity: number,
-  timestamp: number
+  timestamp: number,
+  baseHue: number | null
 ) {
   // Process each particle
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -411,8 +463,14 @@ function updateAndDrawParticles(
     // Update alpha based on life
     p.alpha = lifeRatio * (0.7 + p.audio * 0.3);
     
+    // Update particle hue for rainbow effect
+    if (baseHue !== null && p.hue !== undefined) {
+      // Gradually shift hue as particle rises
+      p.hue = (p.hue + 0.5) % 360;
+    }
+    
     // Draw the particle
-    drawFireParticle(ctx, p);
+    drawFireParticle(ctx, p, baseHue);
   }
   
   // Cap the max particles to avoid memory issues
@@ -430,7 +488,8 @@ function drawFlameBase(
   midReactivity: number,
   timestamp: number,
   settings: VisualizerSettings,
-  isEncoding: boolean
+  isEncoding: boolean,
+  baseHue: number | null
 ) {
   // Get color from settings and convert to RGB
   const baseColor = hexToRgb(settings.color) || { r: 255, g: 120, b: 50 };
@@ -443,17 +502,17 @@ function drawFlameBase(
   // Draw all the flame components in order from back to front
   
   // 1. Draw glow at the base
-  drawCentralGlow(ctx, canvasWidth, canvasHeight, baseColor, intensity);
+  drawCentralGlow(ctx, canvasWidth, canvasHeight, baseColor, intensity, baseHue);
   
   // 2. Draw main outer flame shape
-  drawMainFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
+  drawMainFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity, baseHue);
   
   // 3. Draw inner brighter flame core
-  drawInnerFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
+  drawInnerFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity, baseHue);
   
   // 4. Add small ember particles in preview mode only
   if (!isEncoding) {
-    drawEmbers(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
+    drawEmbers(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity, baseHue);
   }
 }
 
@@ -464,7 +523,8 @@ function createFireParticle(
   intensity: number,
   midReactivity: number,
   settings: VisualizerSettings,
-  isEncoding: boolean
+  isEncoding: boolean,
+  baseHue: number | null
 ) {
   // Skip if we're already at max particles
   if (particles.length >= maxParticles) return;
@@ -494,20 +554,36 @@ function createFireParticle(
     Math.max(1, canvasWidth / 400);
   const radius = baseRadius * (0.5 + Math.random() * 1.5);
   
-  // Color variation - select randomly between yellows and the theme color
-  const useYellow = Math.random() > 0.4;
+  // Color variation based on rainbow setting
   let color;
+  let particleHue;
   
-  if (useYellow) {
-    // Create a yellow-orange particle
-    const yellowIntensity = Math.floor(200 + Math.random() * 55);
-    color = `rgba(255, ${yellowIntensity}, ${Math.floor(yellowIntensity/3)}, 0.8)`;
+  if (baseHue !== null) {
+    // Rainbow mode - assign a hue to this particle
+    const hueOffset = Math.floor(Math.random() * 60) - 30; // Random variation
+    particleHue = (baseHue + hueOffset) % 360;
+    
+    // Either show yellow/white hot particle or colored particle
+    const useYellow = Math.random() > 0.5;
+    if (useYellow) {
+      color = `hsla(60, 100%, 80%, 0.8)`; // Yellow-white hot particle
+    } else {
+      color = `hsla(${particleHue}, 90%, 65%, 0.8)`; // Colorful particle
+    }
   } else {
-    // Create a particle using the theme color
-    const r = baseColor.r;
-    const g = Math.floor(baseColor.g * (0.3 + Math.random() * 0.7));
-    const b = Math.floor(baseColor.b * Math.random() * 0.3);
-    color = `rgba(${r}, ${g}, ${b}, 0.8)`;
+    // Original color approach
+    const useYellow = Math.random() > 0.4;
+    if (useYellow) {
+      // Create a yellow-orange particle
+      const yellowIntensity = Math.floor(200 + Math.random() * 55);
+      color = `rgba(255, ${yellowIntensity}, ${Math.floor(yellowIntensity/3)}, 0.8)`;
+    } else {
+      // Create a particle using the theme color
+      const r = baseColor.r;
+      const g = Math.floor(baseColor.g * (0.3 + Math.random() * 0.7));
+      const b = Math.floor(baseColor.b * Math.random() * 0.3);
+      color = `rgba(${r}, ${g}, ${b}, 0.8)`;
+    }
   }
   
   // Life of the particle - longer for encoding
@@ -525,7 +601,8 @@ function createFireParticle(
     life,
     maxLife: life,
     turbulence: Math.random() * 10, // Random starting phase for varied movement
-    audio: intensity // Store audio intensity for reactivity
+    audio: intensity, // Store audio intensity for reactivity
+    hue: particleHue // Store hue for rainbow mode
   };
   
   // Add to particles array
@@ -538,7 +615,8 @@ function createFireBurst(
   canvasHeight: number,
   intensity: number,
   settings: VisualizerSettings,
-  isEncoding: boolean
+  isEncoding: boolean,
+  baseHue: number | null
 ) {
   // Skip if we're already at max particles
   if (particles.length >= maxParticles) return;
@@ -566,23 +644,43 @@ function createFireBurst(
     Math.max(1, canvasWidth / 400);
   const radius = baseRadius * (0.5 + Math.random() * (0.8 + intensity * 0.7));
   
-  // Brighter colors for bursts - more whites and yellows
-  const colorRoll = Math.random();
+  // Color based on rainbow setting
   let color;
+  let particleHue;
   
-  if (colorRoll > 0.7) {
-    // White hot center
-    color = `rgba(255, 255, ${180 + Math.floor(Math.random() * 75)}, 0.9)`;
-  } else if (colorRoll > 0.3) {
-    // Yellow-orange
-    const yellowIntensity = Math.floor(220 + Math.random() * 35);
-    color = `rgba(255, ${yellowIntensity}, ${Math.floor(yellowIntensity/4)}, 0.85)`;
+  if (baseHue !== null) {
+    // Rainbow mode - create more colorful bursts
+    const colorRoll = Math.random();
+    const hueOffset = Math.floor(Math.random() * 90) - 45; // More variation for bursts
+    particleHue = (baseHue + hueOffset) % 360;
+    
+    if (colorRoll > 0.7) {
+      // White hot center
+      color = `hsla(60, 100%, 90%, 0.9)`;
+    } else if (colorRoll > 0.3) {
+      // Yellow-orange
+      color = `hsla(40, 100%, 80%, 0.85)`;
+    } else {
+      // Colorful burst
+      color = `hsla(${particleHue}, 90%, 65%, 0.8)`;
+    }
   } else {
-    // Theme color based
-    const r = baseColor.r;
-    const g = Math.floor(baseColor.g * (0.5 + Math.random() * 0.5));
-    const b = Math.floor(baseColor.b * (Math.random() * 0.2));
-    color = `rgba(${r}, ${g}, ${b}, 0.8)`;
+    // Original coloring approach
+    const colorRoll = Math.random();
+    if (colorRoll > 0.7) {
+      // White hot center
+      color = `rgba(255, 255, ${180 + Math.floor(Math.random() * 75)}, 0.9)`;
+    } else if (colorRoll > 0.3) {
+      // Yellow-orange
+      const yellowIntensity = Math.floor(220 + Math.random() * 35);
+      color = `rgba(255, ${yellowIntensity}, ${Math.floor(yellowIntensity/4)}, 0.85)`;
+    } else {
+      // Theme color based
+      const r = baseColor.r;
+      const g = Math.floor(baseColor.g * (0.5 + Math.random() * 0.5));
+      const b = Math.floor(baseColor.b * (Math.random() * 0.2));
+      color = `rgba(${r}, ${g}, ${b}, 0.8)`;
+    }
   }
   
   // Shorter life for burst particles
@@ -599,7 +697,8 @@ function createFireBurst(
     life,
     maxLife: life,
     turbulence: Math.random() * 10,
-    audio: intensity
+    audio: intensity,
+    hue: particleHue
   };
   
   // Add to particles array
@@ -607,16 +706,26 @@ function createFireBurst(
 }
 
 // Helper to draw a single fire particle
-function drawFireParticle(ctx: CanvasRenderingContext2D, particle: Particle) {
+function drawFireParticle(ctx: CanvasRenderingContext2D, particle: Particle, baseHue: number | null) {
   // Create a radial gradient for the particle
   const gradient = ctx.createRadialGradient(
     particle.x, particle.y, 0,
     particle.x, particle.y, particle.radius
   );
   
-  // Use the particle's color with a gradient fade
-  gradient.addColorStop(0, particle.color.replace(/[\d.]+\)$/g, `${particle.alpha})`));
-  gradient.addColorStop(1, particle.color.replace(/[\d.]+\)$/g, '0)'));
+  // Apply rainbow effect if enabled
+  if (baseHue !== null && particle.hue !== undefined) {
+    // Use particle's specific hue for rainbow effect
+    const innerColor = `hsla(${particle.hue}, 90%, 65%, ${particle.alpha})`;
+    const outerColor = `hsla(${particle.hue}, 90%, 65%, 0)`;
+    
+    gradient.addColorStop(0, innerColor);
+    gradient.addColorStop(1, outerColor);
+  } else {
+    // Use the particle's color with a gradient fade
+    gradient.addColorStop(0, particle.color.replace(/[\d.]+\)$/g, `${particle.alpha})`));
+    gradient.addColorStop(1, particle.color.replace(/[\d.]+\)$/g, '0)'));
+  }
   
   // Draw the particle
   ctx.fillStyle = gradient;
