@@ -46,8 +46,8 @@ const getWaveY = (baseY: number, amplitude: number, placement: string, canvasHei
 // Helper to calculate X coordinate for vertical wave
 const getWaveX = (baseX: number, amplitude: number, placement: string, canvasWidth: number, invertMultiplier: number): number => {
   const invertedAmplitude = amplitude * invertMultiplier;
-  if (placement === 'bottom') return baseX + invertedAmplitude; // Left
-  if (placement === 'top') return baseX - invertedAmplitude; // Right
+  if (placement === 'bottom') return baseX + invertedAmplitude; // Right
+  if (placement === 'top') return baseX - invertedAmplitude; // Left
   return baseX + invertedAmplitude; // Middle (relative to center baseline)
 };
 
@@ -177,8 +177,8 @@ export const drawWave = (
   if (settings.verticalOrientation) {
     settings.barPlacement.forEach(placement => {
       let baseX: number;
-      if (placement === 'bottom') { baseX = 0; } // Left
-      else if (placement === 'top') { baseX = canvasWidth; } // Right
+      if (placement === 'bottom') { baseX = canvasWidth; } // Right
+      else if (placement === 'top') { baseX = 0; } // Left
       else { baseX = canvasWidth / 2; } // Middle
 
       settings.animationStart.forEach(animationStart => {

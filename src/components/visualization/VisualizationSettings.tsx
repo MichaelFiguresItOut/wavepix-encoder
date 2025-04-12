@@ -240,7 +240,11 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                   }
                 />
                 <Label htmlFor="top-placement" className="cursor-pointer">
-                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Right" : "Top"}
+                  {settings.verticalOrientation && settings.horizontalOrientation 
+                    ? "Top/Left" 
+                    : settings.verticalOrientation && !settings.horizontalOrientation 
+                      ? "Left" 
+                      : "Top"}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -251,7 +255,9 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                     handleMultiSelectChange("barPlacement", "middle", !!checked)
                   }
                 />
-                <Label htmlFor="middle-placement" className="cursor-pointer">Middle</Label>
+                <Label htmlFor="middle-placement" className="cursor-pointer">
+                  {settings.verticalOrientation && settings.horizontalOrientation ? "Middle/Middle" : "Middle"}
+                </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox 
@@ -262,7 +268,11 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                   }
                 />
                 <Label htmlFor="bottom-placement" className="cursor-pointer">
-                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Left" : "Bottom"}
+                  {settings.verticalOrientation && settings.horizontalOrientation
+                    ? "Bottom/Right"
+                    : settings.verticalOrientation && !settings.horizontalOrientation 
+                      ? "Right" 
+                      : "Bottom"}
                 </Label>
               </div>
             </div>
@@ -405,7 +415,11 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                   }
                 />
                 <Label htmlFor="beginning-start" className="cursor-pointer">
-                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Top" : "Left"}
+                  {settings.verticalOrientation && settings.horizontalOrientation
+                    ? "Top/Left"
+                    : settings.verticalOrientation && !settings.horizontalOrientation 
+                      ? "Top" 
+                      : "Left"}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -416,7 +430,9 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                     handleMultiSelectChange("animationStart", "middle", !!checked)
                   }
                 />
-                <Label htmlFor="middle-start" className="cursor-pointer">Center</Label>
+                <Label htmlFor="middle-start" className="cursor-pointer">
+                  {settings.verticalOrientation && settings.horizontalOrientation ? "Center/Center" : "Center"}
+                </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox 
@@ -427,7 +443,11 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
                   }
                 />
                 <Label htmlFor="end-start" className="cursor-pointer">
-                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Bottom" : "Right"}
+                  {settings.verticalOrientation && settings.horizontalOrientation
+                    ? "Bottom/Right"
+                    : settings.verticalOrientation && !settings.horizontalOrientation 
+                      ? "Bottom" 
+                      : "Right"}
                 </Label>
               </div>
             </div>

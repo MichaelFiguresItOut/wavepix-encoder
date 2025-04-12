@@ -269,12 +269,12 @@ export const drawSiriAnimation = (
     settings.barPlacement.forEach(placement => {
       // Calculate the base X position based on placement
       let baseX;
-      if (placement === 'bottom') { // Left in vertical orientation
-        baseX = canvasWidth * 0.2; // Near the left
+      if (placement === 'bottom') { // Right in vertical orientation
+        baseX = canvasWidth * 0.8; // Near the right
       } else if (placement === 'middle') {
         baseX = canvasWidth / 2; // Middle of the screen
-      } else { // top (Right in vertical orientation)
-        baseX = canvasWidth * 0.8; // Near the right
+      } else { // top (Left in vertical orientation)
+        baseX = canvasWidth * 0.2; // Near the left
       }
       
       // Process each animation start option

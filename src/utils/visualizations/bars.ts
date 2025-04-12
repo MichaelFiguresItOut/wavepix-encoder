@@ -391,20 +391,20 @@ export const drawBars = (
             const radius = settings.barWidth / 2;
             ctx.beginPath();
             
-            if (placement === 'bottom') { // Left in vertical mode
-              ctx.moveTo(0, y);
-              ctx.lineTo(barWidth - radius, y);
-              ctx.quadraticCurveTo(barWidth, y, barWidth, y + radius);
-              ctx.lineTo(barWidth, y + settings.barWidth - radius);
-              ctx.quadraticCurveTo(barWidth, y + settings.barWidth, barWidth - radius, y + settings.barWidth);
-              ctx.lineTo(0, y + settings.barWidth);
-            } else if (placement === 'top') { // Right in vertical mode
+            if (placement === 'bottom') { // Right in vertical mode
               ctx.moveTo(canvasWidth, y);
               ctx.lineTo(canvasWidth - barWidth + radius, y);
               ctx.quadraticCurveTo(canvasWidth - barWidth, y, canvasWidth - barWidth, y + radius);
               ctx.lineTo(canvasWidth - barWidth, y + settings.barWidth - radius);
               ctx.quadraticCurveTo(canvasWidth - barWidth, y + settings.barWidth, canvasWidth - barWidth + radius, y + settings.barWidth);
               ctx.lineTo(canvasWidth, y + settings.barWidth);
+            } else if (placement === 'top') { // Left in vertical mode
+              ctx.moveTo(0, y);
+              ctx.lineTo(barWidth - radius, y);
+              ctx.quadraticCurveTo(barWidth, y, barWidth, y + radius);
+              ctx.lineTo(barWidth, y + settings.barWidth - radius);
+              ctx.quadraticCurveTo(barWidth, y + settings.barWidth, barWidth - radius, y + settings.barWidth);
+              ctx.lineTo(0, y + settings.barWidth);
             } else { // middle
               const centerX = (canvasWidth - barWidth) / 2;
               ctx.moveTo(centerX, y);
@@ -457,20 +457,20 @@ export const drawBars = (
             const radius = settings.barWidth / 2;
             ctx.beginPath();
             
-            if (placement === 'bottom') { // Left in vertical mode
-              ctx.moveTo(0, y);
-              ctx.lineTo(barWidth - radius, y);
-              ctx.quadraticCurveTo(barWidth, y, barWidth, y + radius);
-              ctx.lineTo(barWidth, y + settings.barWidth - radius);
-              ctx.quadraticCurveTo(barWidth, y + settings.barWidth, barWidth - radius, y + settings.barWidth);
-              ctx.lineTo(0, y + settings.barWidth);
-            } else if (placement === 'top') { // Right in vertical mode
+            if (placement === 'bottom') { // Right in vertical mode
               ctx.moveTo(canvasWidth, y);
               ctx.lineTo(canvasWidth - barWidth + radius, y);
               ctx.quadraticCurveTo(canvasWidth - barWidth, y, canvasWidth - barWidth, y + radius);
               ctx.lineTo(canvasWidth - barWidth, y + settings.barWidth - radius);
               ctx.quadraticCurveTo(canvasWidth - barWidth, y + settings.barWidth, canvasWidth - barWidth + radius, y + settings.barWidth);
               ctx.lineTo(canvasWidth, y + settings.barWidth);
+            } else if (placement === 'top') { // Left in vertical mode
+              ctx.moveTo(0, y);
+              ctx.lineTo(barWidth - radius, y);
+              ctx.quadraticCurveTo(barWidth, y, barWidth, y + radius);
+              ctx.lineTo(barWidth, y + settings.barWidth - radius);
+              ctx.quadraticCurveTo(barWidth, y + settings.barWidth, barWidth - radius, y + settings.barWidth);
+              ctx.lineTo(0, y + settings.barWidth);
             } else { // middle
               const centerX = (canvasWidth - barWidth) / 2;
               ctx.moveTo(centerX, y);
@@ -526,20 +526,20 @@ export const drawBars = (
             const radius = settings.barWidth / 2;
             ctx.beginPath();
             
-            if (placement === 'bottom') { // Left in vertical mode
-              ctx.moveTo(0, y);
-              ctx.lineTo(barWidth - radius, y);
-              ctx.quadraticCurveTo(barWidth, y, barWidth, y + radius);
-              ctx.lineTo(barWidth, y + settings.barWidth - radius);
-              ctx.quadraticCurveTo(barWidth, y + settings.barWidth, barWidth - radius, y + settings.barWidth);
-              ctx.lineTo(0, y + settings.barWidth);
-            } else if (placement === 'top') { // Right in vertical mode
+            if (placement === 'bottom') { // Right in vertical mode
               ctx.moveTo(canvasWidth, y);
               ctx.lineTo(canvasWidth - barWidth + radius, y);
               ctx.quadraticCurveTo(canvasWidth - barWidth, y, canvasWidth - barWidth, y + radius);
               ctx.lineTo(canvasWidth - barWidth, y + settings.barWidth - radius);
               ctx.quadraticCurveTo(canvasWidth - barWidth, y + settings.barWidth, canvasWidth - barWidth + radius, y + settings.barWidth);
               ctx.lineTo(canvasWidth, y + settings.barWidth);
+            } else if (placement === 'top') { // Left in vertical mode
+              ctx.moveTo(0, y);
+              ctx.lineTo(barWidth - radius, y);
+              ctx.quadraticCurveTo(barWidth, y, barWidth, y + radius);
+              ctx.lineTo(barWidth, y + settings.barWidth - radius);
+              ctx.quadraticCurveTo(barWidth, y + settings.barWidth, barWidth - radius, y + settings.barWidth);
+              ctx.lineTo(0, y + settings.barWidth);
             } else { // middle
               const centerX = (canvasWidth - barWidth) / 2;
               ctx.moveTo(centerX, y);
@@ -590,20 +590,20 @@ export const drawBars = (
             const radius = settings.barWidth / 2;
             ctx.beginPath();
             
-            if (placement === 'bottom') { // Left in vertical mode
-              ctx.moveTo(0, y);
-              ctx.lineTo(barWidth - radius, y);
-              ctx.quadraticCurveTo(barWidth, y, barWidth, y + radius);
-              ctx.lineTo(barWidth, y + settings.barWidth - radius);
-              ctx.quadraticCurveTo(barWidth, y + settings.barWidth, barWidth - radius, y + settings.barWidth);
-              ctx.lineTo(0, y + settings.barWidth);
-            } else if (placement === 'top') { // Right in vertical mode
+            if (placement === 'bottom') { // Right in vertical mode
               ctx.moveTo(canvasWidth, y);
               ctx.lineTo(canvasWidth - barWidth + radius, y);
               ctx.quadraticCurveTo(canvasWidth - barWidth, y, canvasWidth - barWidth, y + radius);
               ctx.lineTo(canvasWidth - barWidth, y + settings.barWidth - radius);
               ctx.quadraticCurveTo(canvasWidth - barWidth, y + settings.barWidth, canvasWidth - barWidth + radius, y + settings.barWidth);
               ctx.lineTo(canvasWidth, y + settings.barWidth);
+            } else if (placement === 'top') { // Left in vertical mode
+              ctx.moveTo(0, y);
+              ctx.lineTo(barWidth - radius, y);
+              ctx.quadraticCurveTo(barWidth, y, barWidth, y + radius);
+              ctx.lineTo(barWidth, y + settings.barWidth - radius);
+              ctx.quadraticCurveTo(barWidth, y + settings.barWidth, barWidth - radius, y + settings.barWidth);
+              ctx.lineTo(0, y + settings.barWidth);
             } else { // middle
               const centerX = (canvasWidth - barWidth) / 2;
               ctx.moveTo(centerX, y);

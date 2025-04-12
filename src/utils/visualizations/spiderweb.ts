@@ -36,12 +36,12 @@ export const drawSpiderWebAnimation = (
       }
     } else {
       centerY = canvasHeight / 2;
-      if (placement === 'bottom') { // Left in vertical orientation
-        centerX = canvasWidth * 0.2; // Near the left
+      if (placement === 'bottom') { // Right in vertical orientation
+        centerX = canvasWidth * 0.8; // Near the right
       } else if (placement === 'middle') {
         centerX = canvasWidth / 2; // Middle of the screen
-      } else { // top (Right in vertical orientation)
-        centerX = canvasWidth * 0.8; // Near the right
+      } else { // top (Left in vertical orientation)
+        centerX = canvasWidth * 0.2; // Near the left
       }
     }
     

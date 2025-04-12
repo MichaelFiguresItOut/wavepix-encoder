@@ -282,9 +282,9 @@ export const drawDotsAnimation = (
       if (settings.verticalOrientation) {
         const dotCount = Math.min(bufferLength, 100);
         let centerX;
-        if (placement === 'bottom') { centerX = canvasWidth * 0.2; }
+        if (placement === 'bottom') { centerX = canvasWidth * 0.8; } // Right
         else if (placement === 'middle') { centerX = canvasWidth / 2; }
-        else { centerX = canvasWidth * 0.8; }
+        else { centerX = canvasWidth * 0.2; } // Left
         
         settings.animationStart.forEach(animationStart => {
           let startY = 0;

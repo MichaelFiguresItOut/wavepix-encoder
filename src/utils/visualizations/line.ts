@@ -126,7 +126,7 @@ export const drawLineAnimation = (
       barPlacements.forEach(placement => {
         // For vertical orientation, use a smaller bar width (20% of canvas width) for better positioning
         const barWidth = canvasWidth * 0.2; // Smaller bar width for vertical orientation
-        // For vertical orientation, "bottom" means left, "top" means right
+        // For vertical orientation, "top" means left, "bottom" means right
         const baseX = getXPositionForPlacement(canvasWidth, placement, barWidth);
         
         // Draw vertical line animations
@@ -701,10 +701,10 @@ const drawVerticalFullLine = (
     
     // Calculate x position based on placement and wave
     let x;
-    if (placement === 'bottom') { // left
-      x = amplitude + waveX;
-    } else if (placement === 'top') { // right
+    if (placement === 'bottom') { // right
       x = (canvasWidth - amplitude) + waveX;
+    } else if (placement === 'top') { // left
+      x = amplitude + waveX;
     } else { // middle
       // For middle placement, use the canvas center as the base position
       x = (canvasWidth / 2) + waveX;
@@ -743,10 +743,10 @@ const drawVerticalFullLine = (
       
       // Previous x based on placement
       let prevX;
-      if (placement === 'bottom') { // left
-        prevX = prevAmplitude + prevWaveX;
-      } else if (placement === 'top') { // right
+      if (placement === 'bottom') { // right
         prevX = (canvasWidth - prevAmplitude) + prevWaveX;
+      } else if (placement === 'top') { // left
+        prevX = prevAmplitude + prevWaveX;
       } else { // middle
         // For middle placement, use the canvas center as the base position
         prevX = (canvasWidth / 2) + prevWaveX;
@@ -794,10 +794,10 @@ const drawVerticalFullLine = (
         
         // Calculate mirrored x position
         let x;
-        if (placement === 'bottom') { // left
-          x = amplitude - waveX;
-        } else if (placement === 'top') { // right
+        if (placement === 'bottom') { // right
           x = (canvasWidth - amplitude) - waveX;
+        } else if (placement === 'top') { // left
+          x = amplitude - waveX;
         } else { // middle
           x = (canvasWidth / 2) - waveX;
         }
@@ -817,10 +817,10 @@ const drawVerticalFullLine = (
           
           // Previous mirrored x position
           let prevX;
-          if (placement === 'bottom') { // left
-            prevX = prevAmplitude - prevWaveX;
-          } else if (placement === 'top') { // right
+          if (placement === 'bottom') { // right
             prevX = (canvasWidth - prevAmplitude) - prevWaveX;
+          } else if (placement === 'top') { // left
+            prevX = prevAmplitude - prevWaveX;
           } else { // middle
             prevX = (canvasWidth / 2) - prevWaveX;
           }
@@ -856,10 +856,10 @@ const drawVerticalFullLine = (
         
         // Calculate mirrored x position
         let x;
-        if (placement === 'bottom') { // left
-          x = amplitude - waveX;
-        } else if (placement === 'top') { // right
+        if (placement === 'bottom') { // right
           x = (canvasWidth - amplitude) - waveX;
+        } else if (placement === 'top') { // left
+          x = amplitude - waveX;
         } else { // middle
           x = (canvasWidth / 2) - waveX;
         }
@@ -892,10 +892,10 @@ const drawVerticalFullLine = (
           
           // Previous mirrored x position
           let prevX;
-          if (placement === 'bottom') { // left
-            prevX = prevAmplitude - prevWaveX;
-          } else if (placement === 'top') { // right
+          if (placement === 'bottom') { // right
             prevX = (canvasWidth - prevAmplitude) - prevWaveX;
+          } else if (placement === 'top') { // left
+            prevX = prevAmplitude - prevWaveX;
           } else { // middle
             prevX = (canvasWidth / 2) - prevWaveX;
           }
@@ -963,10 +963,10 @@ const drawVerticalHalfLine = (
     
     // Calculate x position based on placement and wave
     let x;
-    if (placement === 'bottom') { // left
-      x = amplitude + waveX;
-    } else if (placement === 'top') { // right
+    if (placement === 'bottom') { // right
       x = (canvasWidth - amplitude) + waveX;
+    } else if (placement === 'top') { // left
+      x = amplitude + waveX;
     } else { // middle
       // For middle placement, use the canvas center as the base position
       x = (canvasWidth / 2) + waveX;
@@ -1005,10 +1005,10 @@ const drawVerticalHalfLine = (
       
       // Previous x based on placement
       let prevX;
-      if (placement === 'bottom') { // left
-        prevX = prevAmplitude + prevWaveX;
-      } else if (placement === 'top') { // right
+      if (placement === 'bottom') { // right
         prevX = (canvasWidth - prevAmplitude) + prevWaveX;
+      } else if (placement === 'top') { // left
+        prevX = prevAmplitude + prevWaveX;
       } else { // middle
         // For middle placement, use the canvas center as the base position
         prevX = (canvasWidth / 2) + prevWaveX;
@@ -1050,10 +1050,10 @@ const drawVerticalHalfLine = (
       
       // Calculate mirrored x position
       let x;
-      if (placement === 'bottom') { // left
-        x = amplitude - waveX;
-      } else if (placement === 'top') { // right
+      if (placement === 'bottom') { // right
         x = (canvasWidth - amplitude) - waveX;
+      } else if (placement === 'top') { // left
+        x = amplitude - waveX;
       } else { // middle
         x = (canvasWidth / 2) - waveX;
       }
@@ -1073,10 +1073,10 @@ const drawVerticalHalfLine = (
         
         // Previous mirrored x position
         let prevX;
-        if (placement === 'bottom') { // left
-          prevX = prevAmplitude - prevWaveX;
-        } else if (placement === 'top') { // right
+        if (placement === 'bottom') { // right
           prevX = (canvasWidth - prevAmplitude) - prevWaveX;
+        } else if (placement === 'top') { // left
+          prevX = prevAmplitude - prevWaveX;
         } else { // middle
           prevX = (canvasWidth / 2) - prevWaveX;
         }

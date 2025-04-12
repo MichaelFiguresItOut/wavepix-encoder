@@ -63,13 +63,13 @@ export const getYPositionForPlacement = (canvasHeight: number, placement: string
 // Calculate X position based on bar placement for vertical orientation
 export const getXPositionForPlacement = (canvasWidth: number, placement: string, barWidth: number) => {
   switch (placement) {
-    case 'top': // Right side in vertical mode
-      return canvasWidth - barWidth;
+    case 'top': // Left side in vertical mode
+      return 0;
     case 'middle':
       return (canvasWidth / 2) - (barWidth / 2); // Exactly centered (middle of canvas minus half of bar width)
-    case 'bottom': // Left side in vertical mode
+    case 'bottom': // Right side in vertical mode
     default:
-      return 0;
+      return canvasWidth - barWidth;
   }
 };
 

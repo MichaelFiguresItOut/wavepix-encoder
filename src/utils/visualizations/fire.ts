@@ -45,15 +45,18 @@ export const drawFireAnimation = (
   if (!hasInitialized) {
     startTime = timestamp;
     hasInitialized = true;
+    particles = [];
+    audioHistory = Array(10).fill(0);
+    lastAudioPeak = 0;
   }
   
   // Calculate animation time for consistency
   const animTime = timestamp - startTime;
   
   // Create a settings signature to detect changes
-  const currentSettings = `${settings.sensitivity}|${settings.smoothing}|${settings.color}`;
+  const currentSettings = `${settings.sensitivity}|${settings.smoothing}|${settings.color}|${canvasWidth}`;
   
-  // Reset particle system on settings change to avoid speed issues
+  // Reset particle system on settings change or canvas size change to avoid speed issues
   if (currentSettings !== lastSettings) {
     particles = [];
     audioHistory = Array(10).fill(0);
@@ -96,12 +99,14 @@ export const drawFireAnimation = (
   const intensity = bassIntensity * sensitivity;
   const midReactivity = midIntensity * sensitivity;
   
-  // Clear the canvas - less trail for more defined flames
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Slightly more clearing to prevent buildup
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-  
   // More reliable way to detect if we're in encoding mode
-  const isEncoding = canvas.width >= 1280; // Most common encoding resolution starts at 720p (1280×720)
+  const isEncoding = canvas.width >= 1280;
+  
+  // Use consistent background clearing for both preview and encoding
+  // Adjust opacity based on encoding vs preview
+  const clearOpacity = isEncoding ? 0.18 : 0.15; 
+  ctx.fillStyle = `rgba(0, 0, 0, ${clearOpacity})`;
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
   
   // ** KEY CHANGE: Draw both the base and particles in the same pass for the encoded version **
   if (isEncoding) {
@@ -138,6 +143,9 @@ export const drawFireAnimation = (
     // Reset blend mode
     ctx.globalCompositeOperation = 'source-over';
   }
+  
+  // Store timestamp for next frame
+  lastTimestamp = timestamp;
 };
 
 // New function to handle integrated fire rendering for encoding
@@ -158,15 +166,29 @@ function drawIntegratedFire(
   // Use lighter blend mode for vibrant look
   ctx.globalCompositeOperation = 'lighter';
   
-  // Draw the main components of the fire
-  drawMainFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
-  drawInnerFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
-  drawCentralGlow(ctx, canvasWidth, canvasHeight, baseColor, intensity);
+  // Draw flame base using same function as preview for consistency
+  drawFlameBase(ctx, canvasWidth, canvasHeight, intensity, midReactivity, timestamp, settings, true);
   
-  // Add embers based on audio intensity
-  if (intensity > 0.4) {
-    drawEmbers(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
+  // Create more particles in encoding mode to ensure good coverage at higher rise
+  const baseParticles = 10; 
+  const particlesToCreate = Math.floor(baseParticles + intensity * 18);
+  
+  for (let i = 0; i < particlesToCreate; i++) {
+    createFireParticle(canvasWidth, canvasHeight, intensity, midReactivity, settings, true);
   }
+  
+  // Add more bursts on audio peaks for encoding
+  if (isPeak) {
+    const burstAmount = Math.floor(20 + 25 * intensity);
+    for (let i = 0; i < burstAmount; i++) {
+      createFireBurst(canvasWidth, canvasHeight, intensity, settings, true);
+    }
+  }
+  
+  // Update and draw particles
+  updateAndDrawParticles(ctx, canvasWidth, canvasHeight, intensity, timestamp);
+  
+  // Match preview by not adding the embers to encoded output
 }
 
 // Draw the main outer flame shape
@@ -380,6 +402,10 @@ function updateAndDrawParticles(
   timestamp: number
 ) {
   const fixedDelta = 16 / 1000; // 60fps in seconds
+  const isEncoding = canvasWidth >= 1280;
+  
+  // Properly set blend mode for consistent appearance
+  ctx.globalCompositeOperation = 'lighter';
   
   for (let i = particles.length - 1; i >= 0; i--) {
     const particle = particles[i];
@@ -402,17 +428,22 @@ function updateAndDrawParticles(
     particle.y += particle.velocity.y * fixedDelta * 60;
     
     // Update velocity (simulate rising fire with acceleration)
-    particle.velocity.y -= (0.05 + (0.1 * intensity * (1 - lifePerc))) * fixedDelta * 60;
+    // Apply much stronger acceleration in encoding mode
+    const riseAcceleration = isEncoding ? 0.35 : 0.1;
+    particle.velocity.y -= (0.05 + (riseAcceleration * intensity * (1 - lifePerc))) * fixedDelta * 60;
     
     // Add swirl effect - particles move toward center as they rise
     const centerPull = (canvasWidth / 2 - particle.x) * 0.003 * lifePerc;
     particle.velocity.x += (centerPull + (Math.random() - 0.5) * 0.05 * (1 - lifePerc)) * fixedDelta * 60;
     
-    // Update alpha for fade-out effect - keep flames visible longer
-    particle.alpha = particle.audio * (1 - Math.pow(lifePerc, 3));
+    // Update alpha for fade-out effect - keep flames visible longer at height
+    const fadeExponent = isEncoding ? 2.0 : 3;
+    particle.alpha = particle.audio * (1 - Math.pow(lifePerc, fadeExponent));
     
     // Update radius - fire particles get smaller as they rise but not too small
-    particle.radius *= 0.995;
+    // Make particles shrink much slower in encoding
+    const shrinkRate = isEncoding ? 0.998 : 0.995;
+    particle.radius *= shrinkRate;
     
     // Draw particle
     drawFireParticle(ctx, particle);
@@ -431,11 +462,13 @@ function drawFlameBase(
 ) {
   const baseColor = hexToRgb(settings.color) || { r: 255, g: 120, b: 50 };
   
-  // Flame width responds to mid frequencies
-  const flameWidth = canvasWidth * 0.65 * (0.6 + midReactivity * 0.6);
+  // Adjust flame width for encoding to match preview
+  const widthMultiplier = isEncoding ? 0.55 : 0.65;
+  const flameWidth = canvasWidth * widthMultiplier * (0.6 + midReactivity * 0.6);
   
-  // Flame height responds to bass frequencies
-  const flameHeight = canvasHeight * 0.45 * (0.6 + intensity * 0.8);
+  // Adjust flame height for encoding to match preview
+  const heightMultiplier = isEncoding ? 0.4 : 0.45;
+  const flameHeight = canvasHeight * heightMultiplier * (0.6 + intensity * 0.8);
   
   // Use additive blending for base flame too for better integration with particles
   ctx.globalCompositeOperation = 'lighter';
@@ -450,9 +483,9 @@ function drawFlameBase(
     flameHeight
   );
   
-  // Make the flame color more vibrant with better opacity for encoding
-  const baseOpacity = isEncoding ? 0.95 : 0.9;
-  const midOpacity = isEncoding ? 0.6 : 0.5;
+  // Use consistent flame color opacity for both modes
+  const baseOpacity = 0.92;
+  const midOpacity = 0.55;
   
   gradient.addColorStop(0, `rgba(${baseColor.r}, ${baseColor.g}, ${baseColor.b}, ${baseOpacity})`);
   gradient.addColorStop(0.5, `rgba(${baseColor.r * 0.8}, ${baseColor.g * 0.4}, ${baseColor.b * 0.1}, ${midOpacity})`);
@@ -502,9 +535,9 @@ function drawFlameBase(
     flameHeight * 0.7
   );
   
-  // Inner flame is more yellow/white with higher opacity for encoding
-  const innerBaseOpacity = isEncoding ? 0.98 : 0.95;
-  const innerMidOpacity = isEncoding ? 0.7 : 0.5;
+  // Use consistent inner flame color opacity for both modes
+  const innerBaseOpacity = 0.96;
+  const innerMidOpacity = 0.6;
   
   innerGradient.addColorStop(0, `rgba(255, ${180 + baseColor.g * 0.2}, ${100 + baseColor.b * 0.1}, ${innerBaseOpacity})`);
   innerGradient.addColorStop(0.5, `rgba(${baseColor.r}, ${baseColor.g * 0.7}, ${baseColor.b * 0.2}, ${innerMidOpacity})`);
@@ -570,38 +603,42 @@ function createFireParticle(
 ) {
   const baseColor = hexToRgb(settings.color) || { r: 255, g: 120, b: 50 };
   
-  // Even tighter spread in encoding mode
+  // Slightly reduce spread in encoding mode
   const spreadFactor = isEncoding ? 
-    0.2 + midReactivity * 0.2 : // Tighter for encoding 
-    0.3 + midReactivity * 0.3;  // Normal for preview
+    0.22 + midReactivity * 0.22 : // Tighter for encoding 
+    0.25 + midReactivity * 0.25;  // Normal for preview
   
   // Center particles more closely around the center
   const x = canvasWidth / 2 + (Math.random() - 0.5) * canvasWidth * spreadFactor;
   
-  // Start particles higher in the flame in encoding mode
+  // Start particles from slightly higher in encoding mode
   const yOffset = isEncoding ? 
-    Math.random() * 80 : // Higher start in encoding
-    Math.random() * 40;  // Normal in preview
+    Math.random() * 60 : // Higher start in encoding
+    Math.random() * 50;  // Normal in preview
   
   const y = canvasHeight - yOffset;
   
-  // Much slower particle velocity in encoding
-  const velocityScaleFactor = isEncoding ? 0.7 : 1.0;
-  const velocityFactor = (0.6 + intensity * 1.0) * velocityScaleFactor;
+  // Apply much stronger upward velocity for encoded mode to make particles rise higher
+  const velocityScale = isEncoding ? 0.9 : 1.0;
+  const velocityFactor = (0.6 + intensity * 1.0) * velocityScale;
   const velocityX = (Math.random() - 0.5) * 1.0 * velocityFactor;
-  const velocityY = (-0.8 - Math.random() * 2.5) * velocityFactor;
   
-  // Slightly larger particles in encoding for better visibility
-  const radiusScale = isEncoding ? 1.4 : 1.0;
+  // Apply extreme initial upward velocity for encoding 
+  // Normal particles are (-0.8 to -3.3) but encoding needs to be much stronger
+  const velocityYBase = isEncoding ? (-4.0 - Math.random() * 6.0) : (-0.8 - Math.random() * 2.5);
+  const velocityY = velocityYBase * velocityFactor;
+  
+  // Make particles larger in the encoding mode to match preview
+  const radiusScale = isEncoding ? 2.2 : 1.0;
   const radius = (1 + Math.random() * 3.0 * (0.8 + intensity * 0.6)) * radiusScale;
   
   // Color variants with more realistic flame colors
   const colorVariant = Math.random();
   let particleColor;
   
-  // Higher opacity in encoding mode
-  const particleOpacity = isEncoding ? 0.95 : 0.9;
-  const darkOpacity = isEncoding ? 0.9 : 0.85;
+  // Use consistent opacity for both modes
+  const particleOpacity = 0.92;
+  const darkOpacity = 0.87;
   
   if (colorVariant < 0.5) {
     // Main flame color based on settings
@@ -617,13 +654,12 @@ function createFireParticle(
     particleColor = `rgba(255, 255, 255, 0.98)`;
   }
   
-  // Shorter lifespan in encoding mode for quicker refresh
-  const lifespanScale = isEncoding ? 0.8 : 1.0;
+  // Much longer lifespan for encoding to ensure particles rise high enough
+  const lifespanScale = isEncoding ? 2.5 : 1.0;
   const maxLife = (25 + Math.random() * 40 + intensity * 30) * lifespanScale;
   
-  // Less turbulence in encoding mode
-  const turbulenceScale = isEncoding ? 0.7 : 1.0;
-  const turbulence = Math.random() * 0.4 * midReactivity * turbulenceScale;
+  // Use consistent turbulence for both modes
+  const turbulence = Math.random() * 0.4 * midReactivity;
   
   const particle: Particle = {
     x,
@@ -658,44 +694,44 @@ function createFireBurst(
 ) {
   const baseColor = hexToRgb(settings.color) || { r: 255, g: 120, b: 50 };
   
-  // Create particle in the main flame area but higher up in encoding mode
-  const heightVarianceMax = isEncoding ? 0.5 : 0.7; // Less height variation in encoding
-  const heightVariance = Math.random() * heightVarianceMax;
+  // Use consistent height variance
+  const heightVariance = Math.random() * 0.6;
   
-  // More centered in encoding mode
-  const spreadFactor = isEncoding ? 0.3 : 0.5;
+  // Use consistent spread
+  const spreadFactor = 0.4;
   const x = canvasWidth / 2 + (Math.random() - 0.5) * canvasWidth * spreadFactor;
   const y = canvasHeight - (canvasHeight * 0.4 * heightVariance); 
   
-  // Slower, more controlled velocity in encoding mode
-  const velocityScale = isEncoding ? 0.7 : 1.0;
+  // Use consistent velocity but greatly increase upward boost for encoded mode
   const angle = Math.random() * Math.PI * 2;
-  const speed = (0.8 + Math.random() * 3 * intensity) * velocityScale;
+  const speed = (0.8 + Math.random() * 3 * intensity);
   const velocityX = Math.cos(angle) * speed;
-  const velocityY = Math.sin(angle) * speed - 2 * velocityScale; // Upward bias
+  // Apply extreme upward velocity for bursts in encoded mode
+  const upwardBoost = isEncoding ? 6.0 : 2.0;
+  const velocityY = Math.sin(angle) * speed - upwardBoost; // Upward bias
   
-  // Slightly larger particles in encoding
-  const radiusScale = isEncoding ? 1.3 : 1.0;
+  // Make burst particles larger in encoding mode
+  const radiusScale = isEncoding ? 2.0 : 1.0; 
   const radius = (0.5 + Math.random() * 2) * radiusScale;
   
-  // Brighter colors for the burst with higher opacity in encoding
-  const particleOpacity = isEncoding ? 0.95 : 0.9;
+  // Use higher opacity for encoding
+  const particleOpacity = isEncoding ? 1.0 : 0.92;
   const colorVariant = Math.random();
   let particleColor;
   
   if (colorVariant < 0.3) {
-    // Main bright color
-    particleColor = `rgba(${baseColor.r}, ${baseColor.g * 0.8 + 50}, ${baseColor.b * 0.5 + 50}, ${particleOpacity})`;
+    // Main bright color - brighter for encoding
+    particleColor = `rgba(${baseColor.r}, ${baseColor.g * 0.8 + (isEncoding ? 70 : 50)}, ${baseColor.b * 0.5 + (isEncoding ? 70 : 50)}, ${particleOpacity})`;
   } else if (colorVariant < 0.8) {
-    // Yellow/white hot spark
+    // Yellow/white hot spark - brighter for encoding
     particleColor = `rgba(255, ${220 + Math.random() * 35}, ${170 + Math.random() * 85}, ${particleOpacity})`;
   } else {
     // Pure white spark
     particleColor = `rgba(255, 255, 255, 1)`;
   }
   
-  // Shorter lifespan for burst particles in encoding
-  const lifespanScale = isEncoding ? 0.8 : 1.0;
+  // Much longer lifespan for encoding to ensure particles rise high enough
+  const lifespanScale = isEncoding ? 2.5 : 1.0;
   const maxLife = (15 + Math.random() * 25) * lifespanScale;
   
   const particle: Particle = {
@@ -710,7 +746,7 @@ function createFireBurst(
     alpha: 1,
     life: 0,
     maxLife,
-    turbulence: Math.random() * 0.3 * (isEncoding ? 0.7 : 1.0),
+    turbulence: Math.random() * 0.3,
     audio: intensity
   };
   
@@ -721,9 +757,13 @@ function drawFireParticle(ctx: CanvasRenderingContext2D, particle: Particle) {
   // Set global alpha for fading effect
   ctx.globalAlpha = particle.alpha;
   
+  const isLargeResolution = ctx.canvas.width >= 1280;
+  
   // Add glow to particles based on color and life stage
+  // Increase glow in encoding mode to match preview
   if (particle.radius > 2 || particle.color.includes('255, 255')) {
-    ctx.shadowBlur = particle.radius * 2 * particle.alpha;
+    const glowScale = isLargeResolution ? 3.0 : 2.0;
+    ctx.shadowBlur = particle.radius * glowScale * particle.alpha;
     ctx.shadowColor = particle.color;
   }
   
