@@ -77,7 +77,8 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
     settings.type !== "circle" && 
     settings.type !== "formation" && 
     !(settings.type === "dots" && settings.showMirror) &&
-    !(settings.type === "bubbles" && settings.showMirror);
+    !(settings.type === "bubbles" && settings.showMirror) &&
+    !(settings.type === "siri" && settings.showMirror);
 
   // Check if bar placement section should be shown
   const showBarPlacementSection = 
@@ -85,14 +86,16 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
     settings.type !== "formation" && 
     settings.type !== "multiline" && 
     !(settings.type === "dots" && settings.showMirror) &&
-    !(settings.type === "bubbles" && settings.showMirror);
+    !(settings.type === "bubbles" && settings.showMirror) &&
+    !(settings.type === "siri" && settings.showMirror);
 
   // Check if animation start section should be shown
   const showAnimationStartSection = 
     settings.type !== "circle" && 
     settings.type !== "formation" && 
     !(settings.type === "dots" && settings.showMirror) &&
-    !(settings.type === "bubbles" && settings.showMirror);
+    !(settings.type === "bubbles" && settings.showMirror) &&
+    !(settings.type === "siri" && settings.showMirror);
 
   return (
     <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-4 md:gap-6`}>
@@ -230,14 +233,14 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
             <div className="flex flex-col space-y-2">
               <div className="flex items-center space-x-2">
                 <Checkbox 
-                  id="bottom-placement" 
-                  checked={settings.barPlacement.includes("bottom")}
+                  id="top-placement" 
+                  checked={settings.barPlacement.includes("top")}
                   onCheckedChange={(checked) => 
-                    handleMultiSelectChange("barPlacement", "bottom", !!checked)
+                    handleMultiSelectChange("barPlacement", "top", !!checked)
                   }
                 />
-                <Label htmlFor="bottom-placement" className="cursor-pointer">
-                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Left" : "Bottom"}
+                <Label htmlFor="top-placement" className="cursor-pointer">
+                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Right" : "Top"}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -252,14 +255,14 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox 
-                  id="top-placement" 
-                  checked={settings.barPlacement.includes("top")}
+                  id="bottom-placement" 
+                  checked={settings.barPlacement.includes("bottom")}
                   onCheckedChange={(checked) => 
-                    handleMultiSelectChange("barPlacement", "top", !!checked)
+                    handleMultiSelectChange("barPlacement", "bottom", !!checked)
                   }
                 />
-                <Label htmlFor="top-placement" className="cursor-pointer">
-                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Right" : "Top"}
+                <Label htmlFor="bottom-placement" className="cursor-pointer">
+                  {settings.verticalOrientation && !settings.horizontalOrientation ? "Left" : "Bottom"}
                 </Label>
               </div>
             </div>
@@ -373,6 +376,18 @@ const VisualizationSettings: React.FC<VisualizationSettingsProps> = ({
               onCheckedChange={(checked) => handleSettingChange("showReversed", checked)}
             />
             <Label htmlFor="reversed" className="cursor-pointer">Invert Effect</Label>
+          </div>
+        )}
+        
+        {/* Add Invert Effect for Siri visualization when Round Effect is enabled */}
+        {settings.type === "siri" && settings.showMirror && (
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch 
+              id="siri-invert" 
+              checked={settings.showInvert} 
+              onCheckedChange={(checked) => handleSettingChange("showInvert", checked)}
+            />
+            <Label htmlFor="siri-invert" className="cursor-pointer">Invert Effect</Label>
           </div>
         )}
 

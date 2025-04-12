@@ -64,7 +64,19 @@ export const drawSiriAnimation = (
       
       // Create a pattern of circles around the center
       const circleCount = 24; // Number of circles per wave
-      const baseRadius = 50 + wave * 40; // Different radius for each wave
+      
+      // Determine if we should animate outward (default) or inward (when inverted)
+      const isInverted = settings.showInvert;
+      
+      // Different radius for each wave with invert effect consideration
+      let baseRadius;
+      if (isInverted) {
+        // When inverted, larger waves have smaller radius (radiating inward)
+        baseRadius = 170 - wave * 40;
+      } else {
+        // Default behavior - waves radiate outward
+        baseRadius = 50 + wave * 40;
+      }
       
       for (let i = 0; i < circleCount; i++) {
         // Calculate position around a circle
@@ -75,8 +87,15 @@ export const drawSiriAnimation = (
         const value = dataArray[dataIndex] * settings.sensitivity;
         const normalizedValue = value / 255;
         
-        // Calculate radius with audio reactivity
-        const circleRadius = baseRadius + normalizedValue * 50;
+        // Calculate radius with audio reactivity, considering invert effect
+        let circleRadius;
+        if (isInverted) {
+          // Inward radiation - audio makes circles move inward
+          circleRadius = baseRadius - normalizedValue * 50;
+        } else {
+          // Outward radiation - audio makes circles move outward
+          circleRadius = baseRadius + normalizedValue * 50;
+        }
         
         // Calculate position
         const x = centerX + Math.cos(angle) * circleRadius;
