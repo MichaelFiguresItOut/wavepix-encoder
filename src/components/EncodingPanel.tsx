@@ -111,12 +111,25 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
     const settings = visualizerSettings;
     const analyser = analyserRef.current;
 
+    // Call the visualization drawing function based on type
+    drawVisualizationByType(ctx, dataArray, canvas, bufferLength, timestamp, settings);
+  };
+
+  // Draw the appropriate visualization based on the selected type
+  const drawVisualizationByType = (
+    ctx: CanvasRenderingContext2D,
+    dataArray: Uint8Array,
+    canvas: HTMLCanvasElement,
+    bufferLength: number,
+    timestamp: number,
+    settings: VisualizerSettings
+  ) => {
     switch(settings.type) {
       case "bars":
-        drawBars(ctx, dataArray, canvas, bufferLength, settings);
+        drawBars(ctx, dataArray, canvas, bufferLength, settings, timestamp);
         break;
       case "wave":
-        drawWave(ctx, dataArray, canvas, bufferLength, settings);
+        drawWave(ctx, dataArray, canvas, bufferLength, settings, timestamp);
         break;
       case "circle":
         drawCircle(ctx, dataArray, canvas, bufferLength, timestamp, settings);
@@ -152,7 +165,7 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         drawSpiderWebAnimation(ctx, dataArray, canvas, bufferLength, timestamp, settings);
         break;
       default:
-        drawBars(ctx, dataArray, canvas, bufferLength, settings);
+        drawBars(ctx, dataArray, canvas, bufferLength, settings, timestamp);
     }
   };
 
@@ -444,128 +457,17 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
         description: `Encoding video at ${fps} FPS...`
       });
       
-      // Resize the canvas to match selected resolution
-      canvas.width = getResolutionWidth(resolution);
-      canvas.height = getResolutionHeight(resolution);
+      // Set up canvas, audio context, and analyzer
+      setupCanvasAndAudio(canvas, audioBuffer);
       
-      // Set up audio contexts for visualization
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
+      // Create streams for recording
+      const { combinedStream, visualizationSource, audioSource } = setupMediaStreams(canvas, fps, audioBuffer);
       
-      if (!analyserRef.current) {
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 512;
-      }
-      
-      // Create a new AudioBuffer source for visualization
-      const visualizationSource = audioContextRef.current.createBufferSource();
-      visualizationSource.buffer = audioBuffer;
-      visualizationSource.connect(analyserRef.current);
-      
-      // Set up buffer for frequency data
-      const bufferLength = analyserRef.current.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      
-      // Use the provided canvas directly instead of creating a new one
-      // This ensures the canvas has the correct context and configuration
-      const ctx = canvas.getContext('2d')!;
-      
-      // Create a canvas stream with specified FPS
-      const canvasStream = canvas.captureStream(fps);
-      
-      // Create a new audio context for the recording
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const audioDestination = audioContext.createMediaStreamDestination();
-      const audioSource = audioContext.createBufferSource();
-      audioSource.buffer = audioBuffer;
-      audioSource.connect(audioDestination);
-      
-      // Create combined stream with video and audio
-      const combinedStream = new MediaStream();
-      
-      // Add video track
-      canvasStream.getVideoTracks().forEach(track => {
-        // Try to set constraints for constant frame rate
-        try {
-          track.applyConstraints({
-            frameRate: { exact: fps }
-          });
-        } catch (e) {
-          console.warn("Could not apply frame rate constraint:", e);
-        }
-        combinedStream.addTrack(track);
-      });
-      
-      // Add audio track
-      audioDestination.stream.getAudioTracks().forEach(track => {
-        combinedStream.addTrack(track);
-      });
-      
-      // Find the best supported codec
-      const mimeTypes = [
-        'video/mp4;codecs=h264,mp4a.40.2',
-        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-        'video/mp4',
-        'video/webm;codecs=h264,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm'
-      ];
-      
-      let mimeType = '';
-      for (const type of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          mimeType = type;
-          console.log(`Using MIME type: ${type}`);
-          break;
-        }
-      }
-      
-      if (!mimeType) {
-        throw new Error("No supported video format found");
-      }
-      
-      // Create media recorder with high quality settings
-      const recorder = new MediaRecorder(combinedStream, {
-        mimeType,
-        videoBitsPerSecond: quality * 200000, // Higher bitrate
-        audioBitsPerSecond: 192000 // Good audio quality
-      });
-      
-      // Collect data chunks
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-      
-      // When recording is complete, create the final video
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/mp4' });
-        finishEncoding(blob);
-      };
+      // Set up the media recorder
+      const { recorder, chunks } = setupMediaRecorder(combinedStream);
       
       // Draw initial frame
-      // 1. Base background
-      if (showBackground) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-      } else {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-      }
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // 2. Overlay background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // 3. Render initial visualization frame (timestamp 0)
-      analyserRef.current.getByteFrequencyData(dataArray);
-      const settings = visualizerSettings;
-      
-      // Calculate initial rotation angle (at timestamp 0)
-      const initialRotationAngle = 0;
-      
-      // Use the shared rendering function for the initial frame for consistency
-      renderVisualization(0, analyserRef.current, canvas, settings, initialRotationAngle);
+      drawInitialFrame(canvas);
       
       // Begin recording
       recorder.start(100); // Collect data every 100ms
@@ -577,109 +479,213 @@ const EncodingPanel: React.FC<EncodingPanelProps> = ({
       // Animation timing variables
       const startTime = performance.now();
       
-      // Animation function to render frames
-      function animate(now: number) {
-        const elapsed = now - startTime;
-        
-        // Update progress
-        const progressPercent = Math.min(100, Math.round((elapsed / (duration * 1000)) * 100));
-        setProgress(progressPercent);
-        
-        // Get current audio data
-        analyserRef.current!.getByteFrequencyData(dataArray);
-        
-        // 1. Set base background
-        if (showBackground) {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-        } else {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-        }
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 2. Apply overlay background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 3. Draw visualization for the current frame using the shared renderVisualization function
-        const settings = visualizerSettings;
-        
-        // Calculate rotation angle based on elapsed time for circle visualization
-        const rotationAngle = (elapsed / 1000) * settings.rotationSpeed * Math.PI;
-        
-        // Use the shared rendering function for consistency with preview
-        renderVisualization(elapsed, analyserRef.current!, canvas, settings, rotationAngle);
-        
-        // Continue animation if not done
-        if (elapsed < duration * 1000) {
-          requestAnimationFrame(animate);
-        } else {
-          // End recording
-          console.log("Animation complete, stopping recorder");
-          
-          // Small delay to ensure all frames are captured
-          setTimeout(() => {
-            recorder.stop();
-            visualizationSource.stop();
-            audioSource.stop();
-          }, 500);
-        }
-      }
+      // Start the animation loop
+      requestAnimationFrame((now) => animate(now, startTime, duration, canvas, recorder));
       
-      // Start animation loop
-      requestAnimationFrame(animate);
-      
+      // When recording is complete, create the final video
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/mp4' });
+        finishEncoding(blob);
+      };
     } catch (error) {
       console.error("Error in CFR encoding:", error);
+      toast({
+        variant: "destructive",
+        title: "Encoding failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred"
+      });
       setIsEncoding(false);
-      toast({
-        variant: "destructive",
-        title: "Encoding Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred"
-      });
     }
   };
-  
-  // WebCodecs approach (modern browsers) - Not using this for now
-  const createVideoWithWebCodecs = async (frames: Blob[], fps: number, audioBuffer: AudioBuffer) => {
-    try {
-      toast({
-        variant: "destructive",
-        title: "Advanced encoding not supported",
-        description: "Your browser doesn't support the required APIs for constant frame rate encoding."
-      });
-      
-      // Fall back to the muxer approach
-      await createVideoWithMuxer(frames, fps, audioBuffer);
-      
-    } catch (error) {
-      console.error("WebCodecs encoding error:", error);
-      throw error;
+
+  // Set up canvas and audio context
+  const setupCanvasAndAudio = (canvas: HTMLCanvasElement, audioBuffer: AudioBuffer) => {
+    // Resize the canvas to match selected resolution
+    canvas.width = getResolutionWidth(resolution);
+    canvas.height = getResolutionHeight(resolution);
+    
+    // Set up audio contexts for visualization
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    
+    if (!analyserRef.current) {
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 512;
     }
   };
-  
-  // Compatible approach using FFmpeg.wasm or similar tool
-  const createVideoWithMuxer = async (frames: Blob[], fps: number, audioBuffer: AudioBuffer) => {
-    // This function is now essentially a fallback/compatibility layer
-    // We're mainly using the direct approach in generateConstantFrameRateVideo now
-    try {
-      console.log("Using fallback muxer approach");
-      
-      // Since we're already doing the direct approach in generateConstantFrameRateVideo,
-      // we'll keep this super simple
-      const duration = audioBuffer.duration;
-      toast({
-        variant: "default",
-        title: "Using simple encoder",
-        description: `Creating ${Math.ceil(duration * fps)} frames at ${fps} FPS...`
-      });
-      
-      // Redirect to the simplified approach in the main function
-      const canvas = canvasRef.current!;
-      await generateConstantFrameRateVideo(fps, canvas, audioBuffer);
-    } catch (error) {
-      console.error("Muxer encoding error:", error);
-      throw error;
+
+  // Create and set up media streams
+  const setupMediaStreams = (canvas: HTMLCanvasElement, fps: number, audioBuffer: AudioBuffer) => {
+    // Create a new AudioBuffer source for visualization
+    const visualizationSource = audioContextRef.current!.createBufferSource();
+    visualizationSource.buffer = audioBuffer;
+    visualizationSource.connect(analyserRef.current!);
+    
+    // Create a canvas stream with specified FPS
+    const canvasStream = canvas.captureStream(fps);
+    
+    // Apply frame rate constraints to video tracks
+    canvasStream.getVideoTracks().forEach(track => {
+      try {
+        track.applyConstraints({
+          frameRate: { exact: fps }
+        });
+      } catch (e) {
+        console.warn("Could not apply frame rate constraint:", e);
+      }
+    });
+    
+    // Create a new audio context for the recording
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioDestination = audioContext.createMediaStreamDestination();
+    const audioSource = audioContext.createBufferSource();
+    audioSource.buffer = audioBuffer;
+    audioSource.connect(audioDestination);
+    
+    // Create combined stream with video and audio
+    const combinedStream = new MediaStream();
+    
+    // Add video tracks
+    canvasStream.getVideoTracks().forEach(track => {
+      combinedStream.addTrack(track);
+    });
+    
+    // Add audio tracks
+    audioDestination.stream.getAudioTracks().forEach(track => {
+      combinedStream.addTrack(track);
+    });
+    
+    return { combinedStream, visualizationSource, audioSource };
+  };
+
+  // Set up the media recorder
+  const setupMediaRecorder = (combinedStream: MediaStream) => {
+    // Find the best supported codec
+    const mimeType = findSupportedMimeType();
+    
+    if (!mimeType) {
+      throw new Error("No supported video format found");
     }
+    
+    // Create media recorder with high quality settings
+    const recorder = new MediaRecorder(combinedStream, {
+      mimeType,
+      videoBitsPerSecond: quality * 200000, // Higher bitrate
+      audioBitsPerSecond: 192000 // Good audio quality
+    });
+    
+    // Collect data chunks
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        chunks.push(e.data);
+      }
+    };
+    
+    return { recorder, chunks };
+  };
+
+  // Find supported MIME type for recording
+  const findSupportedMimeType = () => {
+    const mimeTypes = [
+      'video/mp4;codecs=h264,mp4a.40.2',
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4',
+      'video/webm;codecs=h264,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm'
+    ];
+    
+    for (const type of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        console.log(`Using MIME type: ${type}`);
+        return type;
+      }
+    }
+    
+    return null;
+  };
+
+  // Draw the initial visualization frame
+  const drawInitialFrame = (canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext('2d')!;
+    const bufferLength = analyserRef.current!.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    // 1. Base background
+    if (showBackground) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    }
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 2. Overlay background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 3. Render initial visualization frame (timestamp 0)
+    analyserRef.current!.getByteFrequencyData(dataArray);
+    const settings = visualizerSettings;
+    
+    // Calculate initial rotation angle (at timestamp 0)
+    const initialRotationAngle = 0;
+    
+    // Use the shared rendering function for the initial frame for consistency
+    renderVisualization(0, analyserRef.current!, canvas, settings, initialRotationAngle);
+  };
+
+  // Animation function that renders each frame
+  const animate = (now: number, startTime: number, duration: number, canvas: HTMLCanvasElement, recorder: MediaRecorder) => {
+    const elapsed = now - startTime;
+    
+    // Update progress
+    const progressPercent = Math.min(100, Math.round((elapsed / (duration * 1000)) * 100));
+    setProgress(progressPercent);
+    
+    // Draw the current frame
+    renderFrame(canvas, elapsed);
+    
+    // Continue animation if not done
+    if (elapsed < duration * 1000) {
+      requestAnimationFrame((now) => animate(now, startTime, duration, canvas, recorder));
+    } else {
+      // End recording
+      recorder.stop();
+      console.log("Recording complete");
+    }
+  };
+
+  // Render a single frame at the specified time
+  const renderFrame = (canvas: HTMLCanvasElement, elapsed: number) => {
+    const ctx = canvas.getContext('2d')!;
+    const bufferLength = analyserRef.current!.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    // Get current audio data
+    analyserRef.current!.getByteFrequencyData(dataArray);
+    
+    // 1. Set base background
+    if (showBackground) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    } else {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    }
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 2. Apply overlay background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 3. Draw visualization for the current frame
+    const settings = visualizerSettings;
+    
+    // Calculate rotation angle based on elapsed time for circle visualization
+    const rotationAngle = (elapsed / 1000) * settings.rotationSpeed * Math.PI;
+    
+    // Use the shared rendering function for consistency with preview
+    renderVisualization(elapsed, analyserRef.current!, canvas, settings, rotationAngle);
   };
 
   // Helper functions to get dimensions (assuming they might be needed locally)

@@ -158,7 +158,27 @@ function drawIntegratedFire(
   // Use lighter blend mode for vibrant look
   ctx.globalCompositeOperation = 'lighter';
   
-  // 1. Draw the main flame body
+  // Draw the main components of the fire
+  drawMainFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
+  drawInnerFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
+  drawCentralGlow(ctx, canvasWidth, canvasHeight, baseColor, intensity);
+  
+  // Add embers based on audio intensity
+  if (intensity > 0.4) {
+    drawEmbers(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity);
+  }
+}
+
+// Draw the main outer flame shape
+function drawMainFlame(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  baseColor: { r: number, g: number, b: number },
+  timestamp: number,
+  intensity: number,
+  midReactivity: number
+) {
   // Flame dimensions
   const flameWidth = canvasWidth * 0.65 * (0.6 + midReactivity * 0.6);
   const flameHeight = canvasHeight * 0.45 * (0.6 + intensity * 0.8);
@@ -201,8 +221,21 @@ function drawIntegratedFire(
   );
   ctx.closePath();
   ctx.fill();
+}
+
+// Draw the inner brighter flame core
+function drawInnerFlame(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number, 
+  canvasHeight: number,
+  baseColor: { r: number, g: number, b: number },
+  timestamp: number,
+  intensity: number,
+  midReactivity: number
+) {
+  const flameHeight = canvasHeight * 0.45 * (0.6 + intensity * 0.8);
+  const flameWidth = canvasWidth * 0.65 * (0.6 + midReactivity * 0.6);
   
-  // 2. Draw inner flame
   const innerGradient = ctx.createRadialGradient(
     canvasWidth / 2,
     canvasHeight,
@@ -219,6 +252,8 @@ function drawIntegratedFire(
   const pulseScale = 0.9 + 0.2 * Math.sin(timestamp / 100) * intensity;
   const innerWidth = flameWidth * 0.5 * pulseScale;
   const innerHeight = flameHeight * 0.7 * pulseScale;
+  
+  const wobble = Math.sin(timestamp / 300) * 20 * midReactivity;
   
   ctx.fillStyle = innerGradient;
   ctx.beginPath();
@@ -240,169 +275,100 @@ function drawIntegratedFire(
   );
   ctx.closePath();
   ctx.fill();
-  
-  // 3. Add central glow for intensity
+}
+
+// Add central glow effect
+function drawCentralGlow(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  baseColor: { r: number, g: number, b: number },
+  intensity: number
+) {
   if (intensity > 0.6) {
+    const flameHeight = canvasHeight * 0.45 * (0.6 + intensity * 0.8);
+    
     ctx.shadowBlur = 20 * intensity;
     ctx.shadowColor = `rgba(${baseColor.r}, ${baseColor.g * 0.7}, ${baseColor.b * 0.3}, ${intensity * 0.8})`;
     ctx.beginPath();
     ctx.arc(canvasWidth / 2, canvasHeight - flameHeight * 0.6, flameHeight * 0.3, 0, Math.PI * 2);
     ctx.closePath();
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  }
-  
-  // 4. Draw randomized particles like in the preview instead of the circular pattern
-  const particleCount = 150 + Math.floor(intensity * 150); // Increase particle count
-  
-  for (let i = 0; i < particleCount; i++) {
-    // Sample audio data for particle properties
-    const freqIndex = Math.floor(Math.random() * bufferLength * 0.8);
-    const freqValue = dataArray[freqIndex] / 255.0;
-    const scaledValue = freqValue * settings.sensitivity;
     
-    // Create a distribution similar to the preview
-    // Wider at the top, narrower at the bottom
-    const yPosition = Math.random();
-    const xSpread = yPosition * 1.8 + 0.2; // More spread at the top
-    
-    // Position calculation
-    const x = canvasWidth / 2 + (Math.random() - 0.5) * canvasWidth * xSpread;
-    
-    // Y position: more particles higher up
-    let y;
-    if (Math.random() > 0.3) {
-      // 70% of particles in upper area
-      y = canvasHeight - flameHeight * (0.3 + Math.random() * 1.7);
-    } else {
-      // 30% of particles in the flame body
-      y = canvasHeight - flameHeight * Math.random() * 0.7;
-    }
-    
-    // Particle size - match preview
-    const baseSize = 1 + Math.random() * 3.5;
-    const size = baseSize * (0.5 + scaledValue * 0.8);
-    
-    // Match preview colors - more blue tones
-    let particleColor;
-    const blueChance = 0.6; // 60% of particles are blueish
-    
-    if (Math.random() < blueChance) {
-      // Blue to cyan spectrum
-      const blue = 180 + Math.random() * 75;
-      const green = 100 + Math.random() * 155;
-      particleColor = `rgba(${50 + Math.random() * 50}, ${green}, ${blue}, ${0.7 + scaledValue * 0.3})`;
-    } else if (scaledValue > 0.7) {
-      // Bright white-yellow hot particles
-      particleColor = `rgba(255, ${220 + Math.random() * 35}, ${180 + Math.random() * 75}, ${0.8 + scaledValue * 0.2})`;
-    } else {
-      // Flame color particles
-      particleColor = `rgba(${baseColor.r}, ${baseColor.g * 0.7 + 50}, ${baseColor.b * 0.3 + 30}, ${0.6 + scaledValue * 0.4})`;
-    }
-    
-    // Draw the particle with glow
-    ctx.beginPath();
-    ctx.fillStyle = particleColor;
-    ctx.shadowColor = particleColor;
-    ctx.shadowBlur = size * 2;
-    ctx.arc(x, y, size, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  
-  // 5. Add subtle ember trails to integrate particles with flame
-  const trailCount = 25;
-  for (let i = 0; i < trailCount; i++) {
-    const startY = canvasHeight - Math.random() * flameHeight * 1.2;
-    const startX = canvasWidth / 2 + (Math.random() - 0.5) * flameWidth * 1.0;
-    
-    const length = 20 + Math.random() * 120;
-    // More varied angles for natural look
-    const angle = -Math.PI/2 + (Math.random() - 0.5) * 1.5;
-    
-    const endX = startX + Math.cos(angle) * length;
-    const endY = startY + Math.sin(angle) * length;
-    
-    // Use blue tones for some trails
-    let trailColor;
-    if (Math.random() > 0.5) {
-      trailColor = {
-        r: 50 + Math.random() * 50,
-        g: 100 + Math.random() * 100,
-        b: 200 + Math.random() * 55
-      };
-    } else {
-      trailColor = {
-        r: baseColor.r,
-        g: baseColor.g * 0.7,
-        b: baseColor.b * 0.3
-      };
-    }
-    
-    // Create a gradient for the ember path
-    const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
-    gradient.addColorStop(0, `rgba(${trailColor.r}, ${trailColor.g}, ${trailColor.b}, 0.7)`);
-    gradient.addColorStop(1, `rgba(${trailColor.r}, ${trailColor.g}, ${trailColor.b}, 0)`);
-    
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 0.5 + Math.random() * 2;
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    
-    // Create curved ember path for more natural look
-    const controlX = startX + (endX - startX) * 0.5 + (Math.random() - 0.5) * 50;
-    const controlY = startY + (endY - startY) * 0.3;
-    
-    ctx.quadraticCurveTo(controlX, controlY, endX, endY);
-    ctx.stroke();
-  }
-  
-  // 6. Add peak bursts
-  if (isPeak) {
-    // Add more prominent burst on audio peaks
-    const burstRadius = flameHeight * 0.3;
-    const gradient = ctx.createRadialGradient(
-      canvasWidth / 2, canvasHeight - flameHeight * 0.5,
+    const glowGradient = ctx.createRadialGradient(
+      canvasWidth / 2,
+      canvasHeight - flameHeight * 0.6,
       0,
-      canvasWidth / 2, canvasHeight - flameHeight * 0.5,
-      burstRadius
+      canvasWidth / 2,
+      canvasHeight - flameHeight * 0.6,
+      flameHeight * 0.3
     );
     
-    gradient.addColorStop(0, `rgba(255, 255, 255, ${0.3 * intensity})`);
-    gradient.addColorStop(0.4, `rgba(100, 180, 255, ${0.2 * intensity})`); // Add blue tone
-    gradient.addColorStop(0.7, `rgba(${baseColor.r}, ${baseColor.g * 0.8}, ${baseColor.b * 0.3}, ${0.1 * intensity})`);
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    glowGradient.addColorStop(0, `rgba(255, ${220 + baseColor.g * 0.1}, ${150 + baseColor.b * 0.1}, ${intensity * 0.8})`);
+    glowGradient.addColorStop(1, `rgba(${baseColor.r}, ${baseColor.g * 0.7}, ${baseColor.b * 0.3}, 0)`);
     
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(canvasWidth / 2, canvasHeight - flameHeight * 0.5, burstRadius, 0, Math.PI * 2);
+    ctx.fillStyle = glowGradient;
     ctx.fill();
     
-    // Add additional particle burst on peaks
-    const burstParticles = 30 + Math.floor(intensity * 40);
-    for (let i = 0; i < burstParticles; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = Math.random() * flameHeight * 0.7;
-      
-      const x = canvasWidth / 2 + Math.cos(angle) * distance;
-      const y = canvasHeight - flameHeight * 0.5 + Math.sin(angle) * distance * 0.5;
-      
-      const size = 1 + Math.random() * 3 * intensity;
-      
-      // More blue burst particles
-      const blueAmount = 150 + Math.random() * 105;
-      const particleColor = `rgba(${50 + Math.random() * 50}, ${100 + Math.random() * 120}, ${blueAmount}, ${0.7 + Math.random() * 0.3})`;
-      
-      ctx.beginPath();
-      ctx.fillStyle = particleColor;
-      ctx.shadowColor = particleColor;
-      ctx.shadowBlur = size * 3;
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Reset shadow
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
   }
+}
+
+// Draw flying ember particles
+function drawEmbers(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  baseColor: { r: number, g: number, b: number },
+  timestamp: number,
+  intensity: number,
+  midReactivity: number
+) {
+  const flameHeight = canvasHeight * 0.45 * (0.6 + intensity * 0.8);
+  const emberCount = Math.floor(5 + intensity * 20);
   
-  // Reset blend mode
-  ctx.globalCompositeOperation = 'source-over';
+  // Create pseudo-random embers that are consistent for the timestamp
+  for (let i = 0; i < emberCount; i++) {
+    const seed = (timestamp / 1000 + i * 0.1) % 100;
+    
+    // Use sin/cos with the seed to get "random" but consistent placement
+    const xOffset = Math.sin(seed * 7.5) * canvasWidth * 0.3;
+    const yPosition = canvasHeight - flameHeight * (0.2 + Math.abs(Math.cos(seed * 3.2)) * 1.4);
+    const size = 1 + Math.abs(Math.sin(seed * 9.3)) * 2 * intensity;
+    
+    // Ember movement based on time
+    const xMovement = Math.sin(timestamp / 400 + i) * 10 * midReactivity;
+    const yMovement = -Math.abs(Math.sin(timestamp / 300 + i * 2) * 5) * intensity;
+    
+    const alpha = 0.3 + Math.abs(Math.sin(seed * 5.2)) * 0.7 * intensity;
+    
+    ctx.beginPath();
+    ctx.arc(
+      canvasWidth / 2 + xOffset + xMovement, 
+      yPosition + yMovement,
+      size,
+      0,
+      Math.PI * 2
+    );
+    ctx.closePath();
+    
+    const emberGradient = ctx.createRadialGradient(
+      canvasWidth / 2 + xOffset + xMovement,
+      yPosition + yMovement,
+      0,
+      canvasWidth / 2 + xOffset + xMovement,
+      yPosition + yMovement,
+      size
+    );
+    
+    emberGradient.addColorStop(0, `rgba(255, 255, ${180 + baseColor.b * 0.3}, ${alpha})`);
+    emberGradient.addColorStop(0.5, `rgba(${baseColor.r}, ${150 + baseColor.g * 0.2}, 50, ${alpha * 0.6})`);
+    emberGradient.addColorStop(1, `rgba(${baseColor.r * 0.5}, ${baseColor.g * 0.3}, ${baseColor.b * 0.1}, 0)`);
+    
+    ctx.fillStyle = emberGradient;
+    ctx.fill();
+  }
 }
 
 // Update and draw existing particles

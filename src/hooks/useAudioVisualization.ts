@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { renderVisualization } from '../utils/visualizationRenderer';
 
 export type VisualizationOrientation = "horizontal" | "vertical" | "both";
 export type BarPlacement = "bottom" | "middle" | "top";
@@ -202,57 +203,52 @@ export const useAudioVisualization = ({
     // Function to pause audio playback
     const pauseAudio = () => {
       try {
-        // Capture current frequency data before pausing
-        if (analyserRef.current && audioContextRef.current) {
-          // Make sure we have the right size array
-          const bufferLength = analyserRef.current.frequencyBinCount;
-          if (!lastFrequencyDataRef.current || lastFrequencyDataRef.current.length !== bufferLength) {
-            lastFrequencyDataRef.current = new Uint8Array(bufferLength);
-          }
-          
-          // Get the latest data before we pause
-          try {
-            analyserRef.current.getByteFrequencyData(lastFrequencyDataRef.current);
-          } catch (error) {
-            console.error("Error capturing final frame data:", error);
-            // Create a backup data array with some random values instead of all zeros
-            if (lastFrequencyDataRef.current) {
-              for (let i = 0; i < lastFrequencyDataRef.current.length; i++) {
-                lastFrequencyDataRef.current[i] = Math.random() * 128;
-              }
-            }
-          }
-        }
-        
-        // Now pause the audio and stop the source
-        if (audioSourceRef.current && audioContextRef.current) {
-          // Calculate current position for resume
-          const elapsedTime = audioContextRef.current.currentTime - startTimeRef.current;
-          currentTimeRef.current = (currentTimeRef.current + elapsedTime) % audioBuffer.duration;
-          
-          // Stop the current source and suspend the context
-          audioSourceRef.current.stop();
-          audioSourceRef.current = null;
-          
-          // Only suspend the context if it's in a suspendable state
-          if (audioContextRef.current.state === 'running') {
-            audioContextRef.current.suspend();
-          }
-        }
-        
-        // Set the pause flag after capturing the frame data
         isPausedRef.current = true;
         
-        // Immediately cancel any ongoing animation frames to prevent further updates
+        if (audioSourceRef.current) {
+          try {
+            audioSourceRef.current.stop();
+          } catch (error) {
+            console.error("Error stopping audio source on pause:", error);
+          }
+          audioSourceRef.current = null;
+        }
+        
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current);
           animationRef.current = 0;
         }
         
-        // Render frozen visual after we've captured the final frame data
+        // Skip rendering frozen visualization if we don't have a canvas or buffer yet
+        if (!canvasRef.current || !audioBuffer) {
+          return;
+        }
+        
+        // Ensure we have a render function before rendering the frozen visualization
+        if (!lastRenderFunctionRef.current) {
+          // Use the imported renderVisualization function
+          lastRenderFunctionRef.current = renderVisualization;
+        }
+        
+        // Capture frequency data before freezing
+        if (analyserRef.current && !lastFrequencyDataRef.current) {
+          const bufferLength = analyserRef.current.frequencyBinCount;
+          lastFrequencyDataRef.current = new Uint8Array(bufferLength);
+          try {
+            analyserRef.current.getByteFrequencyData(lastFrequencyDataRef.current);
+          } catch (error) {
+            console.error("Error capturing frequency data:", error);
+            // Fill with random values as fallback
+            for (let i = 0; i < lastFrequencyDataRef.current.length; i++) {
+              lastFrequencyDataRef.current[i] = Math.random() * 128;
+            }
+          }
+        }
+        
+        // Render the frozen visualization
         renderFrozenVisualization();
       } catch (error) {
-        console.error("Error pausing audio:", error);
+        console.error("Error in pauseAudio:", error);
       }
     };
     

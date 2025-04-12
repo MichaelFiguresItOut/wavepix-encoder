@@ -241,45 +241,20 @@ function createFractalLightningBolt(
 ) {
     const id = nextBoltId++;
 
-    // Start position: top-left, with randomness
-    const startX = 0;
-    const startY = 0;
-    const currentX = -30; // Start off-screen left
-    const currentY = canvasHeight * (0.05 + Math.random() * 0.2); // Start in top part of screen
+    // Create starting position and calculate initial properties
+    const { startX, startY, currentX, currentY } = calculateBoltStartPosition(canvasWidth, canvasHeight);
+    
+    // Create the initial root segment
+    const rootSegment = createRootSegment(startX, startY, audioIntensity, isPeak, settings);
+    
+    // Calculate bolt speed based on audio intensity
+    const { speedX, speedY } = calculateBoltSpeed(audioIntensity, isPeak);
+    
+    // Calculate max age for bolt based on audio intensity
+    const maxAge = calculateBoltMaxAge(audioIntensity, isPeak);
 
-    // Initial direction: Mostly horizontal with slight downward angle
-    const angleVariation = Math.PI * 0.1;
-    const baseAngle = Math.PI * 0.1; // Slight downward angle from horizontal
-    const initialAngle = baseAngle + (Math.random() - 0.5) * angleVariation;
-
-    // Define root segment properties - thinner and longer
-    const rootLength = 70 + audioIntensity * 150;
-    const rootWidth = 1.5 + audioIntensity * 2.0 + (isPeak ? 1.0 : 0); // Thinner trunk
-    const rootIntensity = 0.9 + audioIntensity * 0.5;
-
-    const rootSegment: LightningSegment = {
-        start: { x: startX, y: startY },
-        end: {
-            x: startX + Math.cos(initialAngle) * rootLength,
-            y: startY + Math.sin(initialAngle) * rootLength
-        },
-        width: rootWidth,
-        intensity: rootIntensity,
-        angle: initialAngle,
-        length: rootLength,
-        children: [],
-        depth: 0
-    };
-
-    // Recursively build branches
-    buildFractalBranches(rootSegment, audioIntensity, highIntensity, isPeak, settings);
-
-    // Create the main bolt object
-    const maxAge = BASE_MAX_AGE + (isPeak ? PEAK_MAX_AGE_BONUS : 0) + Math.random() * 50;
-    const speedX = BASE_SPEED_X + audioIntensity * AUDIO_SPEED_FACTOR;
-    const speedY = BASE_SPEED_Y + audioIntensity * AUDIO_SPEED_FACTOR * 0.3; // Less vertical speed
-
-    const bolt: LightningBolt = {
+    // Create the full bolt object
+    currentBolt = {
         id,
         rootSegment,
         creationTime: timestamp,
@@ -287,14 +262,79 @@ function createFractalLightningBolt(
         currentAge: 0,
         audioIntensitySnapshot: 0.5 + audioIntensity * 0.7,
         isFadingOut: false,
-        currentX: currentX,
-        currentY: currentY,
-        speedX: speedX,
-        speedY: speedY
+        currentX,
+        currentY,
+        speedX,
+        speedY
     };
 
-    // Assign to the single global variable
-    currentBolt = bolt;
+    // Add fractal branches
+    buildFractalBranches(rootSegment, audioIntensity, highIntensity, isPeak, settings);
+}
+
+// Calculate the starting position for a new lightning bolt
+function calculateBoltStartPosition(canvasWidth: number, canvasHeight: number) {
+    // Start position: top-left, with randomness
+    const startX = 0;
+    const startY = 0;
+    const currentX = -30; // Start off-screen left
+    const currentY = canvasHeight * (0.05 + Math.random() * 0.2); // Start in top part of screen
+    
+    return { startX, startY, currentX, currentY };
+}
+
+// Create the root segment for a new lightning bolt
+function createRootSegment(
+    startX: number, 
+    startY: number, 
+    audioIntensity: number, 
+    isPeak: boolean,
+    settings: VisualizerSettings
+): LightningSegment {
+    // Initial direction: Mostly horizontal with slight downward angle
+    const angleVariation = Math.PI * 0.1;
+    const baseAngle = Math.PI * 0.1; // Mostly horizontal with slight down angle
+    const angle = baseAngle + (Math.random() - 0.5) * angleVariation;
+
+    // Calculate segment length based on audio intensity
+    const baseLength = 70;
+    const lengthBoost = isPeak ? 180 : 150;
+    const length = baseLength + audioIntensity * lengthBoost;
+
+    // Calculate endpoint
+    const endX = startX + Math.cos(angle) * length;
+    const endY = startY + Math.sin(angle) * length;
+
+    // Create initial segment with intensity-adjusted properties
+    return {
+        start: { x: startX, y: startY },
+        end: { x: endX, y: endY },
+        width: 1.5 + audioIntensity * 2.0 + (isPeak ? 1.0 : 0),
+        intensity: 0.9 + audioIntensity * 0.5,
+        angle,
+        length,
+        children: [],
+        depth: 0
+    };
+}
+
+// Calculate the bolt speed based on audio intensity
+function calculateBoltSpeed(audioIntensity: number, isPeak: boolean) {
+    const speedMultiplier = isPeak ? 1.3 : 1.0;
+    
+    const speedX = (BASE_SPEED_X + audioIntensity * AUDIO_SPEED_FACTOR) * speedMultiplier;
+    const speedY = (BASE_SPEED_Y + audioIntensity * AUDIO_SPEED_FACTOR * 0.3) * speedMultiplier; // Less vertical
+    
+    return { speedX, speedY };
+}
+
+// Calculate the maximum age for the bolt based on audio intensity
+function calculateBoltMaxAge(audioIntensity: number, isPeak: boolean) {
+    // Longer lifespan for intense audio or peaks
+    const peakBonus = isPeak ? PEAK_MAX_AGE_BONUS : 0;
+    const intensityBonus = Math.floor(audioIntensity * 150);
+    
+    return BASE_MAX_AGE + intensityBonus + peakBonus;
 }
 
 function buildFractalBranches(
