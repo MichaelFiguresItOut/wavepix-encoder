@@ -510,10 +510,10 @@ function drawFlameBase(
   // 3. Draw inner brighter flame core
   drawInnerFlame(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity, baseHue);
   
-  // 4. Add small ember particles in preview mode only
-  if (!isEncoding) {
-    drawEmbers(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity, baseHue);
-  }
+  // 4. Remove ember particles from preview mode to match encoded video
+  // Removed: if (!isEncoding) {
+  //   drawEmbers(ctx, canvasWidth, canvasHeight, baseColor, timestamp, intensity, midReactivity, baseHue);
+  // }
 }
 
 // Creates a fire particle with properties based on input parameters
