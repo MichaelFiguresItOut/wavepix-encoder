@@ -531,12 +531,64 @@ export const useAudioVisualization = ({
     };
   }, []);
 
+  // This function will be used to seek to a specific position in the audio
+  const seekToPosition = (position: number) => {
+    if (!audioBuffer || !audioContextRef.current) return;
+    
+    try {
+      // Store the position we want to seek to
+      currentTimeRef.current = position;
+      
+      // If the audio is currently playing, we need to stop it and restart from the new position
+      if (isPlaying && !isPausedRef.current) {
+        // Stop the current audio source if it exists
+        if (audioSourceRef.current) {
+          try {
+            audioSourceRef.current.stop();
+          } catch (error) {
+            console.error("Error stopping audio source during seek:", error);
+          }
+          audioSourceRef.current = null;
+        }
+        
+        // Create a new audio source
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(analyserRef.current!);
+        analyserRef.current!.connect(audioContextRef.current.destination);
+        
+        // Loop audio
+        source.loop = true;
+        
+        // Start from the new position
+        source.start(0, position);
+        startTimeRef.current = audioContextRef.current.currentTime;
+        audioSourceRef.current = source;
+        
+        // Also restart visualization to sync with new audio position
+        if (lastRenderFunctionRef.current) {
+          startVisualization(lastRenderFunctionRef.current);
+        }
+      } else if (!isPlaying) {
+        // If paused, just update position and render a new frame
+        renderFrozenVisualization();
+      }
+    } catch (error) {
+      console.error("Error during seek:", error);
+    }
+  };
+
   return {
     canvasRef,
     settings,
     setSettings,
     startVisualization,
     animationRef,
-    renderFrozenVisualization
+    renderFrozenVisualization,
+    // Expose these for the seek bar functionality
+    audioContextRef,
+    audioSourceRef,
+    currentTimeRef,
+    seekToPosition
   };
 };

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAudioVisualization } from "@/hooks/useAudioVisualization";
 import { renderVisualization } from "@/utils/visualizationRenderer";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Slider } from "@/components/ui/slider";
 
 interface VisualizationCanvasProps {
   audioBuffer: AudioBuffer | null;
@@ -17,7 +18,21 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
   onCanvasRef
 }) => {
   const isMobile = useIsMobile();
-  const { canvasRef, startVisualization, animationRef, settings: hookSettings, setSettings, renderFrozenVisualization } = useAudioVisualization({
+  const [currentProgress, setCurrentProgress] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const { 
+    canvasRef, 
+    startVisualization, 
+    animationRef, 
+    settings: hookSettings, 
+    setSettings, 
+    renderFrozenVisualization,
+    audioContextRef,
+    audioSourceRef,
+    currentTimeRef,
+    seekToPosition
+  } = useAudioVisualization({
     audioBuffer,
     isPlaying,
     initialSettings: settings
@@ -103,6 +118,20 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
     };
   }, [isPlaying, settings, startVisualization, animationRef, audioBuffer, renderFrozenVisualization]);
   
+  // Update progress indicator for seek bar
+  useEffect(() => {
+    if (!audioBuffer || !audioContextRef.current || isDragging) return;
+    
+    const updateProgressInterval = setInterval(() => {
+      if (currentTimeRef.current !== undefined && audioBuffer) {
+        const progress = (currentTimeRef.current / audioBuffer.duration) * 100;
+        setCurrentProgress(progress);
+      }
+    }, 50); // Update frequently for smoother UI
+    
+    return () => clearInterval(updateProgressInterval);
+  }, [audioBuffer, audioContextRef, currentTimeRef, isDragging]);
+  
   // Pass the canvas ref to parent if needed
   useEffect(() => {
     if (onCanvasRef) {
@@ -113,6 +142,24 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
       }
     }
   }, [canvasRef, onCanvasRef]);
+  
+  // Handle seek bar change from user input
+  const handleSeekChange = (value: number[]) => {
+    if (!audioBuffer) return;
+    
+    const seekPercent = value[0];
+    setCurrentProgress(seekPercent);
+    setIsDragging(true);
+  };
+  
+  // Handle when user releases the seek bar
+  const handleSeekComplete = () => {
+    if (!audioBuffer) return;
+    
+    const newPosition = (currentProgress / 100) * audioBuffer.duration;
+    seekToPosition(newPosition);
+    setIsDragging(false);
+  };
 
   return (
     <div className="rounded-lg border overflow-hidden h-full relative bg-black/30">
@@ -125,6 +172,21 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
       {!audioBuffer && (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground p-4 text-center">
           {isMobile ? "Tap to upload audio" : "Upload an audio file to visualize"}
+        </div>
+      )}
+      
+      {/* Seek bar */}
+      {audioBuffer && (
+        <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50">
+          <Slider
+            value={[currentProgress]}
+            min={0}
+            max={100}
+            step={0.1}
+            onValueChange={handleSeekChange}
+            onValueCommit={handleSeekComplete}
+            className="cursor-pointer"
+          />
         </div>
       )}
     </div>
