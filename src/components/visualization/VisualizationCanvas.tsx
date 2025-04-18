@@ -11,6 +11,13 @@ interface VisualizationCanvasProps {
   onCanvasRef?: (ref: React.RefObject<HTMLCanvasElement>) => void;
 }
 
+// Helper function to format seconds as MM:SS
+const formatTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+};
+
 const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
   audioBuffer,
   isPlaying,
@@ -20,6 +27,8 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
   const isMobile = useIsMobile();
   const [currentProgress, setCurrentProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [currentTime, setCurrentTime] = useState("0:00");
+  const [totalDuration, setTotalDuration] = useState("0:00");
   
   const { 
     canvasRef, 
@@ -37,6 +46,13 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
     isPlaying,
     initialSettings: settings
   });
+  
+  // Set total duration when audio buffer changes
+  useEffect(() => {
+    if (audioBuffer) {
+      setTotalDuration(formatTime(audioBuffer.duration));
+    }
+  }, [audioBuffer]);
   
   // Update canvas dimensions based on device
   useEffect(() => {
@@ -124,8 +140,10 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
     
     const updateProgressInterval = setInterval(() => {
       if (currentTimeRef.current !== undefined && audioBuffer) {
-        const progress = (currentTimeRef.current / audioBuffer.duration) * 100;
+        const currentSeconds = currentTimeRef.current;
+        const progress = (currentSeconds / audioBuffer.duration) * 100;
         setCurrentProgress(progress);
+        setCurrentTime(formatTime(currentSeconds));
       }
     }, 50); // Update frequently for smoother UI
     
@@ -149,6 +167,11 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
     
     const seekPercent = value[0];
     setCurrentProgress(seekPercent);
+    
+    // Update current time display while dragging
+    const newTimeSeconds = (seekPercent / 100) * audioBuffer.duration;
+    setCurrentTime(formatTime(newTimeSeconds));
+    
     setIsDragging(true);
   };
   
@@ -175,18 +198,22 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
         </div>
       )}
       
-      {/* Seek bar */}
+      {/* Seek bar with timestamps */}
       {audioBuffer && (
         <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50">
-          <Slider
-            value={[currentProgress]}
-            min={0}
-            max={100}
-            step={0.1}
-            onValueChange={handleSeekChange}
-            onValueCommit={handleSeekComplete}
-            className="cursor-pointer"
-          />
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-white/70 min-w-[40px]">{currentTime}</span>
+            <Slider
+              value={[currentProgress]}
+              min={0}
+              max={100}
+              step={0.1}
+              onValueChange={handleSeekChange}
+              onValueCommit={handleSeekComplete}
+              className="cursor-pointer flex-1"
+            />
+            <span className="text-xs text-white/70 min-w-[40px]">{totalDuration}</span>
+          </div>
         </div>
       )}
     </div>
