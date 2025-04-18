@@ -185,24 +185,26 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
   };
 
   return (
-    <div className="rounded-lg border overflow-hidden h-full relative bg-black/30">
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full touch-none"
-        width={isMobile ? 800 : 1200}
-        height={isMobile ? 400 : 600}
-      />
-      {!audioBuffer && (
-        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground p-4 text-center">
-          {isMobile ? "Tap to upload audio" : "Upload an audio file to visualize"}
-        </div>
-      )}
+    <div className="flex flex-col space-y-2">
+      <div className={`rounded-lg border overflow-hidden relative bg-black/30 ${isMobile ? 'h-[250px]' : 'h-[300px]'}`}>
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full touch-none"
+          width={isMobile ? 800 : 1200}
+          height={isMobile ? 400 : 600}
+        />
+        {!audioBuffer && (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground p-4 text-center">
+            {isMobile ? "Tap to upload audio" : "Upload an audio file to visualize"}
+          </div>
+        )}
+      </div>
       
       {/* Seek bar with timestamps */}
       {audioBuffer && (
-        <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50">
+        <div className="px-1">
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-white/70 min-w-[40px]">{currentTime}</span>
+            <span className="text-xs text-muted-foreground min-w-[40px]">{currentTime}</span>
             <Slider
               value={[currentProgress]}
               min={0}
@@ -212,7 +214,7 @@ const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
               onValueCommit={handleSeekComplete}
               className="cursor-pointer flex-1"
             />
-            <span className="text-xs text-white/70 min-w-[40px]">{totalDuration}</span>
+            <span className="text-xs text-muted-foreground min-w-[40px]">{totalDuration}</span>
           </div>
         </div>
       )}
