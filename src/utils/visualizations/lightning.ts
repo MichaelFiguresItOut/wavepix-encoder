@@ -40,7 +40,7 @@ const MAX_RECURSION_DEPTH = 4;
 const audioHistory: number[] = Array(10).fill(0);
 let lastAudioPeakTime = 0;
 let noAudioFrames = 0;
-let rhythmDetection: number[] = []; // Store time between peaks
+const rhythmDetection: number[] = []; // Store time between peaks
 
 // --- Constants ---
 const BASE_MAX_AGE = 300; // Longer lifespan for continuous bolt (frames)
@@ -201,7 +201,7 @@ export const drawLightningAnimation = (
         : currentBolt.audioIntensitySnapshot * (0.5 + reactiveIntensity * 0.8);
 
     // Check for removal conditions (age or fully faded)
-    let boltShouldBeRemoved = currentBolt.currentAge > currentBolt.maxAge || (currentBolt.isFadingOut && drawIntensity < 0.01);
+    const boltShouldBeRemoved = currentBolt.currentAge > currentBolt.maxAge || (currentBolt.isFadingOut && drawIntensity < 0.01);
 
     if (boltShouldBeRemoved) {
         currentBolt = null;
@@ -522,15 +522,15 @@ function drawFractalSegment(
     const depthMultiplier = Math.pow(0.7, segment.depth);
 
     // Thinner trunk and branches
-    let baseEffectiveWidth = segment.width * coreBoost * 0.7; // Overall width reduction
+    const baseEffectiveWidth = segment.width * coreBoost * 0.7; // Overall width reduction
     let effectiveWidth = baseEffectiveWidth * (0.4 + drawIntensity * 1.4) * depthMultiplier;
 
     // Less extreme glow
-    let baseGlowAmount = (15 + drawIntensity * 30 + (isPeak ? 25 : 0)) * coreBoost;
+    const baseGlowAmount = (15 + drawIntensity * 30 + (isPeak ? 25 : 0)) * coreBoost;
     let glowAmount = baseGlowAmount * depthMultiplier;
 
     // Slightly reduced brightness
-    let baseAlpha = Math.min(1, 0.5 + drawIntensity * 0.8 + (isPeak ? 0.2 : 0)) * coreBoost;
+    const baseAlpha = Math.min(1, 0.5 + drawIntensity * 0.8 + (isPeak ? 0.2 : 0)) * coreBoost;
     let alpha = Math.min(1, baseAlpha * (0.6 + depthMultiplier * 0.4));
 
     // Shrinking effect during low audio / fade out
@@ -544,8 +544,8 @@ function drawFractalSegment(
     effectiveWidth = Math.max(0.1, effectiveWidth);
 
     // Customize glow color based on segment depth
-    let glowR = parseInt(baseColor.slice(1, 3), 16);
-    let glowG = parseInt(baseColor.slice(3, 5), 16);
+    const glowR = parseInt(baseColor.slice(1, 3), 16);
+    const glowG = parseInt(baseColor.slice(3, 5), 16);
     let glowB = parseInt(baseColor.slice(5, 7), 16);
     
     // Add slight color variation based on depth

@@ -24,7 +24,7 @@ export const drawSpiderWebAnimation = (
   settings.barPlacement.forEach(placement => {
     // Handle horizontal orientation if enabled
     if (settings.horizontalOrientation) {
-      let centerX = canvasWidth / 2;
+      const centerX = canvasWidth / 2;
       let centerY;
       
       if (placement === 'top') {
@@ -43,7 +43,7 @@ export const drawSpiderWebAnimation = (
     
     // Handle vertical orientation if enabled
     if (settings.verticalOrientation) {
-      let centerY = canvasHeight / 2;
+      const centerY = canvasHeight / 2;
       let centerX;
       
       if (placement === 'bottom') { // Right in vertical orientation

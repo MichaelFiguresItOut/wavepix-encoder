@@ -2,8 +2,8 @@ import { VisualizerSettings } from '@/hooks/useAudioVisualization'; // Use hook 
 import { BarVisualizationSettings, getYPositionForPlacement, getXPositionForPlacement, getAnimationStartPosition, getHorizontalDirection, getVerticalDirection, generateRainbowColor } from './utils';
 
 // Store the last color change time and current rainbow color
-let lastColorChangeTime = 0;
-let currentRainbowColor = '#3B82F6';
+const lastColorChangeTime = 0;
+const currentRainbowColor = '#3B82F6';
 
 export const drawBars = (
   ctx: CanvasRenderingContext2D,
