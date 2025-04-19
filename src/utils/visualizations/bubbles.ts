@@ -228,7 +228,15 @@ export const drawBubblesAnimation = (
         
         for (let i = 0; i < dotCount; i++) {
           // Get data for this dot
-          const index = Math.floor(i * (bufferLength / dotCount));
+          let index;
+          if (animationStart === 'middle') {
+            // For middle start, reorder the indices to start from center
+            const middleIndex = Math.floor(dotCount / 2);
+            const distanceFromMiddle = Math.abs(i - middleIndex);
+            index = Math.floor(distanceFromMiddle * (bufferLength / dotCount));
+          } else {
+            index = Math.floor(i * (bufferLength / dotCount));
+          }
           const value = dataArray[index] * settings.sensitivity;
           const normalizedValue = value / 255;
           
@@ -247,23 +255,26 @@ export const drawBubblesAnimation = (
             x = canvasWidth - (i * sliceWidth);
           } else { // middle
             const middleIndex = dotCount / 2;
-            const distanceFromMiddle = Math.abs(i - middleIndex);
             if (i < middleIndex) {
-              x = (canvasWidth / 2) - (distanceFromMiddle * sliceWidth);
-            } else {
               x = (canvasWidth / 2) + ((i - middleIndex) * sliceWidth);
+            } else {
+              x = (canvasWidth / 2) + (i - middleIndex) * sliceWidth;
             }
           }
           
           // Calculate Y position with some oscillation
           const oscSpeed = isEncoding ? 400 : 500;
-          const oscillationAmplitude = isEncoding ? 40 : 20; // Reduced from 80 to 40 for encoding
-          const oscillation = Math.sin((i / 10) + (timestamp / oscSpeed)) * oscillationAmplitude;
+          const oscillationAmplitude = isEncoding ? 40 : 20;
+          // Adjust oscillation phase based on distance from center for middle animation
+          const oscillationPhase = animationStart === 'middle' 
+            ? ((Math.abs(x - canvasWidth / 2) / (canvasWidth / 2)) * Math.PI + (timestamp / oscSpeed))
+            : ((i / 10) + (timestamp / oscSpeed));
+          const oscillation = Math.sin(oscillationPhase) * oscillationAmplitude;
           
           // Apply inversion effect if enabled
           const direction = settings.showReversed ? -1 : 1;
           // For encoding, move dots based on audio intensity but keep them closer to line
-          const audioOffset = isEncoding ? (normalizedValue * 50) : 0; // Reduced from 100 to 50
+          const audioOffset = isEncoding ? (normalizedValue * 50) : 0;
           const y = baseY + (direction * (oscillation + audioOffset) * normalizedValue);
           
           // Determine bubble color
@@ -343,7 +354,15 @@ export const drawBubblesAnimation = (
         
         for (let i = 0; i < dotCount; i++) {
           // Get data for this dot
-          const index = Math.floor(i * (bufferLength / dotCount));
+          let index;
+          if (animationStart === 'middle') {
+            // For middle start, reorder the indices to start from center
+            const middleIndex = Math.floor(dotCount / 2);
+            const distanceFromMiddle = Math.abs(i - middleIndex);
+            index = Math.floor(distanceFromMiddle * (bufferLength / dotCount));
+          } else {
+            index = Math.floor(i * (bufferLength / dotCount));
+          }
           const value = dataArray[index] * settings.sensitivity;
           const normalizedValue = value / 255;
           
@@ -362,23 +381,26 @@ export const drawBubblesAnimation = (
             y = canvasHeight - (i * sliceHeight);
           } else { // middle
             const middleIndex = dotCount / 2;
-            const distanceFromMiddle = Math.abs(i - middleIndex);
             if (i < middleIndex) {
-              y = (canvasHeight / 2) - (distanceFromMiddle * sliceHeight);
-            } else {
               y = (canvasHeight / 2) + ((i - middleIndex) * sliceHeight);
+            } else {
+              y = (canvasHeight / 2) + (i - middleIndex) * sliceHeight;
             }
           }
           
           // Calculate X position with some oscillation
           const oscSpeed = isEncoding ? 400 : 500;
-          const oscillationAmplitude = isEncoding ? 40 : 20; // Reduced from 80 to 40 for encoding
-          const oscillation = Math.sin((i / 10) + (timestamp / oscSpeed)) * oscillationAmplitude;
+          const oscillationAmplitude = isEncoding ? 40 : 20;
+          // Adjust oscillation phase based on distance from center for middle animation
+          const oscillationPhase = animationStart === 'middle' 
+            ? ((Math.abs(y - canvasHeight / 2) / (canvasHeight / 2)) * Math.PI + (timestamp / oscSpeed))
+            : ((i / 10) + (timestamp / oscSpeed));
+          const oscillation = Math.sin(oscillationPhase) * oscillationAmplitude;
           
           // Apply inversion effect if enabled
           const direction = settings.showReversed ? -1 : 1;
           // For encoding, move dots based on audio intensity but keep them closer to line
-          const audioOffset = isEncoding ? (normalizedValue * 50) : 0; // Reduced from 100 to 50
+          const audioOffset = isEncoding ? (normalizedValue * 50) : 0;
           const x = baseX + (direction * (oscillation + audioOffset) * normalizedValue);
           
           // Determine bubble color
