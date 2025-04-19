@@ -217,12 +217,20 @@ export const drawBubblesAnimation = (
                 x = (canvasWidth / 2) + ((i - middleIndex) * baselineSpacing);
               }
             }
+
+            // Get the nearest audio data point to check if this baseline dot should be visible
+            const nearestDataIndex = Math.floor((i / baselineDotCount) * bufferLength);
+            const audioValue = dataArray[nearestDataIndex] * settings.sensitivity;
+            const normalizedValue = audioValue / 255;
             
-            ctx.beginPath();
-            ctx.arc(x, baseY, baselineDotSize, 0, Math.PI * 2);
-            // Adjust opacity to better match preview
-            ctx.fillStyle = formatColorWithOpacity(settings.color, 0.7);
-            ctx.fill();
+            // Only draw baseline dot if there isn't significant audio activity
+            if (normalizedValue < 0.15) {
+              ctx.beginPath();
+              ctx.arc(x, baseY, baselineDotSize, 0, Math.PI * 2);
+              // Adjust opacity to better match preview
+              ctx.fillStyle = formatColorWithOpacity(settings.color, 0.7);
+              ctx.fill();
+            }
           }
         }
         
@@ -319,14 +327,18 @@ export const drawBubblesAnimation = (
       }
       
       settings.animationStart.forEach(animationStart => {
-        const sliceHeight = canvasHeight / dotCount;
+        // Use the same spacing as horizontal to maintain consistency
+        const spacing = canvasWidth / dotCount;
+        // Scale the spacing to fit the canvas height, with different scaling for preview vs encoding
+        const verticalSpacingMultiplier = isEncoding ? 1.5 : 2.0;
+        const sliceHeight = (canvasHeight / canvasWidth) * spacing * verticalSpacingMultiplier;
         
         // Draw a dotted baseline for vertical orientation if it's part of the preview effect
         if (isEncoding) {
           // Match the preview baseline dots more closely - smaller and more dots
           const baselineDotCount = 128; // Increase dot count to match preview density
           const baselineDotSize = isEncoding ? 6.0 : 2.5; // Increased significantly for encoding
-          const baselineSpacing = canvasHeight / baselineDotCount;
+          const baselineSpacing = (canvasHeight / canvasWidth) * (canvasWidth / baselineDotCount) * verticalSpacingMultiplier;
           
           for (let i = 0; i < baselineDotCount; i++) {
             let y;
@@ -344,11 +356,19 @@ export const drawBubblesAnimation = (
               }
             }
             
-            ctx.beginPath();
-            ctx.arc(baseX, y, baselineDotSize, 0, Math.PI * 2);
-            // Adjust opacity to better match preview
-            ctx.fillStyle = formatColorWithOpacity(settings.color, 0.7);
-            ctx.fill();
+            // Get the nearest audio data point to check if this baseline dot should be visible
+            const nearestDataIndex = Math.floor((i / baselineDotCount) * bufferLength);
+            const audioValue = dataArray[nearestDataIndex] * settings.sensitivity;
+            const normalizedValue = audioValue / 255;
+            
+            // Only draw baseline dot if there isn't significant audio activity
+            if (normalizedValue < 0.15) {
+              ctx.beginPath();
+              ctx.arc(baseX, y, baselineDotSize, 0, Math.PI * 2);
+              // Adjust opacity to better match preview
+              ctx.fillStyle = formatColorWithOpacity(settings.color, 0.7);
+              ctx.fill();
+            }
           }
         }
         
