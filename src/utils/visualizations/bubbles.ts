@@ -345,10 +345,10 @@ export const drawBubblesAnimation = (
       const baselineDotSize = isEncoding ? 6.0 : 2.5;
       const baselineSpacing = (canvasHeight / canvasWidth) * (canvasWidth / baselineDotCount) * verticalSpacingMultiplier;
 
-      // Create a map to track which positions should have dots and their audio activity
+      // Create a map to track which positions should have dots
       const dotPositions = new Map();
 
-      // First pass: calculate positions and audio activity for each animation start
+      // First pass: calculate positions for each animation start
       settings.animationStart.forEach(animationStart => {
         for (let i = 0; i < baselineDotCount; i++) {
           let y;
@@ -364,7 +364,6 @@ export const drawBubblesAnimation = (
             const middleIndex = baselineDotCount / 2;
             const distanceFromMiddle = Math.abs(i - middleIndex);
             y = (canvasHeight / 2) + (i < middleIndex ? -distanceFromMiddle : distanceFromMiddle) * baselineSpacing;
-            // For middle, use the distance from center for audio data
             dataIndex = distanceFromMiddle;
           }
           
@@ -376,18 +375,26 @@ export const drawBubblesAnimation = (
           const audioValue = dataArray[nearestDataIndex] * settings.sensitivity;
           const normalizedValue = audioValue / 255;
 
-          // If this position already exists in the map, update its visibility
-          if (dotPositions.has(y)) {
-            const currentAudioActivity = dotPositions.get(y);
-            // Only keep the dot visible if both animation starts have low audio activity
-            dotPositions.set(y, currentAudioActivity && normalizedValue < 0.15);
-          } else {
-            // For new positions, set initial visibility based on audio activity
+          // Store the position and its audio activity
+          if (!dotPositions.has(y)) {
             dotPositions.set(y, normalizedValue < 0.15);
+          } else {
+            // If position already exists, keep it visible if both states have low audio activity
+            dotPositions.set(y, dotPositions.get(y) && normalizedValue < 0.15);
           }
         }
       });
 
+      // Draw dots at all calculated positions
+      for (const [y, shouldShow] of dotPositions) {
+        if (shouldShow) {
+          ctx.beginPath();
+          ctx.arc(baseX, y, baselineDotSize, 0, Math.PI * 2);
+          ctx.fillStyle = formatColorWithOpacity(settings.color, isEncoding ? 0.85 : 0.7);
+          ctx.fill();
+        }
+      }
+      
       // Draw animated bubbles for each animation start
       settings.animationStart.forEach(animationStart => {
         const spacing = canvasWidth / dotCount;
@@ -420,6 +427,9 @@ export const drawBubblesAnimation = (
                 y = (canvasHeight / 2) + ((i - middleIndex) * sliceHeight);
               }
             }
+
+            // Round y to avoid floating point precision issues
+            y = Math.round(y * 100) / 100;
 
             // Calculate X position with oscillation
             const oscSpeed = isEncoding ? 400 : 500;
@@ -461,24 +471,23 @@ export const drawBubblesAnimation = (
               ctx.shadowBlur = 0;
             }
 
-            // Mark this position as having active audio
-            const roundedY = Math.round(y * 100) / 100;
-            if (dotPositions.has(roundedY)) {
-              dotPositions.set(roundedY, false);
+            // Update dot visibility for this position
+            if (dotPositions.has(y)) {
+              dotPositions.set(y, false);
             }
           }
         }
       });
 
-      // Redraw dots at all calculated positions
+      // Redraw dots after bubble processing
       for (const [y, shouldShow] of dotPositions) {
         if (shouldShow) {
           ctx.beginPath();
           ctx.arc(baseX, y, baselineDotSize, 0, Math.PI * 2);
-          ctx.fillStyle = formatColorWithOpacity(settings.color, 0.7);
+          ctx.fillStyle = formatColorWithOpacity(settings.color, isEncoding ? 0.85 : 0.7);
           ctx.fill();
         }
       }
     }
   });
-}; 
+};
