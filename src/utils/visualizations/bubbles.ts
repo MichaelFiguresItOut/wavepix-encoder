@@ -15,7 +15,7 @@ export const drawBubblesAnimation = (
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
   const currentRainbowSpeed = settings.rainbowSpeed || 1.0;
-  const dotCount = 128; // Number of dots to display
+  const dotCount = 128; // Number of dots to display // Default/Horizontal
   
   // Detect if we're in encoding mode based on canvas dimensions
   const isEncoding = canvas.width >= 1280; // Most encoding resolutions start at 1280x720
@@ -181,6 +181,10 @@ export const drawBubblesAnimation = (
   // Original bar-based bubbles visualization
   // Process each bar placement option
   settings.barPlacement.forEach(placement => {
+    // --- Define constants used by both orientations ---
+    const baselineDotCountHorizontal = 128;
+    const targetSpacing = canvasWidth / baselineDotCountHorizontal; // Use horizontal spacing as the target
+    
     if (settings.horizontalOrientation) {
       // Calculate the base Y position based on placement
       let baseY;
@@ -193,9 +197,9 @@ export const drawBubblesAnimation = (
       }
 
       // Draw baseline dots for each animation start
-      const baselineDotCount = 128;
+      const baselineDotCount = baselineDotCountHorizontal; // Use specific name
       const baselineDotSize = isEncoding ? 6.0 : 2.5;
-      const baselineSpacing = canvasWidth / baselineDotCount;
+      const baselineSpacing = targetSpacing; // Use calculated targetSpacing
 
       // Create a map to track which positions should have dots and their audio activity
       const dotPositions = new Map();
@@ -252,16 +256,17 @@ export const drawBubblesAnimation = (
       
       // Draw animated bubbles for each animation start
       settings.animationStart.forEach(animationStart => {
-        const sliceWidth = canvasWidth / dotCount;
+        const sliceWidth = targetSpacing; // Use targetSpacing
+        const currentDotCount = baselineDotCountHorizontal; // Use specific name
         
-        for (let i = 0; i < dotCount; i++) {
+        for (let i = 0; i < currentDotCount; i++) {
           let index;
           if (animationStart === 'middle') {
-            const middleIndex = Math.floor(dotCount / 2);
+            const middleIndex = Math.floor(currentDotCount / 2);
             const distanceFromMiddle = Math.abs(i - middleIndex);
-            index = Math.floor(distanceFromMiddle * (bufferLength / dotCount));
+            index = Math.floor(distanceFromMiddle * (bufferLength / currentDotCount));
           } else {
-            index = Math.floor(i * (bufferLength / dotCount));
+            index = Math.floor(i * (bufferLength / currentDotCount));
           }
           const value = dataArray[index] * settings.sensitivity;
           const normalizedValue = value / 255;
@@ -274,7 +279,7 @@ export const drawBubblesAnimation = (
             } else if (animationStart === 'end') {
               x = canvasWidth - (i * sliceWidth);
             } else { // middle
-              const middleIndex = dotCount / 2;
+              const middleIndex = currentDotCount / 2;
               if (i < middleIndex) {
                 x = (canvasWidth / 2) - ((middleIndex - i) * sliceWidth);
               } else {
@@ -321,9 +326,24 @@ export const drawBubblesAnimation = (
               ctx.fill();
               ctx.shadowBlur = 0;
             }
+            
+            // Update dot visibility for this position
+            if (dotPositions.has(x)) {
+              dotPositions.set(x, false);
+            }
           }
         }
       });
+      
+      // Redraw dots after bubble processing
+      for (const [x, shouldShow] of dotPositions) {
+        if (shouldShow) {
+          ctx.beginPath();
+          ctx.arc(x, baseY, baselineDotSize, 0, Math.PI * 2);
+          ctx.fillStyle = formatColorWithOpacity(settings.color, 0.7);
+          ctx.fill();
+        }
+      }
     }
     
     if (settings.verticalOrientation) {
@@ -333,122 +353,151 @@ export const drawBubblesAnimation = (
         baseX = canvasWidth * 0.8;
       } else if (placement === 'middle') {
         baseX = canvasWidth / 2;
-      } else {
+      } else { // top
         baseX = canvasWidth * 0.2;
       }
 
-      // Set spacing multiplier for vertical orientation
-      const verticalSpacingMultiplier = isEncoding ? 1.5 : 2.0;
+      // --- START REFACTOR for consistent visual spacing and bug fix ---
+      
+      // 1. Calculate Vertical Dot Count based on fitting targetSpacing within canvasHeight
+      const baselineDotCountVertical = Math.max(1, Math.floor(canvasHeight / targetSpacing));
+      const baselineDotSize = isEncoding ? 6.0 : 2.5; // Match horizontal size
 
-      // Draw baseline dots for each animation start
-      const baselineDotCount = 128;
-      const baselineDotSize = isEncoding ? 6.0 : 2.5;
-      const baselineSpacing = (canvasHeight / canvasWidth) * (canvasWidth / baselineDotCount) * verticalSpacingMultiplier;
+      // 2. Determine vertical center based on placement
+      let centerY;
+      if (placement === 'bottom') {
+        centerY = canvasHeight * 0.8;
+      } else if (placement === 'middle') {
+        centerY = canvasHeight / 2;
+      } else { // top
+        centerY = canvasHeight * 0.2;
+      }
+      
+      // 3. Calculate total visual length and starting Y coordinate using VERTICAL count
+      const totalVisualLength = baselineDotCountVertical * targetSpacing; 
+      const startY = centerY - totalVisualLength / 2;
 
-      // Create a map to track which positions should have dots
-      const dotPositions = new Map();
+      // 4. Use logical index (0 to baselineDotCountVertical-1) as key in the map
+      const dotPositions = new Map<number, boolean>(); // Key: logicalIndex, Value: isVisible
 
-      // First pass: calculate positions for each animation start
+      // 5. First pass: Calculate visibility based on logical index
       settings.animationStart.forEach(animationStart => {
-        for (let i = 0; i < baselineDotCount; i++) {
-          let y;
-          let dataIndex;
+        for (let i = 0; i < baselineDotCountVertical; i++) { // Use vertical count
+          let logicalIndex: number;
+          let dataIndex: number;
+          const middleIndexFloat = (baselineDotCountVertical - 1) / 2; // Use vertical count
 
           if (animationStart === 'beginning') {
-            y = i * baselineSpacing;
+            logicalIndex = i;
             dataIndex = i;
           } else if (animationStart === 'end') {
-            y = canvasHeight - (i * baselineSpacing);
-            dataIndex = i;
+            logicalIndex = baselineDotCountVertical - 1 - i; // Use vertical count
+            dataIndex = i; // Data still read from 0..i for 'end'
           } else { // middle
-            const middleIndex = baselineDotCount / 2;
-            const distanceFromMiddle = Math.abs(i - middleIndex);
-            y = (canvasHeight / 2) + (i < middleIndex ? -distanceFromMiddle : distanceFromMiddle) * baselineSpacing;
-            dataIndex = distanceFromMiddle;
+             const distanceFromMiddle = Math.abs(i - middleIndexFloat);
+             // Map i to logicalIndex based on distance from center point
+             logicalIndex = Math.floor(middleIndexFloat + (i < middleIndexFloat ? -distanceFromMiddle : distanceFromMiddle));
+             // Ensure logicalIndex stays within bounds [0, baselineDotCountVertical-1]
+             logicalIndex = Math.max(0, Math.min(baselineDotCountVertical - 1, logicalIndex)); // Use vertical count
+             dataIndex = Math.floor(distanceFromMiddle); // Audio data based on distance
           }
           
-          // Round y to avoid floating point precision issues
-          y = Math.round(y * 100) / 100;
-          
+          // Ensure logicalIndex is an integer
+          logicalIndex = Math.round(logicalIndex);
+          if (logicalIndex < 0 || logicalIndex >= baselineDotCountVertical) continue; // Skip if index is out of bounds (use vertical count)
+
           // Get audio data for this position
-          const nearestDataIndex = Math.floor((dataIndex / baselineDotCount) * bufferLength);
-          const audioValue = dataArray[nearestDataIndex] * settings.sensitivity;
+          // Ensure dataIndex is within valid range for dataArray access
+          const safeDataIndex = Math.max(0, Math.min(bufferLength - 1, Math.floor((dataIndex / baselineDotCountVertical) * bufferLength))); // Use vertical count
+          const audioValue = dataArray[safeDataIndex] * settings.sensitivity;
           const normalizedValue = audioValue / 255;
 
-          // Store the position and its audio activity
-          if (!dotPositions.has(y)) {
-            dotPositions.set(y, normalizedValue < 0.15);
+          // Update visibility map using logicalIndex as key
+          if (dotPositions.has(logicalIndex)) {
+            const currentVisibility = dotPositions.get(logicalIndex);
+            dotPositions.set(logicalIndex, currentVisibility && normalizedValue < 0.15);
           } else {
-            // If position already exists, keep it visible if both states have low audio activity
-            dotPositions.set(y, dotPositions.get(y) && normalizedValue < 0.15);
+            dotPositions.set(logicalIndex, normalizedValue < 0.15);
           }
         }
       });
 
-      // Draw dots at all calculated positions
-      for (const [y, shouldShow] of dotPositions) {
+      // 6. Initial Draw: Draw baseline dots based on logical index and target spacing
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+      ctx.globalAlpha = 1.0;
+
+      for (const [logicalIndex, shouldShow] of dotPositions) {
         if (shouldShow) {
+          const y = startY + logicalIndex * targetSpacing; // Calculate Y based on index and target spacing
           ctx.beginPath();
           ctx.arc(baseX, y, baselineDotSize, 0, Math.PI * 2);
-          ctx.fillStyle = formatColorWithOpacity(settings.color, isEncoding ? 0.85 : 0.7);
+          ctx.fillStyle = formatColorWithOpacity(settings.color, 0.7);
           ctx.fill();
         }
       }
       
+      // --- END REFACTOR ---
+      
       // Draw animated bubbles for each animation start
       settings.animationStart.forEach(animationStart => {
-        const spacing = canvasWidth / dotCount;
-        const sliceHeight = (canvasHeight / canvasWidth) * spacing * verticalSpacingMultiplier;
+        // Use targetSpacing for sliceHeight equivalent
+        const sliceHeight = targetSpacing; 
+        const currentDotCount = baselineDotCountVertical; // Use vertical count for bubbles too
         
-        for (let i = 0; i < dotCount; i++) {
-          let index;
-          if (animationStart === 'middle') {
-            const middleIndex = Math.floor(dotCount / 2);
-            const distanceFromMiddle = Math.abs(i - middleIndex);
-            index = Math.floor(distanceFromMiddle * (bufferLength / dotCount));
-          } else {
-            index = Math.floor(i * (bufferLength / dotCount));
+        for (let i = 0; i < currentDotCount; i++) { 
+          let logicalIndex: number;
+          let dataIndex: number;
+          const middleIndexFloat = (currentDotCount - 1) / 2; 
+
+          // Determine logicalIndex and dataIndex for the bubble based on animationStart
+          if (animationStart === 'beginning') {
+            logicalIndex = i;
+            dataIndex = i;
+          } else if (animationStart === 'end') {
+             logicalIndex = currentDotCount - 1 - i;
+             dataIndex = i;
+          } else { // middle
+             const distanceFromMiddle = Math.abs(i - middleIndexFloat);
+             logicalIndex = Math.floor(middleIndexFloat + (i < middleIndexFloat ? -distanceFromMiddle : distanceFromMiddle));
+             logicalIndex = Math.max(0, Math.min(currentDotCount - 1, logicalIndex));
+             dataIndex = Math.floor(distanceFromMiddle);
           }
-          const value = dataArray[index] * settings.sensitivity;
+          logicalIndex = Math.round(logicalIndex);
+          if (logicalIndex < 0 || logicalIndex >= currentDotCount) continue;
+
+          // Use dataIndex to get audio value
+          const safeDataIndex = Math.max(0, Math.min(bufferLength - 1, Math.floor((dataIndex / currentDotCount) * bufferLength)));
+          const value = dataArray[safeDataIndex] * settings.sensitivity;
           const normalizedValue = value / 255;
 
           // Only draw bubbles when there's significant audio activity
           if (normalizedValue >= 0.15) {
-            let y;
-            if (animationStart === 'beginning') {
-              y = i * sliceHeight;
-            } else if (animationStart === 'end') {
-              y = canvasHeight - (i * sliceHeight);
-            } else { // middle
-              const middleIndex = dotCount / 2;
-              if (i < middleIndex) {
-                y = (canvasHeight / 2) - ((middleIndex - i) * sliceHeight);
-              } else {
-                y = (canvasHeight / 2) + ((i - middleIndex) * sliceHeight);
-              }
-            }
+            // Calculate bubble's base Y position using logicalIndex and targetSpacing
+            const baseY = startY + logicalIndex * sliceHeight; // Use sliceHeight (== targetSpacing)
 
-            // Round y to avoid floating point precision issues
-            y = Math.round(y * 100) / 100;
-
-            // Calculate X position with oscillation
+            // Calculate X position with oscillation (same as before, but using baseY)
             const oscSpeed = isEncoding ? 400 : 500;
             const oscillationAmplitude = isEncoding ? 40 : 20;
+             // Oscillation phase calculation might need review based on logicalIndex? Let's keep original for now.
             const oscillationPhase = animationStart === 'middle' 
-              ? ((Math.abs(y - canvasHeight / 2) / (canvasHeight / 2)) * Math.PI + (timestamp / oscSpeed))
-              : ((i / 10) + (timestamp / oscSpeed));
+              ? ((Math.abs(baseY - centerY) / (totalVisualLength / 2)) * Math.PI + (timestamp / oscSpeed)) 
+              : ((i / 10) + (timestamp / oscSpeed)); // Original phase used 'i' directly, might need adjustment
             const oscillation = Math.sin(oscillationPhase) * oscillationAmplitude;
             
             const direction = settings.showReversed ? -1 : 1;
             const audioOffset = isEncoding ? (normalizedValue * 50) : 0;
-            const x = baseX + (direction * (oscillation + audioOffset) * normalizedValue);
+            // Bubble X position calculation remains relative to baseX
+            const bubbleX = baseX + (direction * (oscillation + audioOffset) * normalizedValue); 
+            // Bubble Y position is the calculated baseY (no Y oscillation needed for vertical bubbles off line)
+            const bubbleY = baseY; 
 
-            // Calculate bubble size
+            // Calculate bubble size (same as before)
             const baseSizeMultiplier = Math.min(canvasWidth, canvasHeight) * (isEncoding ? 0.018 : 0.018);
             const amplifiedValue = Math.pow(normalizedValue, 0.8) * (1 + settings.sensitivity * 0.5);
             const bubbleSize = Math.max(3, amplifiedValue * baseSizeMultiplier);
 
-            // Determine bubble color
+            // Determine bubble color (same as before)
             let bubbleFillStyle;
             if (settings.showRainbow) {
                 const hue = (normalizedValue * 120) + ((timestamp / 50 * currentRainbowSpeed) % 360);
@@ -457,37 +506,50 @@ export const drawBubblesAnimation = (
                 bubbleFillStyle = settings.color;
             }
 
-            // Draw the bubble
+            // Reset context state before drawing bubble
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+            ctx.globalAlpha = 1.0;
+            
+            // Draw the bubble at (bubbleX, bubbleY)
             ctx.beginPath();
-            ctx.arc(x, y, bubbleSize, 0, Math.PI * 2);
+            ctx.arc(bubbleX, bubbleY, bubbleSize, 0, Math.PI * 2);
             ctx.fillStyle = bubbleFillStyle;
             ctx.fill();
 
-            // Add glow effect
+            // Add glow effect (same as before)
             if (bubbleSize > baseSizeMultiplier * 0.3) {
               ctx.shadowBlur = isEncoding ? bubbleSize * 1.2 : bubbleSize * 1.2;
               ctx.shadowColor = bubbleFillStyle;
               ctx.fill();
               ctx.shadowBlur = 0;
+              ctx.shadowColor = 'transparent';
             }
 
-            // Update dot visibility for this position
-            if (dotPositions.has(y)) {
-              dotPositions.set(y, false);
-            }
+            // Update visibility map using the bubble's logicalIndex
+             if (dotPositions.has(logicalIndex)) {
+               dotPositions.set(logicalIndex, false); // Hide dot if bubble is drawn
+             }
           }
         }
-      });
-
-      // Redraw dots after bubble processing
-      for (const [y, shouldShow] of dotPositions) {
-        if (shouldShow) {
-          ctx.beginPath();
-          ctx.arc(baseX, y, baselineDotSize, 0, Math.PI * 2);
-          ctx.fillStyle = formatColorWithOpacity(settings.color, isEncoding ? 0.85 : 0.7);
-          ctx.fill();
+        
+        // --- REFACTOR: Final redraw of remaining baseline dots ---
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+        ctx.globalAlpha = 1.0;
+        
+        // Redraw dots that weren't covered by bubbles using logicalIndex
+        for (const [logicalIndex, shouldShow] of dotPositions) {
+          if (shouldShow) {
+             const y = startY + logicalIndex * targetSpacing; // Calculate Y coordinate
+            ctx.beginPath();
+            ctx.arc(baseX, y, baselineDotSize, 0, Math.PI * 2);
+            ctx.fillStyle = formatColorWithOpacity(settings.color, 0.7);
+            ctx.fill();
+          }
         }
-      }
+        // --- END REFACTOR ---
+      }); // End of settings.animationStart.forEach for bubbles
     }
   });
 };
